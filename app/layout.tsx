@@ -16,9 +16,8 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "v0 | Nano Banana Starter",
-  description: "Created with v0",
-  generator: "v0.app",
+  title: "Nano Banana Starter",
+  description: "AI-powered image generation and editing",
 }
 
 export default function RootLayout({

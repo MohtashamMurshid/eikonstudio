@@ -3,19 +3,19 @@ import { GoogleGenAI } from "@google/genai"
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("[v0] API: Starting image generation request")
+    console.log("API: Starting image generation request")
 
     const formData = await request.formData()
     const mode = formData.get("mode") as string
     const prompt = formData.get("prompt") as string
     const aspectRatio = formData.get("aspectRatio") as string
 
-    console.log("[v0] API: Mode:", mode)
-    console.log("[v0] API: Prompt:", prompt)
-    console.log("[v0] API: Aspect Ratio:", aspectRatio)
+    console.log("API: Mode:", mode)
+    console.log("API: Prompt:", prompt)
+    console.log("API: Aspect Ratio:", aspectRatio)
 
     if (!mode || !prompt) {
-      console.log("[v0] API: Missing required fields")
+      console.log("API: Missing required fields")
       return NextResponse.json({ error: "Mode and prompt are required" }, { status: 400 })
     }
 
@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
     let resultDescription: string = ""
 
     if (mode === "text-to-image") {
-      console.log("[v0] API: Using text-to-image mode")
-      console.log("[v0] API: Using aspect_ratio:", aspectRatioString)
+      console.log("API: Using text-to-image mode")
+      console.log("API: Using aspect_ratio:", aspectRatioString)
 
       const gen = await ai.models.generateImages({
         model: "imagen-3.0-generate-002",
@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
       }
       resultUrl = `data:image/png;base64,${first}`
     } else if (mode === "image-editing") {
-      console.log("[v0] API: Using image-editing mode")
-      console.log("[v0] API: Using aspect_ratio:", aspectRatioString)
+      console.log("API: Using image-editing mode")
+      console.log("API: Using aspect_ratio:", aspectRatioString)
 
       const image1 = formData.get("image1") as File
       const image2 = formData.get("image2") as File
@@ -75,11 +75,11 @@ export async function POST(request: NextRequest) {
       const hasImage2 = image2 || image2Url
 
       if (!hasImage1) {
-        console.log("[v0] API: Missing first image for editing mode")
+        console.log("API: Missing first image for editing mode")
         return NextResponse.json({ error: "At least one image is required for editing mode" }, { status: 400 })
       }
 
-      console.log("[v0] API: Converting images to base64")
+      console.log("API: Converting images to base64")
 
       const imageUrls: string[] = []
 
@@ -90,17 +90,17 @@ export async function POST(request: NextRequest) {
 
         if (image1Base64.length > 1500000) {
           console.log(
-            "[v0] API: WARNING - Image1 base64 is very large:",
+            "API: WARNING - Image1 base64 is very large:",
             image1Base64.length,
             "bytes. This may cause issues.",
           )
         }
 
         imageUrls.push(image1Base64)
-        console.log("[v0] API: Image1 base64 length:", image1Base64.length)
+        console.log("API: Image1 base64 length:", image1Base64.length)
       } else if (image1Url) {
         imageUrls.push(image1Url)
-        console.log("[v0] API: Using Image1 URL:", image1Url)
+        console.log("API: Using Image1 URL:", image1Url)
       }
 
       // Process second image if present
@@ -110,20 +110,20 @@ export async function POST(request: NextRequest) {
 
         if (image2Base64.length > 1500000) {
           console.log(
-            "[v0] API: WARNING - Image2 base64 is very large:",
+            "API: WARNING - Image2 base64 is very large:",
             image2Base64.length,
             "bytes. This may cause issues.",
           )
         }
 
         imageUrls.push(image2Base64)
-        console.log("[v0] API: Image2 base64 length:", image2Base64.length)
+        console.log("API: Image2 base64 length:", image2Base64.length)
       } else if (image2Url) {
         imageUrls.push(image2Url)
-        console.log("[v0] API: Using Image2 URL:", image2Url)
+        console.log("API: Using Image2 URL:", image2Url)
       }
 
-      console.log("[v0] API: Total images for editing:", imageUrls.length)
+      console.log("API: Total images for editing:", imageUrls.length)
 
       // Build image parts (inlineData) for Gemini image model
       const toInlinePart = async (urlOrData: string): Promise<any> => {
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
         try {
           imageParts.push(await toInlinePart(u))
         } catch (e) {
-          console.log("[v0] API: Skipping invalid image reference:", u)
+          console.log("API: Skipping invalid image reference:", u)
         }
       }
 
@@ -168,19 +168,19 @@ export async function POST(request: NextRequest) {
         throw new Error("No image returned from Google GenAI edit")
       }
     } else {
-      console.log("[v0] API: Invalid mode:", mode)
+      console.log("API: Invalid mode:", mode)
       return NextResponse.json({ error: "Invalid mode. Must be 'text-to-image' or 'image-editing'" }, { status: 400 })
     }
 
     if (!resultUrl) {
-      console.log("[v0] API: No images in response")
+      console.log("API: No images in response")
       throw new Error("No images generated")
     }
 
     const imageUrl = resultUrl
     const description = resultDescription
 
-    console.log("[v0] API: Generated image URL:", imageUrl)
+    console.log("API: Generated image URL:", imageUrl)
 
     return NextResponse.json({
       url: imageUrl,
@@ -188,25 +188,25 @@ export async function POST(request: NextRequest) {
       description: description,
     })
   } catch (error) {
-    console.error("[v0] API: Error generating image:", error)
-    console.error("[v0] API: Error type:", typeof error)
-    console.error("[v0] API: Error constructor:", error?.constructor?.name)
+    console.error("API: Error generating image:", error)
+    console.error("API: Error type:", typeof error)
+    console.error("API: Error constructor:", error?.constructor?.name)
 
     // Try to log the full error object structure
     try {
-      console.error("[v0] API: Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
+      console.error("API: Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
     } catch (e) {
-      console.error("[v0] API: Could not stringify error")
+      console.error("API: Could not stringify error")
     }
 
     // Log specific error properties
     if (error && typeof error === "object") {
-      console.error("[v0] API: Error keys:", Object.keys(error))
-      console.error("[v0] API: Error message:", (error as any).message)
-      console.error("[v0] API: Error status:", (error as any).status)
-      console.error("[v0] API: Error statusCode:", (error as any).statusCode)
-      console.error("[v0] API: Error body:", (error as any).body)
-      console.error("[v0] API: Error response:", (error as any).response)
+      console.error("API: Error keys:", Object.keys(error))
+      console.error("API: Error message:", (error as any).message)
+      console.error("API: Error status:", (error as any).status)
+      console.error("API: Error statusCode:", (error as any).statusCode)
+      console.error("API: Error body:", (error as any).body)
+      console.error("API: Error response:", (error as any).response)
     }
 
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"

@@ -170,11 +170,11 @@ export function ImageCombiner() {
   }
 
   useEffect(() => {
-    console.log("[v0] Component mounted, checking scroll behavior")
-    console.log("[v0] Document body height:", document.body.scrollHeight)
-    console.log("[v0] Window inner height:", window.innerHeight)
-    console.log("[v0] Document body overflow:", window.getComputedStyle(document.body).overflow)
-    console.log("[v0] Document html overflow:", window.getComputedStyle(document.documentElement).overflow)
+    console.log("Component mounted, checking scroll behavior")
+    console.log("Document body height:", document.body.scrollHeight)
+    console.log("Window inner height:", window.innerHeight)
+    console.log("Document body overflow:", window.getComputedStyle(document.body).overflow)
+    console.log("Document html overflow:", window.getComputedStyle(document.documentElement).overflow)
   }, [])
 
   useEffect(() => {
@@ -283,7 +283,7 @@ export function ImageCombiner() {
                 type: "image/jpeg", // Use JPEG for better compression
                 lastModified: Date.now(),
               })
-              console.log("[v0] Image compressed from", file.size, "to", blob.size, "bytes")
+              console.log("Image compressed from", file.size, "to", blob.size, "bytes")
               resolve(compressedFile)
             } else {
               resolve(file) // Fallback to original if compression fails
@@ -335,13 +335,13 @@ export function ImageCombiner() {
 
       return convertedFile
     } catch (error) {
-      console.error("[v0] HEIC conversion error:", error)
+      console.error("HEIC conversion error:", error)
       throw new Error("Could not convert HEIC image. Please try using a different image format.")
     }
   }
 
   const handleImageUpload = async (file: File, imageNumber: 1 | 2) => {
-    console.log("[v0] Uploading image:", file.name, "for position:", imageNumber)
+    console.log("Uploading image:", file.name, "for position:", imageNumber)
 
     if (!validateImageFormat(file)) {
       showToast("Please select a valid image file.", "error")
@@ -357,13 +357,13 @@ export function ImageCombiner() {
 
     if (isHeic) {
       try {
-        console.log("[v0] Converting HEIC image to JPEG...")
+        console.log("Converting HEIC image to JPEG...")
         setIsConvertingHeic(true)
         processedFile = await convertHeicToPng(file)
-        console.log("[v0] HEIC conversion successful")
+        console.log("HEIC conversion successful")
         setIsConvertingHeic(false)
       } catch (error) {
-        console.error("[v0] Error converting HEIC:", error)
+        console.error("Error converting HEIC:", error)
         setIsConvertingHeic(false)
         showToast("Error converting HEIC image. Please try a different format.", "error")
         return
@@ -371,31 +371,31 @@ export function ImageCombiner() {
     }
 
     try {
-      console.log("[v0] Compressing image for optimal API performance...")
+      console.log("Compressing image for optimal API performance...")
       processedFile = await compressImage(processedFile)
-      console.log("[v0] Image compression successful")
+      console.log("Image compression successful")
     } catch (error) {
-      console.error("[v0] Error compressing image:", error)
+      console.error("Error compressing image:", error)
       // Continue with uncompressed image if compression fails
     }
 
     const reader = new FileReader()
     reader.onload = (e) => {
       const result = e.target?.result as string
-      console.log("[v0] Image loaded successfully, setting preview for image", imageNumber)
+      console.log("Image loaded successfully, setting preview for image", imageNumber)
       if (imageNumber === 1) {
         setImage1(processedFile) // Use processed file instead of original
         setImage1Preview(result)
-        console.log("[v0] Image 1 preview set:", result.substring(0, 50) + "...")
+        console.log("Image 1 preview set:", result.substring(0, 50) + "...")
       }
       if (imageNumber === 2) {
         setImage2(processedFile) // Use processed file instead of original
         setImage2Preview(result)
-        console.log("[v0] Image 2 preview set:", result.substring(0, 50) + "...")
+        console.log("Image 2 preview set:", result.substring(0, 50) + "...")
       }
     }
     reader.onerror = (error) => {
-      console.error("[v0] Error reading file:", error)
+      console.error("Error reading file:", error)
       showToast("Error reading the image file. Please try again.", "error")
     }
     reader.readAsDataURL(processedFile) // Read processed file instead of original
@@ -404,31 +404,31 @@ export function ImageCombiner() {
   const handleDrop = (e: React.DragEvent, imageNumber: 1 | 2) => {
     e.preventDefault()
     setIsDragOver(false)
-    console.log("[v0] File dropped for image", imageNumber)
+    console.log("File dropped for image", imageNumber)
     const file = e.dataTransfer.files[0]
     if (file && file.type.startsWith("image/")) {
-      console.log("[v0] Valid image file dropped:", file.name)
+      console.log("Valid image file dropped:", file.name)
       handleImageUpload(file, imageNumber)
     } else {
-      console.log("[v0] Invalid file type or no file:", file?.type)
+      console.log("Invalid file type or no file:", file?.type)
       showToast("Please drop a valid image file", "error")
     }
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, imageNumber: 1 | 2) => {
-    console.log("[v0] File input changed for image", imageNumber)
+    console.log("File input changed for image", imageNumber)
     const file = e.target.files?.[0]
     if (file) {
-      console.log("[v0] File selected:", file.name, file.type)
+      console.log("File selected:", file.name, file.type)
       handleImageUpload(file, imageNumber)
       e.target.value = ""
     } else {
-      console.log("[v0] No file selected")
+      console.log("No file selected")
     }
   }
 
   const handleUrlChange = (url: string, imageNumber: 1 | 2) => {
-    console.log("[v0] URL changed for image", imageNumber, ":", url)
+    console.log("URL changed for image", imageNumber, ":", url)
     if (imageNumber === 1) {
       setImage1Url(url)
       setImage1Preview(url)
@@ -801,7 +801,7 @@ export function ImageCombiner() {
       <div className="relative z-10 p-2 md:p-6 w-full max-w-6xl mx-auto select-none">
         <div className="bg-black/70 backdrop-blur-sm border-0 p-3 md:p-8 rounded-xl">
           <div className="mb-4 md:mb-8">
-            <h1 className="text-lg md:text-2xl font-bold text-white select-none">v0 Nano Banana Starter</h1>
+            <h1 className="text-lg md:text-2xl font-bold text-white select-none">Nano Banana Starter</h1>
           </div>
 
           <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-12">
@@ -1334,12 +1334,12 @@ export function ImageCombiner() {
           <div className="mt-4 md:mt-8 pt-3 md:pt-6 border-t border-gray-600/50 select-none">
             <div className="flex items-center justify-center">
               <a
-                href="https://v0.app/templates/nano-banana-starter-eTc5ncilekt"
+                href="https://github.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs md:text-sm text-gray-400 hover:text-white transition-colors duration-200 flex items-center gap-2"
               >
-                <span>open in v0</span>
+                <span>View on GitHub</span>
                 <svg className="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
