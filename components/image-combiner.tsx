@@ -784,7 +784,7 @@ export function ImageCombiner() {
       <div className="fixed inset-0 z-0 select-none">
         <Dithering
           colorBack="#00000000"
-          colorFront="#614B00"
+          colorFront="#16a34a"
           speed={0.43}
           shape="wave"
           type="4x4"

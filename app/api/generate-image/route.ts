@@ -1,10 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { fal } from "@fal-ai/client"
-
-// Configure fal with API key
-fal.config({
-  credentials: process.env.FAL_KEY,
-})
+import { GoogleGenAI } from "@google/genai"
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,27 +34,33 @@ export async function POST(request: NextRequest) {
     }
 
     const aspectRatioString = getAspectRatioString(aspectRatio || "square")
+    
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
+    })
 
-    let result: any
+    let resultUrl: string | null = null
+    let resultDescription: string = ""
 
     if (mode === "text-to-image") {
       console.log("[v0] API: Using text-to-image mode")
       console.log("[v0] API: Using aspect_ratio:", aspectRatioString)
 
-      result = await fal.subscribe("fal-ai/nano-banana", {
-        input: {
-          prompt: prompt,
-          num_images: 1,
-          output_format: "png",
-          aspect_ratio: aspectRatioString,
-        },
-        logs: true,
-        onQueueUpdate: (update) => {
-          if (update.status === "IN_PROGRESS") {
-            update.logs?.map((log) => log.message).forEach(console.log)
-          }
+      const gen = await ai.models.generateImages({
+        model: "imagen-3.0-generate-002",
+        prompt,
+        config: {
+          numberOfImages: 1,
+          outputMimeType: "image/png",
+          aspectRatio: aspectRatioString,
         },
       })
+
+      const first = gen.generatedImages?.[0]?.image?.imageBytes
+      if (!first) {
+        throw new Error("No image bytes returned from Google GenAI")
+      }
+      resultUrl = `data:image/png;base64,${first}`
     } else if (mode === "image-editing") {
       console.log("[v0] API: Using image-editing mode")
       console.log("[v0] API: Using aspect_ratio:", aspectRatioString)
@@ -124,57 +125,62 @@ export async function POST(request: NextRequest) {
 
       console.log("[v0] API: Total images for editing:", imageUrls.length)
 
-      let retries = 2
-      let lastError: any = null
+      // Build image parts (inlineData) for Gemini image model
+      const toInlinePart = async (urlOrData: string): Promise<any> => {
+        if (urlOrData.startsWith("data:")) {
+          const [meta, base64Data] = urlOrData.split(",", 2)
+          const mime = meta.substring(5, meta.indexOf(";")) || "image/png"
+          return { inlineData: { data: base64Data, mimeType: mime } }
+        }
+        const resp = await fetch(urlOrData)
+        if (!resp.ok) throw new Error("Failed to fetch reference image")
+        const buf = Buffer.from(await resp.arrayBuffer())
+        const b64 = buf.toString("base64")
+        // best guess: default to png
+        return { inlineData: { data: b64, mimeType: resp.headers.get("content-type") || "image/png" } }
+      }
 
-      while (retries >= 0) {
+      const imageParts = [] as any[]
+      for (const u of imageUrls) {
         try {
-          result = await fal.subscribe("fal-ai/nano-banana/edit", {
-            input: {
-              prompt: prompt,
-              image_urls: imageUrls,
-              output_format: "png",
-              aspect_ratio: aspectRatioString,
-            },
-            logs: true,
-            onQueueUpdate: (update) => {
-              if (update.status === "IN_PROGRESS") {
-                update.logs?.map((log) => log.message).forEach(console.log)
-              }
-            },
-          })
-          break // Success, exit retry loop
-        } catch (error) {
-          lastError = error
-          retries--
-          if (retries >= 0) {
-            console.log(`[v0] API: Request failed, retrying... (${retries} retries left)`)
-            await new Promise((resolve) => setTimeout(resolve, 1000)) // Wait 1 second before retry
-          }
+          imageParts.push(await toInlinePart(u))
+        } catch (e) {
+          console.log("[v0] API: Skipping invalid image reference:", u)
         }
       }
 
-      if (retries < 0 && lastError) {
-        throw lastError // All retries failed, throw the last error
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-image-preview",
+        contents: [...imageParts, prompt],
+      })
+
+      // Extract first inline image from response
+      const parts = response?.candidates?.[0]?.content?.parts || []
+      for (const part of parts) {
+        if (part?.inlineData?.data) {
+          const mime = part.inlineData.mimeType || "image/png"
+          resultUrl = `data:${mime};base64,${part.inlineData.data}`
+          break
+        }
+      }
+
+      if (!resultUrl) {
+        throw new Error("No image returned from Google GenAI edit")
       }
     } else {
       console.log("[v0] API: Invalid mode:", mode)
       return NextResponse.json({ error: "Invalid mode. Must be 'text-to-image' or 'image-editing'" }, { status: 400 })
     }
 
-    console.log("[v0] API: Fal response received")
-    console.log("[v0] API: Result data:", JSON.stringify(result.data, null, 2))
-
-    if (!result.data || !result.data.images || result.data.images.length === 0) {
+    if (!resultUrl) {
       console.log("[v0] API: No images in response")
       throw new Error("No images generated")
     }
 
-    const imageUrl = result.data.images[0].url
-    const description = result.data.description || ""
+    const imageUrl = resultUrl
+    const description = resultDescription
 
     console.log("[v0] API: Generated image URL:", imageUrl)
-    console.log("[v0] API: AI Description:", description)
 
     return NextResponse.json({
       url: imageUrl,
