@@ -1352,7 +1352,7 @@ export function ImageCombiner() {
           <div className="mt-4 md:mt-8 pt-3 md:pt-6 border-t border-gray-600/50 select-none">
             <div className="flex items-center justify-center">
               <a
-                href="https://github.com"
+                href="https://github.com/mohtashammurshid"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs md:text-sm text-gray-400 hover:text-white transition-colors duration-200 flex items-center gap-2"
