@@ -129,6 +129,7 @@ export function ImageCombiner() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
   const [showFullscreen, setShowFullscreen] = useState(false)
   const [aspectRatio, setAspectRatio] = useState<string>("square")
+  const [imageSize, setImageSize] = useState<string>("2K")
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ message, type })
@@ -503,6 +504,7 @@ export function ImageCombiner() {
       formData.append("mode", currentMode)
       formData.append("prompt", prompt)
       formData.append("aspectRatio", aspectRatio)
+      formData.append("imageSize", imageSize)
 
       if (currentMode === "image-editing") {
         if (useUrls) {
@@ -836,6 +838,22 @@ export function ImageCombiner() {
                       </SelectItem>
                       <SelectItem value="wide" className="text-xs md:text-sm">
                         21:9
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={imageSize} onValueChange={setImageSize}>
+                    <SelectTrigger className="w-16 sm:w-20 md:w-24 bg-black/50 border-gray-600 text-white text-xs md:text-sm h-[26px] md:h-[34px] whitespace-nowrap flex items-center">
+                      <SelectValue placeholder="2K" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-black/95 border-gray-600 text-white">
+                      <SelectItem value="1K" className="text-xs md:text-sm">
+                        1K
+                      </SelectItem>
+                      <SelectItem value="2K" className="text-xs md:text-sm">
+                        2K
+                      </SelectItem>
+                      <SelectItem value="4K" className="text-xs md:text-sm">
+                        4K
                       </SelectItem>
                     </SelectContent>
                   </Select>

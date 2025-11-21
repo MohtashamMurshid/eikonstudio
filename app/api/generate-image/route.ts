@@ -9,10 +9,12 @@ export async function POST(request: NextRequest) {
     const mode = formData.get("mode") as string
     const prompt = formData.get("prompt") as string
     const aspectRatio = formData.get("aspectRatio") as string
+    const imageSize = (formData.get("imageSize") as string) || "2K"
 
     console.log("API: Mode:", mode)
     console.log("API: Prompt:", prompt)
     console.log("API: Aspect Ratio:", aspectRatio)
+    console.log("API: Image Size:", imageSize)
 
     if (!mode || !prompt) {
       console.log("API: Missing required fields")
@@ -43,24 +45,49 @@ export async function POST(request: NextRequest) {
     let resultDescription: string = ""
 
     if (mode === "text-to-image") {
-      console.log("API: Using text-to-image mode")
+      console.log("API: Using text-to-image mode with Nano Banana Pro (Gemini 3 Pro Image)")
       console.log("API: Using aspect_ratio:", aspectRatioString)
 
-      const gen = await ai.models.generateImages({
-        model: "imagen-3.0-generate-002",
-        prompt,
+      // Using Nano Banana Pro (Gemini 3 Pro Image Preview)
+      const response = await ai.models.generateContent({
+        model: "gemini-3-pro-image-preview",
+        contents: {
+          parts: [
+            {
+              text: prompt,
+            },
+          ],
+        },
         config: {
-          numberOfImages: 1,
-          outputMimeType: "image/png",
-          aspectRatio: aspectRatioString,
+          imageConfig: {
+            aspectRatio: aspectRatioString,
+            imageSize: imageSize, // 1K, 2K, or 4K
+          } as any, // Type assertion needed as types may not be fully updated for Nano Banana Pro
         },
       })
 
-      const first = gen.generatedImages?.[0]?.image?.imageBytes
-      if (!first) {
-        throw new Error("No image bytes returned from Google GenAI")
+      if (!response.candidates || response.candidates.length === 0) {
+        throw new Error("No candidates returned from Gemini 3 Pro Image")
       }
-      resultUrl = `data:image/png;base64,${first}`
+
+      const content = response.candidates[0].content
+      if (!content || !content.parts) {
+        throw new Error("No content parts found in response")
+      }
+
+      // Iterate through parts to find the image (inlineData)
+      for (const part of content.parts) {
+        if (part.inlineData && part.inlineData.data) {
+          const base64Data = part.inlineData.data
+          const mimeType = part.inlineData.mimeType || "image/png"
+          resultUrl = `data:${mimeType};base64,${base64Data}`
+          break
+        }
+      }
+
+      if (!resultUrl) {
+        throw new Error("No image data found in response parts")
+      }
     } else if (mode === "image-editing") {
       console.log("API: Using image-editing mode")
       console.log("API: Using aspect_ratio:", aspectRatioString)
@@ -150,8 +177,15 @@ export async function POST(request: NextRequest) {
       }
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image-preview",
-        contents: [...imageParts, prompt],
+        model: "gemini-3-pro-image-preview",
+        contents: {
+          parts: [
+            ...imageParts,
+            {
+              text: prompt,
+            },
+          ],
+        },
       })
 
       // Extract first inline image from response
