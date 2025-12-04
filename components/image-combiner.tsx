@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Dithering } from "@paper-design/shaders-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface GeneratedImage {
   url: string
@@ -109,6 +109,24 @@ const randomPrompts = [
   "A magical bookstore where stories come alive and walk around",
 ]
 
+const predefinedArtStyles = [
+  "Fresco",
+  "Renaissance",
+  "Baroque",
+  "Impressionist",
+  "Cubist",
+  "Surrealist",
+  "Abstract",
+  "Realistic",
+  "Watercolor",
+  "Oil Painting",
+  "Digital Art",
+  "Minimalist",
+  "Expressionist",
+  "Pop Art",
+  "Art Nouveau",
+]
+
 export function ImageCombiner() {
   const [image1, setImage1] = useState<File | null>(null)
   const [image1Preview, setImage1Preview] = useState<string>("")
@@ -130,6 +148,30 @@ export function ImageCombiner() {
   const [showFullscreen, setShowFullscreen] = useState(false)
   const [aspectRatio, setAspectRatio] = useState<string>("square")
   const [imageSize, setImageSize] = useState<string>("2K")
+  const [apiKey, setApiKey] = useState<string>("")
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false)
+  const [selectedArtStyle, setSelectedArtStyle] = useState<string>("")
+  const [customArtStyles, setCustomArtStyles] = useState<string[]>([])
+  const [showCustomStyleInput, setShowCustomStyleInput] = useState(false)
+  const [customStyleInput, setCustomStyleInput] = useState<string>("")
+
+  // Load API key from localStorage on mount
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem("pixelforge_api_key")
+    if (savedApiKey) {
+      setApiKey(savedApiKey)
+    }
+  }, [])
+
+  // Save API key to localStorage whenever it changes
+  const handleApiKeyChange = (key: string) => {
+    setApiKey(key)
+    if (key) {
+      localStorage.setItem("pixelforge_api_key", key)
+    } else {
+      localStorage.removeItem("pixelforge_api_key")
+    }
+  }
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ message, type })
@@ -500,11 +542,23 @@ export function ImageCombiner() {
     }, 100)
 
     try {
+      // Append art style to prompt if selected
+      let finalPrompt = prompt
+      if (selectedArtStyle) {
+        const styleText = selectedArtStyle.toLowerCase().includes("style") 
+          ? selectedArtStyle 
+          : `${selectedArtStyle} style`
+        finalPrompt = `${prompt}, in ${styleText}`
+      }
+
       const formData = new FormData()
       formData.append("mode", currentMode)
-      formData.append("prompt", prompt)
+      formData.append("prompt", finalPrompt)
       formData.append("aspectRatio", aspectRatio)
       formData.append("imageSize", imageSize)
+      if (apiKey) {
+        formData.append("apiKey", apiKey)
+      }
 
       if (currentMode === "image-editing") {
         if (useUrls) {
@@ -566,7 +620,7 @@ export function ImageCombiner() {
         const url = window.URL.createObjectURL(blob)
         const link = document.createElement("a")
         link.href = url
-        link.download = `nano-banana-${currentMode}-result.png`
+        link.download = `pixelforge-${currentMode}-result.png`
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
@@ -714,6 +768,31 @@ export function ImageCombiner() {
     }
   }
 
+  const handleAddCustomStyle = () => {
+    const trimmedStyle = customStyleInput.trim()
+    if (trimmedStyle && !customArtStyles.includes(trimmedStyle) && !predefinedArtStyles.includes(trimmedStyle)) {
+      setCustomArtStyles([...customArtStyles, trimmedStyle])
+      setSelectedArtStyle(trimmedStyle)
+      setCustomStyleInput("")
+      setShowCustomStyleInput(false)
+      showToast(`Custom style "${trimmedStyle}" added`, "success")
+    } else if (trimmedStyle && (customArtStyles.includes(trimmedStyle) || predefinedArtStyles.includes(trimmedStyle))) {
+      showToast("This style already exists", "error")
+    }
+  }
+
+  const handleArtStyleChange = (value: string) => {
+    if (value === "custom") {
+      setShowCustomStyleInput(true)
+      setSelectedArtStyle("")
+    } else if (value === "none") {
+      setSelectedArtStyle("")
+    } else {
+      setSelectedArtStyle(value)
+      setShowCustomStyleInput(false)
+    }
+  }
+
   return (
     <div
       className="bg-background min-h-screen flex items-center justify-center select-none"
@@ -803,7 +882,93 @@ export function ImageCombiner() {
       <div className="relative z-10 p-2 md:p-6 w-full max-w-6xl mx-auto select-none">
         <div className="bg-black/70 backdrop-blur-sm border-0 p-3 md:p-8 rounded-xl">
           <div className="mb-4 md:mb-8">
-            <h1 className="text-lg md:text-2xl font-bold text-white select-none">Nano Banana Starter</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-lg md:text-2xl font-bold text-white select-none flex items-center gap-2">
+                <svg className="w-5 h-5 md:w-7 md:h-7 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                  <path d="M21 15l-5-5L5 21" />
+                </svg>
+                PixelForge
+              </h1>
+              <button
+                onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all",
+                  apiKey
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30"
+                    : "bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30"
+                )}
+              >
+                <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+                <span className="hidden sm:inline">{apiKey ? "API Key Set" : "Add API Key"}</span>
+              </button>
+            </div>
+            
+            {/* API Key Input Section */}
+            {showApiKeyInput && (
+              <div className="mt-4 p-3 md:p-4 bg-black/50 border border-gray-600 rounded-lg animate-in slide-in-from-top-2 duration-200">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <h3 className="text-sm md:text-base font-semibold text-white mb-1">Google Gemini API Key</h3>
+                    <p className="text-xs text-gray-400">
+                      Get your free API key from{" "}
+                      <a
+                        href="https://aistudio.google.com/app/apikey"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-emerald-400 hover:text-emerald-300 underline"
+                      >
+                        Google AI Studio
+                      </a>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowApiKeyInput(false)}
+                    className="text-gray-400 hover:text-white transition-colors p-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => handleApiKeyChange(e.target.value)}
+                    placeholder="Enter your Google Gemini API key..."
+                    className="w-full p-2.5 md:p-3 pr-20 bg-black/50 border border-gray-600 text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded select-text font-mono"
+                  />
+                  {apiKey && (
+                    <button
+                      onClick={() => handleApiKeyChange("")}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs px-2 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {apiKey && (
+                  <p className="mt-2 text-xs text-emerald-400 flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    API key saved locally in your browser
+                  </p>
+                )}
+                {!apiKey && (
+                  <p className="mt-2 text-xs text-amber-400 flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    No API key set - using server default (may have rate limits)
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-12">
@@ -891,6 +1056,98 @@ export function ImageCombiner() {
                     Random
                   </Button>
                 </div>
+                
+                {/* Art Style Selector */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Select value={selectedArtStyle || "none"} onValueChange={handleArtStyleChange}>
+                      <SelectTrigger className="w-full sm:w-auto min-w-[140px] bg-black/50 border-gray-600 text-white text-xs md:text-sm h-[26px] md:h-[34px]">
+                        <SelectValue placeholder="Art Style (optional)" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-black/95 border-gray-600 text-white max-h-[300px]">
+                        <SelectItem value="none" className="text-xs md:text-sm">
+                          None
+                        </SelectItem>
+                        {predefinedArtStyles.map((style) => (
+                          <SelectItem key={style} value={style} className="text-xs md:text-sm">
+                            {style}
+                          </SelectItem>
+                        ))}
+                        {customArtStyles.length > 0 && (
+                          <>
+                            <SelectSeparator className="bg-gray-600" />
+                            {customArtStyles.map((style) => (
+                              <SelectItem key={style} value={style} className="text-xs md:text-sm italic">
+                                {style} (Custom)
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                        <SelectSeparator className="bg-gray-600" />
+                        <SelectItem value="custom" className="text-xs md:text-sm text-emerald-400">
+                          + Add Custom Style
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {selectedArtStyle && (
+                      <button
+                        onClick={() => setSelectedArtStyle("")}
+                        className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                        title="Clear art style"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Custom Style Input */}
+                  {showCustomStyleInput && (
+                    <div className="flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
+                      <input
+                        type="text"
+                        value={customStyleInput}
+                        onChange={(e) => setCustomStyleInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            handleAddCustomStyle()
+                          } else if (e.key === "Escape") {
+                            setShowCustomStyleInput(false)
+                            setCustomStyleInput("")
+                          }
+                        }}
+                        placeholder="Enter custom art style..."
+                        className="flex-1 p-2 md:p-2.5 bg-black/50 border border-gray-600 text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded select-text"
+                        autoFocus
+                      />
+                      <Button
+                        onClick={handleAddCustomStyle}
+                        variant="outline"
+                        size="sm"
+                        className="h-[26px] md:h-[34px] px-2 md:px-3 text-xs bg-emerald-500/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30"
+                      >
+                        Add
+                      </Button>
+                      <button
+                        onClick={() => {
+                          setShowCustomStyleInput(false)
+                          setCustomStyleInput("")
+                        }}
+                        className="text-gray-400 hover:text-white transition-colors p-1"
+                        title="Cancel"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}

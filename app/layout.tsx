@@ -16,8 +16,8 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Nano Banana Starter",
-  description: "AI-powered image generation and editing",
+  title: "PixelForge - AI Image Generator",
+  description: "Generate and edit stunning images with AI. Powered by Google Gemini.",
 }
 
 export default function RootLayout({

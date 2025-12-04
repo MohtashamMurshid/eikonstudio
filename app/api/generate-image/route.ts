@@ -10,15 +10,28 @@ export async function POST(request: NextRequest) {
     const prompt = formData.get("prompt") as string
     const aspectRatio = formData.get("aspectRatio") as string
     const imageSize = (formData.get("imageSize") as string) || "2K"
+    const customApiKey = formData.get("apiKey") as string
 
     console.log("API: Mode:", mode)
     console.log("API: Prompt:", prompt)
     console.log("API: Aspect Ratio:", aspectRatio)
     console.log("API: Image Size:", imageSize)
+    console.log("API: Using custom API key:", customApiKey ? "Yes" : "No (using server default)")
 
     if (!mode || !prompt) {
       console.log("API: Missing required fields")
       return NextResponse.json({ error: "Mode and prompt are required" }, { status: 400 })
+    }
+
+    // Use custom API key if provided, otherwise fall back to server environment variables
+    const apiKeyToUse = customApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+
+    if (!apiKeyToUse) {
+      console.log("API: No API key available")
+      return NextResponse.json({ 
+        error: "No API key configured", 
+        details: "Please add your Google Gemini API key in the settings or configure a server-side API key." 
+      }, { status: 401 })
     }
 
     const getAspectRatioString = (ratio: string): string => {
@@ -38,17 +51,17 @@ export async function POST(request: NextRequest) {
     const aspectRatioString = getAspectRatioString(aspectRatio || "square")
     
     const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
+      apiKey: apiKeyToUse,
     })
 
     let resultUrl: string | null = null
     let resultDescription: string = ""
 
     if (mode === "text-to-image") {
-      console.log("API: Using text-to-image mode with Nano Banana Pro (Gemini 3 Pro Image)")
+      console.log("API: Using text-to-image mode with Gemini 3 Pro Image")
       console.log("API: Using aspect_ratio:", aspectRatioString)
 
-      // Using Nano Banana Pro (Gemini 3 Pro Image Preview)
+      // Using Gemini 3 Pro Image Preview
       const response = await ai.models.generateContent({
         model: "gemini-3-pro-image-preview",
         contents: {
