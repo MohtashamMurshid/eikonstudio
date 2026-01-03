@@ -1,11 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { authClient } from "@/lib/auth-client"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 
 interface SidebarProps {
   activeTab: "dashboard" | "studio"
   onTabChange: (tab: "dashboard" | "studio") => void
+  apiKey: string
+  onApiKeyChange: (key: string) => void
+  isCollapsed?: boolean
+  onCollapsedChange?: (collapsed: boolean) => void
 }
 
 const mainMenuItems = [
@@ -90,8 +98,54 @@ const settingsItems = [
   },
 ]
 
-export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false)
+export function Sidebar({ activeTab, onTabChange, apiKey, onApiKeyChange, isCollapsed: controlledCollapsed, onCollapsedChange }: SidebarProps) {
+  const [internalCollapsed, setInternalCollapsed] = useState(false)
+  const isCollapsed = controlledCollapsed ?? internalCollapsed
+  const setIsCollapsed = onCollapsedChange ?? setInternalCollapsed
+  
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [showApiKeySection, setShowApiKeySection] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+  
+  const { data: session } = authClient.useSession()
+  const user = useQuery(api.auth.getCurrentUser)
+  
+  const displayName = user?.name || session?.user?.name || "User"
+  const displayEmail = user?.email || session?.user?.email || ""
+  const displayImage = user?.image || session?.user?.image
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false)
+        setShowApiKeySection(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const handleSignOut = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/auth")
+        },
+      },
+    })
+  }
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "?"
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
 
   const handleItemClick = (id: string) => {
     if (id === "dashboard" || id === "studio") {
@@ -103,21 +157,21 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     <>
       {/* Mobile overlay */}
       <div 
-        className={`fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity ${isCollapsed ? "opacity-0 pointer-events-none" : "opacity-100"}`}
-        onClick={() => setIsCollapsed(true)}
+        className={`fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity ${isMobileOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        onClick={() => setIsMobileOpen(false)}
       />
 
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50
-        w-64 bg-white border-r border-border
+        ${isCollapsed ? "w-[72px]" : "w-64"} bg-white border-r border-border
         flex flex-col
-        transition-transform lg:transition-none
-        ${isCollapsed ? "-translate-x-full lg:translate-x-0" : "translate-x-0"}
+        transition-all duration-300 ease-in-out
+        ${isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}>
         {/* Logo and Team Selector */}
         <div className="p-4 border-b border-border">
-          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+          <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"} p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors`}>
             <div className="w-9 h-9 bg-foreground rounded-lg flex items-center justify-center flex-shrink-0">
               <svg
                 className="w-5 h-5 text-background"
@@ -146,21 +200,25 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 />
               </svg>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-foreground/50 uppercase tracking-wider">Workspace</p>
-              <p className="text-sm font-semibold text-foreground truncate">Eikon Studio</p>
-            </div>
-            <svg className="w-4 h-4 text-foreground/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
-            </svg>
+            {!isCollapsed && (
+              <>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-foreground/50 uppercase tracking-wider">Workspace</p>
+                  <p className="text-sm font-semibold text-foreground truncate">Eikon Studio</p>
+                </div>
+                <svg className="w-4 h-4 text-foreground/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+                </svg>
+              </>
+            )}
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-6">
+        <nav className={`flex-1 overflow-y-auto ${isCollapsed ? "p-2" : "p-4"} space-y-6`}>
           {/* Main Menu */}
           <div>
-            <p className="px-3 mb-2 text-xs font-medium text-foreground/40 uppercase tracking-wider">Main Menu</p>
+            {!isCollapsed && <p className="px-3 mb-2 text-xs font-medium text-foreground/40 uppercase tracking-wider">Main Menu</p>}
             <ul className="space-y-1">
               {mainMenuItems.map((item) => {
                 const isActive = (item.id === "dashboard" || item.id === "studio") && activeTab === item.id
@@ -168,8 +226,9 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   <li key={item.id}>
                     <button
                       onClick={() => handleItemClick(item.id)}
+                      title={isCollapsed ? item.label : undefined}
                       className={`
-                        w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                        w-full flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium transition-colors
                         ${isActive 
                           ? "bg-emerald-50 text-emerald-700" 
                           : "text-foreground/70 hover:bg-gray-50 hover:text-foreground"
@@ -177,7 +236,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                       `}
                     >
                       <span className={isActive ? "text-emerald-600" : ""}>{item.icon}</span>
-                      {item.label}
+                      {!isCollapsed && item.label}
                     </button>
                   </li>
                 )
@@ -187,15 +246,16 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
           {/* Analytics */}
           <div>
-            <p className="px-3 mb-2 text-xs font-medium text-foreground/40 uppercase tracking-wider">Analytics</p>
+            {!isCollapsed && <p className="px-3 mb-2 text-xs font-medium text-foreground/40 uppercase tracking-wider">Analytics</p>}
             <ul className="space-y-1">
               {analyticsItems.map((item) => (
                 <li key={item.id}>
                   <button
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-gray-50 hover:text-foreground transition-colors"
+                    title={isCollapsed ? item.label : undefined}
+                    className={`w-full flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-gray-50 hover:text-foreground transition-colors`}
                   >
                     {item.icon}
-                    {item.label}
+                    {!isCollapsed && item.label}
                   </button>
                 </li>
               ))}
@@ -204,15 +264,16 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
           {/* Settings */}
           <div>
-            <p className="px-3 mb-2 text-xs font-medium text-foreground/40 uppercase tracking-wider">Settings</p>
+            {!isCollapsed && <p className="px-3 mb-2 text-xs font-medium text-foreground/40 uppercase tracking-wider">Settings</p>}
             <ul className="space-y-1">
               {settingsItems.map((item) => (
                 <li key={item.id}>
                   <button
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-gray-50 hover:text-foreground transition-colors"
+                    title={isCollapsed ? item.label : undefined}
+                    className={`w-full flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-gray-50 hover:text-foreground transition-colors`}
                   >
                     {item.icon}
-                    {item.label}
+                    {!isCollapsed && item.label}
                   </button>
                 </li>
               ))}
@@ -220,23 +281,193 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           </div>
         </nav>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-border">
+        {/* Studio Info Section - shown when in studio tab */}
+
+        {/* User Profile & Footer */}
+        <div className={`${isCollapsed ? "p-2" : "p-4"} border-t border-border space-y-2`}>
+          {/* User Menu */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => {
+                setIsDropdownOpen(!isDropdownOpen)
+                if (isDropdownOpen) setShowApiKeySection(false)
+              }}
+              title={isCollapsed ? displayName : undefined}
+              className={`w-full flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-gray-50 hover:text-foreground transition-colors`}
+            >
+              {displayImage ? (
+                <img
+                  src={displayImage}
+                  alt={displayName}
+                  className="w-8 h-8 rounded-full object-cover border border-border flex-shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-xs font-medium text-white flex-shrink-0">
+                  {getInitials(displayName)}
+                </div>
+              )}
+              {!isCollapsed && (
+                <>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+                    <p className="text-xs text-foreground/50 truncate">{displayEmail}</p>
+                  </div>
+                  <svg
+                    className={`w-4 h-4 text-foreground/40 transition-transform flex-shrink-0 ${isDropdownOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </>
+              )}
+            </button>
+
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+                {/* API Key Section */}
+                <button
+                  onClick={() => setShowApiKeySection(!showApiKeySection)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-foreground hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <svg className="w-4 h-4 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    <span>API Key</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {apiKey ? (
+                      <span className="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">Set</span>
+                    ) : (
+                      <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Not set</span>
+                    )}
+                    <svg
+                      className={`w-4 h-4 text-foreground/40 transition-transform ${showApiKeySection ? "rotate-180" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </button>
+
+                {/* API Key Expanded Section */}
+                {showApiKeySection && (
+                  <div className="px-4 py-3 bg-gray-50 border-y border-border animate-in slide-in-from-bottom-1 duration-150">
+                    <div className="mb-2">
+                      <p className="text-xs text-foreground/60 mb-2">
+                        Get your free API key from{" "}
+                        <a
+                          href="https://aistudio.google.com/app/apikey"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-emerald-600 hover:text-emerald-700 underline"
+                        >
+                          Google AI Studio
+                        </a>
+                      </p>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        value={apiKey}
+                        onChange={(e) => onApiKeyChange(e.target.value)}
+                        placeholder="Enter your Gemini API key..."
+                        className="w-full p-2 pr-16 bg-white border border-border text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded font-mono"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      {apiKey && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onApiKeyChange("")
+                          }}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs px-2 py-0.5 bg-red-100 text-red-600 hover:bg-red-200 rounded transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    {apiKey ? (
+                      <p className="mt-2 text-xs text-emerald-600 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Saved locally in your browser
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-xs text-amber-600 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Using server default (may have rate limits)
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Divider */}
+                <div className="border-t border-border" />
+
+                {/* Sign Out */}
+                <button
+                  onClick={handleSignOut}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
+                  </svg>
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Back to Home */}
           <Link
             href="/"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-gray-50 hover:text-foreground transition-colors"
+            title={isCollapsed ? "Back to Home" : undefined}
+            className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-gray-50 hover:text-foreground transition-colors`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
             </svg>
-            Back to Home
+            {!isCollapsed && "Back to Home"}
           </Link>
+          
+          {/* Collapse Toggle Button - Desktop only */}
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={`hidden lg:flex w-full items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-gray-50 hover:text-foreground transition-colors`}
+          >
+            <svg className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${isCollapsed ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+            </svg>
+            {!isCollapsed && "Collapse"}
+          </button>
         </div>
       </aside>
 
       {/* Mobile toggle button */}
       <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
+        onClick={() => setIsMobileOpen(!isMobileOpen)}
         className="fixed bottom-4 left-4 z-50 lg:hidden w-12 h-12 bg-foreground text-background rounded-full shadow-lg flex items-center justify-center"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>

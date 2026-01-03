@@ -29,9 +29,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
 }
 
 // Example function for getting the current user
+// Using safeGetAuthUser to avoid throwing errors during auth state sync (e.g., on page reload)
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    return authComponent.getAuthUser(ctx);
+    return authComponent.safeGetAuthUser(ctx);
   },
 });

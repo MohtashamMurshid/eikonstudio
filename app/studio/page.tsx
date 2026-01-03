@@ -8,7 +8,6 @@ import { api } from "@/convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 
 import { Sidebar } from "@/components/dashboard/sidebar"
-import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { GenerationChart } from "@/components/dashboard/generation-chart"
 import { ImageCombiner } from "@/components/image-combiner/index"
@@ -17,7 +16,8 @@ export default function StudioPage() {
   const { isAuthenticated, isLoading } = useConvexAuth()
   const router = useRouter()
   const [apiKey, setApiKey] = useState<string>("")
-  const [activeTab, setActiveTab] = useState<"dashboard" | "studio">("dashboard")
+  const [activeTab, setActiveTab] = useState<"dashboard" | "studio">("studio")
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   
   const { data: session } = authClient.useSession()
   const user = useQuery(api.auth.getCurrentUser)
@@ -133,17 +133,17 @@ export default function StudioPage() {
   return (
     <div className="flex h-screen bg-[#f5f5f5]">
       {/* Sidebar */}
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab} 
+        apiKey={apiKey}
+        onApiKeyChange={handleApiKeyChange}
+        isCollapsed={sidebarCollapsed}
+        onCollapsedChange={setSidebarCollapsed}
+      />
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto lg:ml-0">
-        {/* Header */}
-        <DashboardHeader 
-          activeTab={activeTab} 
-          apiKey={apiKey} 
-          onApiKeyChange={handleApiKeyChange} 
-        />
-
         {/* Tab Content */}
         {activeTab === "dashboard" ? (
           <div className="p-6 space-y-6">
@@ -154,16 +154,9 @@ export default function StudioPage() {
             <GenerationChart />
           </div>
         ) : (
-          <div className="p-6">
+          <div className="p-6 min-h-screen">
             {/* Studio Tab */}
-            <div className="bg-white rounded-2xl border border-border p-6 md:p-8">
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-foreground">Create New Image</h2>
-                <p className="text-sm text-foreground/50 mt-1">
-                  Generate images using AI or combine and edit your existing images
-                </p>
-              </div>
-              
+            <div className="bg-white rounded-2xl border border-border p-6 md:p-8 min-h-[calc(100vh-3rem)]">
               <ImageCombiner apiKey={apiKey} />
             </div>
           </div>
