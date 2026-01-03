@@ -56,11 +56,11 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
   const displayImage = user?.image || session?.user?.image
 
   return (
-    <header className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-black/50 backdrop-blur-sm border-b border-gray-800">
+    <header className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-sm border-b border-border">
       {/* Logo */}
       <div className="flex items-center gap-2 select-none">
         <svg
-          className="w-5 h-5 text-emerald-400"
+          className="w-5 h-5 text-primary"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -70,7 +70,7 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
           <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
           <path d="M21 15l-5-5L5 21" />
         </svg>
-        <span className="text-sm font-semibold text-white tracking-tight">PixelForge</span>
+        <span className="text-sm font-semibold text-foreground tracking-tight">PixelForge</span>
       </div>
 
       {/* User Menu */}
@@ -80,14 +80,14 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
             setIsDropdownOpen(!isDropdownOpen)
             if (isDropdownOpen) setShowApiKeySection(false)
           }}
-          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent transition-colors"
         >
           {/* Avatar */}
           {displayImage ? (
             <img
               src={displayImage}
               alt={displayName}
-              className="w-7 h-7 rounded-full object-cover border border-gray-700"
+              className="w-7 h-7 rounded-full object-cover border border-border"
             />
           ) : (
             <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-medium text-white border border-emerald-500">
@@ -96,13 +96,13 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
           )}
           
           {/* Name (hidden on mobile) */}
-          <span className="hidden sm:block text-sm text-gray-300 max-w-[120px] truncate">
+          <span className="hidden sm:block text-sm text-muted-foreground max-w-[120px] truncate">
             {displayName}
           </span>
           
           {/* Chevron */}
           <svg
-            className={`w-4 h-4 text-gray-500 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
+            className={`w-4 h-4 text-muted-foreground transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -114,15 +114,15 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
 
         {/* Dropdown Menu */}
         {isDropdownOpen && (
-          <div className="absolute right-0 mt-2 w-72 bg-black/95 backdrop-blur-md border border-gray-800 rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute right-0 mt-2 w-72 bg-card backdrop-blur-md border border-border rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
             {/* User Info */}
-            <div className="px-4 py-3 border-b border-gray-800">
+            <div className="px-4 py-3 border-b border-border">
               <div className="flex items-center gap-3">
                 {displayImage ? (
                   <img
                     src={displayImage}
                     alt={displayName}
-                    className="w-10 h-10 rounded-full object-cover border border-gray-700"
+                    className="w-10 h-10 rounded-full object-cover border border-border"
                   />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-medium text-white border border-emerald-500">
@@ -130,8 +130,8 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{displayName}</p>
-                  <p className="text-xs text-gray-500 truncate">{displayEmail}</p>
+                  <p className="text-sm font-medium text-card-foreground truncate">{displayName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{displayEmail}</p>
                 </div>
               </div>
             </div>
@@ -141,7 +141,7 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
               {/* API Key Section */}
               <button
                 onClick={() => setShowApiKeySection(!showApiKeySection)}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-card-foreground hover:bg-accent transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,9 +169,9 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
 
               {/* API Key Expanded Section */}
               {showApiKeySection && (
-                <div className="px-4 py-3 bg-black/50 border-y border-gray-800 animate-in slide-in-from-top-1 duration-150">
+                <div className="px-4 py-3 bg-muted border-y border-border animate-in slide-in-from-top-1 duration-150">
                   <div className="mb-2">
-                    <p className="text-xs text-gray-400 mb-2">
+                    <p className="text-xs text-muted-foreground mb-2">
                       Get your free API key from{" "}
                       <a
                         href="https://aistudio.google.com/app/apikey"
@@ -189,7 +189,7 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
                       value={apiKey}
                       onChange={(e) => onApiKeyChange(e.target.value)}
                       placeholder="Enter your Gemini API key..."
-                      className="w-full p-2 pr-16 bg-black/50 border border-gray-700 text-white text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded font-mono"
+                      className="w-full p-2 pr-16 bg-muted border border-border text-card-foreground text-xs focus:outline-none focus:ring-1 focus:ring-ring rounded font-mono"
                       onClick={(e) => e.stopPropagation()}
                     />
                     {apiKey && (
@@ -223,7 +223,7 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
               )}
 
               {/* Divider */}
-              <div className="my-1 border-t border-gray-800" />
+              <div className="my-1 border-t border-border" />
 
               {/* Sign Out */}
               <button

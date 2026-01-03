@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { Logo } from "@/components/logo"
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(false)
+  const [isLogin, setIsLogin] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -20,7 +20,7 @@ export default function AuthPage() {
         const { data, error } = await authClient.signIn.email({
           email,
           password,
-          callbackURL: "/",
+          callbackURL: "/studio",
         })
         
         if (error) {
@@ -29,14 +29,14 @@ export default function AuthPage() {
           return
         }
         
-        window.location.href = "/"
+        window.location.href = "/studio"
       } else {
         const derivedName = email?.split("@")?.[0]?.trim() || "User"
         const { data, error } = await authClient.signUp.email({
           email,
           password,
           name: derivedName,
-          callbackURL: "/",
+          callbackURL: "/studio",
         })
         
         if (error) {
@@ -73,10 +73,10 @@ export default function AuthPage() {
 
           {/* Heading */}
           <div className="mb-10">
-            <h1 className="text-4xl sm:text-5xl font-semibold text-black tracking-tight leading-[1.15] mb-3">
+            <h1 className="text-4xl sm:text-5xl font-semibold text-foreground tracking-tight leading-[1.15] mb-3">
               {isLogin ? "Welcome back" : "Create your account"}
             </h1>
-            <p className="text-base text-black/50 leading-relaxed">
+            <p className="text-base text-muted-foreground leading-relaxed">
               {isLogin 
                 ? "Enter your credentials to access your workspace" 
                 : "Start creating stunning AI-generated images in seconds"}
@@ -84,12 +84,12 @@ export default function AuthPage() {
           </div>
 
           {/* Form Card */}
-          <div className="bg-white rounded-2xl border border-black/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-6 sm:p-8">
+          <div className="bg-card rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-6 sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-black/70 block">Email address</label>
+                <label className="text-sm font-medium text-card-foreground/70 block">Email address</label>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50">
                     <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                     </svg>
@@ -100,22 +100,22 @@ export default function AuthPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
                     required
-                    className="w-full h-13 pl-12 pr-4 bg-black/[0.02] rounded-xl border border-black/10 text-black placeholder:text-black/30 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black/20 transition-all"
+                    className="w-full h-13 pl-12 pr-4 bg-muted rounded-xl border border-border text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-border transition-all"
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-black/70 block">Password</label>
+                  <label className="text-sm font-medium text-card-foreground/70 block">Password</label>
                   {isLogin && (
-                    <button type="button" className="text-xs font-medium text-black/50 hover:text-black transition-colors">
+                    <button type="button" className="text-xs font-medium text-muted-foreground hover:text-card-foreground transition-colors">
                       Forgot password?
                     </button>
                   )}
                 </div>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50">
                     <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                     </svg>
@@ -127,18 +127,18 @@ export default function AuthPage() {
                     placeholder="Enter your password"
                     required
                     minLength={8}
-                    className="w-full h-13 pl-12 pr-4 bg-black/[0.02] rounded-xl border border-black/10 text-black placeholder:text-black/30 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black/20 transition-all"
+                    className="w-full h-13 pl-12 pr-4 bg-muted rounded-xl border border-border text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-border transition-all"
                   />
                 </div>
                 {!isLogin && (
-                  <p className="text-xs text-black/40 mt-1.5">Must be at least 8 characters</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1.5">Must be at least 8 characters</p>
                 )}
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-13 bg-black text-white rounded-xl font-semibold hover:bg-black/90 disabled:opacity-50 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)] active:scale-[0.99]"
+                className="w-full h-13 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)] active:scale-[0.99]"
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -161,21 +161,21 @@ export default function AuthPage() {
 
             {/* Divider */}
             <div className="flex items-center gap-4 my-6">
-              <div className="h-px bg-black/10 flex-1" />
+              <div className="h-px bg-border flex-1" />
             
-              <div className="h-px bg-black/10 flex-1" />
+              <div className="h-px bg-border flex-1" />
             </div>
 
          
           </div>
 
           {/* Toggle */}
-          <div className="mt-8 text-center text-sm text-black/50">
+          <div className="mt-8 text-center text-sm text-muted-foreground">
             {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
             <button
               type="button"
               onClick={() => setIsLogin(!isLogin)}
-              className="font-semibold text-black hover:underline underline-offset-4 transition-colors"
+              className="font-semibold text-foreground hover:underline underline-offset-4 transition-colors"
             >
               {isLogin ? "Sign up for free" : "Sign in"}
             </button>
