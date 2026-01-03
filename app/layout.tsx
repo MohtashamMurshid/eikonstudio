@@ -2,8 +2,9 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Suspense } from "react"
-import { Analytics } from "@vercel/analytics/react"
 import "./globals.css"
+import { ConvexClientProvider } from "./ConvexClientProvider"
+import { ClientProviders } from "@/components/client-providers"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -16,8 +17,8 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "PixelForge - AI Image Generator",
-  description: "Generate and edit stunning images with AI. Powered by Google Gemini.",
+  title: "Eikon - AI Image Studio",
+  description: "Transform, combine, and generate stunning images with AI. Powered by Google Gemini.",
 }
 
 export default function RootLayout({
@@ -25,11 +26,15 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Don't block on auth token - let client-side handle authentication
+  // This allows the page to render immediately while auth loads in background
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="font-mono antialiased">
-        <Suspense fallback={null}>{children}</Suspense>
-        <Analytics />
+        <ConvexClientProvider initialToken={null}>
+          <Suspense fallback={null}>{children}</Suspense>
+          <ClientProviders />
+        </ConvexClientProvider>
       </body>
     </html>
   )
