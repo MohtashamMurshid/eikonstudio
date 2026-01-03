@@ -126,6 +126,7 @@ const predefinedArtStyles = [
   "Pop Art",
   "Art Nouveau",
   "Neoclassicism",
+  "Technical Blueprint",
 ]
 
 export function ImageCombiner() {
