@@ -129,4 +129,26 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Override browser autofill styles for dark inputs - only apply in dark contexts */
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus,
+  .dark input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #0a0a0a inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+    caret-color: #ffffff !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+  
+  /* Light autofill styles for auth page and other light contexts */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #fafafa inset !important;
+    -webkit-text-fill-color: #000000 !important;
+    caret-color: #000000 !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
 }
