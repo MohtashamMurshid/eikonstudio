@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 interface LogoProps {
   variant?: "light" | "dark"
@@ -16,17 +17,17 @@ export function Logo({
   const sizes = {
     sm: {
       icon: "size-8",
-      iconInner: "size-4",
+      iconInner: "size-5",
       text: "text-sm",
     },
     md: {
       icon: "size-10",
-      iconInner: "size-5",
+      iconInner: "size-6",
       text: "text-base",
     },
     lg: {
       icon: "size-12",
-      iconInner: "size-6",
+      iconInner: "size-7",
       text: "text-lg",
     },
   }
@@ -48,18 +49,41 @@ export function Logo({
   const currentVariant = variants[variant]
 
   return (
-    <div className={cn("flex items-center gap-3", className)}>
+    <Link href="/">
+    <div className={cn("flex items-center gap-2.5", className)}>
       <div className={cn(
-        "rounded-xl flex items-center justify-center",
+        "rounded-lg flex items-center justify-center",
         currentSize.icon,
         currentVariant.iconBg
       )}>
         <svg 
-          viewBox="0 0 24 24" 
+          viewBox="0 0 32 32" 
           className={cn(currentSize.iconInner, currentVariant.iconColor)} 
-          fill="currentColor"
+          fill="none"
         >
-          <path d="M12 2L2 12h3v8h6v-6h2v6h6v-8h3L12 2z"/>
+          {/* Diamond/prism shape representing εἰκών (image) */}
+          <path 
+            d="M16 3L28 16L16 29L4 16L16 3Z" 
+            stroke="currentColor" 
+            strokeWidth="2"
+            fill="none"
+          />
+          {/* Inner eye/lens - the seeing element */}
+          <circle 
+            cx="16" 
+            cy="16" 
+            r="5" 
+            stroke="currentColor" 
+            strokeWidth="2"
+            fill="none"
+          />
+          {/* Center dot - focus point */}
+          <circle 
+            cx="16" 
+            cy="16" 
+            r="2" 
+            fill="currentColor"
+          />
         </svg>
       </div>
       {showText && (
@@ -68,10 +92,11 @@ export function Logo({
           currentSize.text,
           currentVariant.text
         )}>
-          PixelForge
+          Eikon
         </span>
       )}
     </div>
+    </Link>
   )
 }
 

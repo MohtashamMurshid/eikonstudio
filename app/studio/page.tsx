@@ -41,18 +41,35 @@ export default function StudioPage() {
     return (
       <div className="h-screen bg-background flex flex-col items-center justify-center select-none">
         <div className="flex flex-col items-center gap-4 animate-pulse">
-          <svg
-            className="w-16 h-16 text-primary"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
-            <path d="M21 15l-5-5L5 21" />
-          </svg>
-          <span className="text-2xl font-bold text-foreground tracking-tight">PixelForge</span>
+          <div className="w-16 h-16 bg-foreground rounded-xl flex items-center justify-center">
+            <svg
+              className="w-9 h-9 text-background"
+              viewBox="0 0 32 32"
+              fill="none"
+            >
+              <path 
+                d="M16 3L28 16L16 29L4 16L16 3Z" 
+                stroke="currentColor" 
+                strokeWidth="2"
+                fill="none"
+              />
+              <circle 
+                cx="16" 
+                cy="16" 
+                r="5" 
+                stroke="currentColor" 
+                strokeWidth="2"
+                fill="none"
+              />
+              <circle 
+                cx="16" 
+                cy="16" 
+                r="2" 
+                fill="currentColor"
+              />
+            </svg>
+          </div>
+          <span className="text-2xl font-bold text-foreground tracking-tight">Eikon</span>
         </div>
         <p className="mt-8 text-muted-foreground text-sm animate-pulse">Initializing...</p>
       </div>
@@ -64,18 +81,35 @@ export default function StudioPage() {
     return (
       <div className="h-screen bg-background flex flex-col items-center justify-center select-none">
         <div className="flex flex-col items-center gap-4 animate-pulse">
-          <svg
-            className="w-16 h-16 text-primary"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
-            <path d="M21 15l-5-5L5 21" />
-          </svg>
-          <span className="text-2xl font-bold text-foreground tracking-tight">PixelForge</span>
+          <div className="w-16 h-16 bg-foreground rounded-xl flex items-center justify-center">
+            <svg
+              className="w-9 h-9 text-background"
+              viewBox="0 0 32 32"
+              fill="none"
+            >
+              <path 
+                d="M16 3L28 16L16 29L4 16L16 3Z" 
+                stroke="currentColor" 
+                strokeWidth="2"
+                fill="none"
+              />
+              <circle 
+                cx="16" 
+                cy="16" 
+                r="5" 
+                stroke="currentColor" 
+                strokeWidth="2"
+                fill="none"
+              />
+              <circle 
+                cx="16" 
+                cy="16" 
+                r="2" 
+                fill="currentColor"
+              />
+            </svg>
+          </div>
+          <span className="text-2xl font-bold text-foreground tracking-tight">Eikon</span>
         </div>
         <p className="mt-8 text-muted-foreground text-sm animate-pulse">Redirecting...</p>
       </div>

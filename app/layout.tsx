@@ -17,8 +17,8 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "PixelForge - AI Image Generator",
-  description: "Generate and edit stunning images with AI. Powered by Google Gemini.",
+  title: "Eikon - AI Image Studio",
+  description: "Transform, combine, and generate stunning images with AI. Powered by Google Gemini.",
 }
 
 export default function RootLayout({
