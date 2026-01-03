@@ -5,7 +5,6 @@ import { Suspense } from "react"
 import "./globals.css"
 import { ConvexClientProvider } from "./ConvexClientProvider"
 import { ClientProviders } from "@/components/client-providers"
-import { getToken } from "@/lib/auth-server"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,15 +21,13 @@ export const metadata: Metadata = {
   description: "Generate and edit stunning images with AI. Powered by Google Gemini.",
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  // Fetch token non-blocking - don't await, let client handle auth state
+  // Don't block on auth token - let client-side handle authentication
   // This allows the page to render immediately while auth loads in background
-  const tokenPromise = getToken().catch(() => null)
-  
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="font-mono antialiased">

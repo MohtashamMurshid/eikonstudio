@@ -39,11 +39,22 @@ export default function Home() {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="h-screen bg-black flex items-center justify-center select-none">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-gray-600 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400 text-sm">Loading...</p>
+      <div className="h-screen bg-black flex flex-col items-center justify-center select-none">
+        <div className="flex flex-col items-center gap-4 animate-pulse">
+          <svg
+            className="w-16 h-16 text-emerald-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+            <path d="M21 15l-5-5L5 21" />
+          </svg>
+          <span className="text-2xl font-bold text-white tracking-tight">PixelForge</span>
         </div>
+        <p className="mt-8 text-gray-500 text-sm animate-pulse">Initializing...</p>
       </div>
     )
   }
@@ -51,11 +62,22 @@ export default function Home() {
   // Show nothing while redirecting (if not authenticated)
   if (!isAuthenticated) {
     return (
-      <div className="h-screen bg-black flex items-center justify-center select-none">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-gray-600 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400 text-sm">Redirecting...</p>
+      <div className="h-screen bg-black flex flex-col items-center justify-center select-none">
+        <div className="flex flex-col items-center gap-4 animate-pulse">
+          <svg
+            className="w-16 h-16 text-emerald-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+            <path d="M21 15l-5-5L5 21" />
+          </svg>
+          <span className="text-2xl font-bold text-white tracking-tight">PixelForge</span>
         </div>
+        <p className="mt-8 text-gray-500 text-sm animate-pulse">Redirecting...</p>
       </div>
     )
   }
