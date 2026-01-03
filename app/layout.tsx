@@ -2,8 +2,10 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Suspense } from "react"
-import { Analytics } from "@vercel/analytics/react"
 import "./globals.css"
+import { ConvexClientProvider } from "./ConvexClientProvider"
+import { ClientProviders } from "@/components/client-providers"
+import { getToken } from "@/lib/auth-server"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -20,16 +22,22 @@ export const metadata: Metadata = {
   description: "Generate and edit stunning images with AI. Powered by Google Gemini.",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Fetch token non-blocking - don't await, let client handle auth state
+  // This allows the page to render immediately while auth loads in background
+  const tokenPromise = getToken().catch(() => null)
+  
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="font-mono antialiased">
-        <Suspense fallback={null}>{children}</Suspense>
-        <Analytics />
+        <ConvexClientProvider initialToken={null}>
+          <Suspense fallback={null}>{children}</Suspense>
+          <ClientProviders />
+        </ConvexClientProvider>
       </body>
     </html>
   )

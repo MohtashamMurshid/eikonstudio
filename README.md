@@ -12,6 +12,8 @@ Your project is live at:
 
 **[https://vercel.com/mohtashams-projects/v0-nano-banana-starter](https://vercel.com/mohtashams-projects/v0-nano-banana-starter)**
 
+**Domain:** https://nano.mohtasham.dev
+
 ## Public API
 
 The application provides a public REST API for image generation.
@@ -37,7 +39,7 @@ The application provides a public REST API for image generation.
 #### JSON Request (Recommended for Programmatic Use)
 
 ```bash
-curl -X POST https://your-domain.vercel.app/api/v1/generate \
+curl -X POST https://nano.mohtasham.dev/api/v1/generate \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "A beautiful landscape with mountains and a lake at sunset",
@@ -49,7 +51,7 @@ curl -X POST https://your-domain.vercel.app/api/v1/generate \
 #### JavaScript Example
 
 ```javascript
-const response = await fetch('https://your-domain.vercel.app/api/v1/generate', {
+const response = await fetch('https://nano.mohtasham.dev/api/v1/generate', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -70,7 +72,7 @@ console.log(data.url); // base64 image data
 ```python
 import requests
 
-url = 'https://your-domain.vercel.app/api/v1/generate'
+url = 'https://nano.mohtasham.dev/api/v1/generate'
 payload = {
     'prompt': 'A majestic dragon soaring through clouds',
     'imageSize': '4K',
@@ -85,7 +87,7 @@ print(data['url']) # base64 image data
 #### FormData Request (For File Uploads)
 
 ```bash
-curl -X POST https://your-domain.vercel.app/api/v1/generate \
+curl -X POST https://nano.mohtasham.dev/api/v1/generate \
   -F "prompt=A cyberpunk portrait" \
   -F "imageSize=2K" \
   -F "aspectRatio=square" \
