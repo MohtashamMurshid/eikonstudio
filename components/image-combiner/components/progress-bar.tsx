@@ -3,58 +3,54 @@ interface ProgressBarProps {
   label?: string
 }
 
-export function ProgressBar({ progress, label = "Running..." }: ProgressBarProps) {
+export function ProgressBar({ progress, label = "Generating..." }: ProgressBarProps) {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center px-4 select-none">
+    <div className="w-full h-full flex flex-col items-center justify-center px-8 select-none">
       <div className="w-full max-w-md">
-        <div className="relative h-4 md:h-8 bg-black/50 border border-gray-600 rounded overflow-hidden mb-4" style={{ zIndex: 30 }}>
-          <div
-            className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage: `
-                linear-gradient(90deg, transparent 0%, transparent 49%, #333 49%, #333 51%, transparent 51%),
-                linear-gradient(0deg, transparent 0%, transparent 49%, #333 49%, #333 51%, transparent 51%)
-              `,
-              backgroundSize: "8px 8px",
-            }}
-          />
-
-          <div
-            className="absolute top-0 left-0 h-full transition-all duration-100 ease-out"
-            style={{
-              width: `${progress}%`,
-              backgroundImage: `
-                repeating-linear-gradient(
-                  90deg,
-                  #614B00 0px,
-                  #614B00 6px,
-                  #735B00 6px,
-                  #735B00 8px
-                ),
-                repeating-linear-gradient(
-                  0deg,
-                  #614B00 0px,
-                  #614B00 6px,
-                  #735B00 6px,
-                  #735B00 8px
-                )
-              `,
-              backgroundSize: "8px 8px",
-            }}
-          />
-
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xs md:text-sm font-mono text-white/80" style={{ zIndex: 40 }}>
-              {Math.round(progress)}%
-            </span>
+        {/* Progress ring */}
+        <div className="flex justify-center mb-6">
+          <div className="relative w-20 h-20">
+            <svg className="w-20 h-20 transform -rotate-90">
+              <circle
+                className="text-gray-200"
+                strokeWidth="6"
+                stroke="currentColor"
+                fill="transparent"
+                r="34"
+                cx="40"
+                cy="40"
+              />
+              <circle
+                className="text-emerald-500 transition-all duration-300 ease-out"
+                strokeWidth="6"
+                strokeLinecap="round"
+                stroke="currentColor"
+                fill="transparent"
+                r="34"
+                cx="40"
+                cy="40"
+                strokeDasharray={`${2 * Math.PI * 34}`}
+                strokeDashoffset={`${2 * Math.PI * 34 * (1 - progress / 100)}`}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-lg font-semibold text-foreground">{Math.round(progress)}%</span>
+            </div>
           </div>
         </div>
 
+        {/* Progress bar */}
+        <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden mb-4">
+          <div
+            className="absolute inset-0 h-full bg-emerald-500 transition-all duration-300 ease-out rounded-full"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
         <div className="text-center">
-          <p className="text-xs md:text-sm font-medium text-white animate-pulse">{label}</p>
+          <p className="text-sm font-medium text-foreground/70 animate-pulse">{label}</p>
         </div>
       </div>
     </div>
   )
 }
-

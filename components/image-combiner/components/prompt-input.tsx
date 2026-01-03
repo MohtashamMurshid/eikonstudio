@@ -16,18 +16,18 @@ export function PromptInput({ prompt, onPromptChange, currentMode, onKeyDown }: 
   }
 
   return (
-    <div className="space-y-3 md:space-y-6">
-      <div className="flex items-center justify-between mb-3 md:mb-6 select-none">
-        <label className="text-xs md:text-sm font-medium text-gray-300">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between select-none">
+        <label className="text-sm font-medium text-foreground/70">
           {currentMode === "text-to-image" ? "Describe your image" : "Describe how to edit the image..."}
         </label>
         <Button
           onClick={getRandomPrompt}
           variant="outline"
           size="sm"
-          className="h-6 md:h-8 px-2 md:px-3 text-xs bg-transparent border-gray-600 text-white hover:bg-gray-700 hover:text-white w-fit"
+          className="h-8 px-3 text-xs bg-white border-border text-foreground hover:bg-gray-50"
         >
-          <svg className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <polyline points="16,3 21,3 21,8" />
             <line x1="4" y1="20" x2="21" y2="3" />
             <polyline points="21,16 21,21 16,21" />
@@ -45,7 +45,7 @@ export function PromptInput({ prompt, onPromptChange, currentMode, onKeyDown }: 
         placeholder={
           currentMode === "text-to-image" ? "Describe the image you want to generate..." : "Describe how to edit the image..."
         }
-        className="w-full h-16 md:h-32 p-2 md:p-4 bg-black/50 border border-gray-600 rounded resize-none focus:outline-none focus:ring-2 focus:ring-white text-white text-xs md:text-base select-text"
+        className="w-full h-28 md:h-32 p-4 bg-white border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-foreground text-sm placeholder:text-foreground/40 select-text transition-colors"
         style={{
           fontSize: "16px", // Prevents zoom on iOS Safari
           WebkitUserSelect: "text",
@@ -55,4 +55,3 @@ export function PromptInput({ prompt, onPromptChange, currentMode, onKeyDown }: 
     </div>
   )
 }
-

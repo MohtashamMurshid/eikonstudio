@@ -12,24 +12,28 @@ export function Toast({ toast }: ToastProps) {
     <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300 select-none">
       <div
         className={cn(
-          "bg-black/90 backdrop-blur-sm border rounded-lg p-4 shadow-lg max-w-sm",
-          toast.type === "success" ? "border-green-500/50 text-green-100" : "border-red-500/50 text-red-100",
+          "bg-white backdrop-blur-sm border rounded-xl p-4 shadow-lg max-w-sm",
+          toast.type === "success" ? "border-emerald-200 text-emerald-800" : "border-red-200 text-red-800",
         )}
       >
         <div className="flex items-center gap-3">
           {toast.type === "success" ? (
-            <svg className="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
           ) : (
-            <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12m0 0l-3-3m0 0l-3 3m3-3v12"
-              />
-            </svg>
+            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </div>
           )}
           <p className="text-sm font-medium">{toast.message}</p>
         </div>
@@ -37,4 +41,3 @@ export function Toast({ toast }: ToastProps) {
     </div>
   )
 }
-

@@ -28,10 +28,10 @@ export function ResultDisplay({
   onDownload,
 }: ResultDisplayProps) {
   return (
-    <div className="space-y-4 md:space-y-8 select-none">
+    <div className="space-y-6 select-none">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm md:text-lg font-semibold flex items-center gap-2 text-white">
-          <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <h3 className="text-sm md:text-base font-semibold flex items-center gap-2 text-foreground">
+          <svg className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
             <circle cx="8.5" cy="8.5" r="1.5" />
             <polyline points="21,15 16,10 5,21" />
@@ -39,15 +39,15 @@ export function ResultDisplay({
           Result
         </h3>
         {generatedImage && (
-          <div className="flex gap-1 md:gap-2">
+          <div className="flex gap-2">
             <Button
               onClick={onUseAsInput}
               variant="outline"
               size="sm"
-              className="text-xs h-7 px-2 bg-transparent border-gray-600 text-white hover:bg-gray-700 flex items-center gap-1"
+              className="text-xs h-8 px-3 bg-white border-border text-foreground hover:bg-gray-50 flex items-center gap-1.5"
               title="Use as Input"
             >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -61,10 +61,10 @@ export function ResultDisplay({
               onClick={onCopy}
               variant="outline"
               size="sm"
-              className="text-xs h-7 px-2 bg-transparent border-gray-600 text-white hover:bg-gray-700 flex items-center gap-1"
+              className="text-xs h-8 px-3 bg-white border-border text-foreground hover:bg-gray-50 flex items-center gap-1.5"
               title="Copy"
             >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                 <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v9a2 2 0 01-2 2H5z" />
               </svg>
@@ -74,10 +74,10 @@ export function ResultDisplay({
               onClick={onDownload}
               variant="outline"
               size="sm"
-              className="text-xs h-7 px-2 bg-transparent border-gray-600 text-white hover:bg-gray-700 flex items-center gap-1"
+              className="text-xs h-8 px-3 bg-white border-border text-foreground hover:bg-gray-50 flex items-center gap-1.5"
               title="Download"
             >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -91,18 +91,18 @@ export function ResultDisplay({
         )}
       </div>
 
-      <div className="flex items-center justify-center h-48 md:h-80">
+      <div className="flex items-center justify-center min-h-[280px] md:min-h-[360px] bg-white border border-border rounded-xl">
         {isLoading ? (
           <ProgressBar progress={progress} />
         ) : isConvertingHeic ? (
           <ProgressBar progress={heicProgress} label="Converting HEIC image..." />
         ) : generatedImage ? (
-          <div className="w-full h-full flex flex-col select-none">
-            <div className="flex-1 flex items-center justify-center max-h-36 md:max-h-64 relative group">
+          <div className="w-full h-full flex flex-col select-none p-4">
+            <div className="flex-1 flex items-center justify-center max-h-[200px] md:max-h-[280px] relative group">
               <img
                 src={generatedImage.url || "/placeholder.svg"}
                 alt="Generated"
-                className={`max-w-full max-h-full object-contain rounded transition-opacity duration-500 ${
+                className={`max-w-full max-h-full object-contain rounded-lg shadow-sm transition-opacity duration-500 ${
                   imageLoaded ? "opacity-100" : "opacity-0"
                 }`}
                 style={{
@@ -113,10 +113,10 @@ export function ResultDisplay({
               />
               <button
                 onClick={onOpenFullscreen}
-                className="absolute top-1 right-1 md:top-2 md:right-2 bg-black/70 hover:bg-black/90 text-white p-1 md:p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+                className="absolute top-2 right-2 bg-foreground/80 hover:bg-foreground text-background p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
                 title="View fullscreen"
               >
-                <svg className="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -126,26 +126,26 @@ export function ResultDisplay({
                 </svg>
               </button>
             </div>
-            <div className="mt-2 md:mt-4 p-2 md:p-3 bg-black/50 border border-gray-600 rounded">
-              <p className="text-xs md:text-sm text-gray-300">
-                <span className="font-semibold text-white">Prompt:</span> {generatedImage.prompt}
+            <div className="mt-4 p-3 bg-gray-50 border border-border rounded-lg">
+              <p className="text-sm text-foreground/70">
+                <span className="font-semibold text-foreground">Prompt:</span> {generatedImage.prompt}
               </p>
             </div>
           </div>
         ) : (
-          <div className="text-center py-6 select-none">
-            <div className="w-8 h-8 md:w-16 md:h-16 mx-auto mb-3 border border-gray-600 rounded flex items-center justify-center bg-black/50">
-              <svg className="w-4 h-4 md:w-8 md:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="text-center py-12 select-none">
+            <div className="w-16 h-16 mx-auto mb-4 border-2 border-dashed border-border rounded-xl flex items-center justify-center bg-gray-50">
+              <svg className="w-8 h-8 text-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <polyline points="21,15 16,10 5,21" />
               </svg>
             </div>
-            <p className="text-xs text-gray-400 font-medium py-1 md:py-2">Ready to generate</p>
+            <p className="text-sm text-foreground/50 font-medium">Ready to generate</p>
+            <p className="text-xs text-foreground/40 mt-1">Enter a prompt and click Generate</p>
           </div>
         )}
       </div>
     </div>
   )
 }
-

@@ -11,7 +11,6 @@ import { usePasteHandler } from "./hooks/use-paste-handler"
 import { useDragDrop } from "./hooks/use-drag-drop"
 import { Toast } from "./components/toast"
 import { DragOverlay } from "./components/drag-overlay"
-import { BackgroundDither } from "./components/background-dither"
 import { PromptInput } from "./components/prompt-input"
 import { ArtStyleSelector } from "./components/art-style-selector"
 import { ImageUploadSection } from "./components/image-upload-section"
@@ -99,7 +98,7 @@ export function ImageCombiner({ apiKey }: ImageCombinerProps) {
         const url = window.URL.createObjectURL(blob)
         const link = document.createElement("a")
         link.href = url
-        link.download = `pixelforge-${currentMode}-result.png`
+        link.download = `eikon-${currentMode}-result.png`
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
@@ -202,7 +201,7 @@ export function ImageCombiner({ apiKey }: ImageCombinerProps) {
 
   return (
     <div
-      className="bg-background min-h-screen flex items-center justify-center select-none"
+      className="select-none"
       onDragEnter={dragDrop.handleGlobalDragEnter}
       onDragLeave={dragDrop.handleGlobalDragLeave}
       onDragOver={dragDrop.handleGlobalDragOver}
@@ -210,142 +209,94 @@ export function ImageCombiner({ apiKey }: ImageCombinerProps) {
     >
       <Toast toast={toast} />
       <DragOverlay isDragOver={dragDrop.isDragOver} />
-      <BackgroundDither />
 
-      <div className="relative z-10 p-2 md:p-6 w-full max-w-6xl mx-auto select-none">
-        <div className="bg-black/70 backdrop-blur-sm border-0 p-3 md:p-8 rounded-xl">
-          <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-12">
-            {/* Input Section */}
-            <div className="space-y-4 md:space-y-8">
-              <div className="flex flex-nowrap items-center justify-between gap-1 md:gap-2 select-none">
-                <h3 className="text-sm md:text-lg font-semibold flex items-center gap-1 md:gap-2 text-white flex-shrink-0">
-                  <svg className="w-3 h-3 md:w-4 md:h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2" />
-                  </svg>
-                  <span className="hidden sm:inline">Input</span>
-                </h3>
-                <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
-                  <Select value={aspectRatio} onValueChange={setAspectRatio}>
-                    <SelectTrigger className="w-20 sm:w-24 md:w-28 bg-black/50 border-gray-600 text-white text-xs md:text-sm h-[26px] md:h-[34px] whitespace-nowrap flex items-center">
-                      <SelectValue placeholder="1:1" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black/95 border-gray-600 text-white">
-                      <SelectItem value="square" className="text-xs md:text-sm">
-                        1:1
-                      </SelectItem>
-                      <SelectItem value="portrait" className="text-xs md:text-sm">
-                        9:16
-                      </SelectItem>
-                      <SelectItem value="landscape" className="text-xs md:text-sm">
-                        16:9
-                      </SelectItem>
-                      <SelectItem value="wide" className="text-xs md:text-sm">
-                        21:9
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={imageSize} onValueChange={setImageSize}>
-                    <SelectTrigger className="w-16 sm:w-20 md:w-24 bg-black/50 border-gray-600 text-white text-xs md:text-sm h-[26px] md:h-[34px] whitespace-nowrap flex items-center">
-                      <SelectValue placeholder="2K" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black/95 border-gray-600 text-white">
-                      <SelectItem value="1K" className="text-xs md:text-sm">
-                        1K
-                      </SelectItem>
-                      <SelectItem value="2K" className="text-xs md:text-sm">
-                        2K
-                      </SelectItem>
-                      <SelectItem value="4K" className="text-xs md:text-sm">
-                        4K
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="inline-flex bg-black/50 border border-gray-600 rounded px-2 py-1 md:px-4 md:py-2 flex-shrink-0 h-[26px] md:h-[34px] items-center">
-                    <span className="text-xs md:text-sm font-medium text-gray-300 whitespace-nowrap">
-                      {currentMode === "text-to-image" ? "Text-to-Image" : "Image-to-Image"}
-                    </span>
-                  </div>
+      <div className="w-full select-none">
+        <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 lg:gap-12">
+          {/* Input Section */}
+          <div className="space-y-6">
+            <div className="flex flex-nowrap items-center justify-between gap-2 select-none">
+              <h3 className="text-sm md:text-base font-semibold flex items-center gap-2 text-foreground flex-shrink-0">
+                <svg className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2" />
+                </svg>
+                Input
+              </h3>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Select value={aspectRatio} onValueChange={setAspectRatio}>
+                  <SelectTrigger className="w-20 sm:w-24 md:w-28 bg-white border-border text-foreground text-xs md:text-sm h-8 md:h-9">
+                    <SelectValue placeholder="1:1" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-border text-foreground">
+                    <SelectItem value="square" className="text-xs md:text-sm">1:1</SelectItem>
+                    <SelectItem value="portrait" className="text-xs md:text-sm">9:16</SelectItem>
+                    <SelectItem value="landscape" className="text-xs md:text-sm">16:9</SelectItem>
+                    <SelectItem value="wide" className="text-xs md:text-sm">21:9</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={imageSize} onValueChange={setImageSize}>
+                  <SelectTrigger className="w-16 sm:w-20 md:w-24 bg-white border-border text-foreground text-xs md:text-sm h-8 md:h-9">
+                    <SelectValue placeholder="2K" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-border text-foreground">
+                    <SelectItem value="1K" className="text-xs md:text-sm">1K</SelectItem>
+                    <SelectItem value="2K" className="text-xs md:text-sm">2K</SelectItem>
+                    <SelectItem value="4K" className="text-xs md:text-sm">4K</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="inline-flex bg-gray-100 border border-border rounded-lg px-3 py-1.5 md:px-4 md:py-2 flex-shrink-0 h-8 md:h-9 items-center">
+                  <span className="text-xs md:text-sm font-medium text-foreground/70 whitespace-nowrap">
+                    {currentMode === "text-to-image" ? "Text-to-Image" : "Image-to-Image"}
+                  </span>
                 </div>
               </div>
-
-              <PromptInput prompt={prompt} onPromptChange={setPrompt} currentMode={currentMode} onKeyDown={handleKeyDown} />
-
-              <ArtStyleSelector
-                selectedArtStyle={selectedArtStyle}
-                customArtStyles={customArtStyles}
-                onArtStyleChange={setSelectedArtStyle}
-                onAddCustomStyle={handleAddCustomStyle}
-              />
-
-              <ImageUploadSection
-                useUrls={imageUpload.useUrls}
-                image1Preview={imageUpload.image1Preview}
-                image1Url={imageUpload.image1Url}
-                image2Preview={imageUpload.image2Preview}
-                image2Url={imageUpload.image2Url}
-                onUseUrlsChange={imageUpload.setUseUrls}
-                onFileSelect={handleFileSelect}
-                onDrop={dragDrop.handleDrop}
-                onUrlChange={imageUpload.handleUrlChange}
-                onClear={imageUpload.clearImage}
-              />
-
-              <div className="lg:hidden">
-                <Button
-                  onClick={imageGeneration.generateImage}
-                  disabled={!canGenerate || imageGeneration.isLoading || imageUpload.isConvertingHeic}
-                  className="w-full h-10 text-sm font-semibold bg-white text-black hover:bg-gray-200 rounded"
-                >
-                  {imageUpload.isConvertingHeic ? "Converting HEIC..." : imageGeneration.isLoading ? "Running..." : "Run"}
-                </Button>
-              </div>
-
-              <div className="pt-3 hidden lg:block">
-                <Button
-                  onClick={imageGeneration.generateImage}
-                  disabled={!canGenerate || imageGeneration.isLoading || imageUpload.isConvertingHeic}
-                  className="w-full h-10 md:h-12 text-sm md:text-base font-semibold bg-white text-black hover:bg-gray-200 rounded"
-                >
-                  {imageUpload.isConvertingHeic ? "Converting HEIC..." : imageGeneration.isLoading ? "Running..." : "Run"}
-                </Button>
-              </div>
             </div>
 
-            {/* Result Section */}
-            <ResultDisplay
-              isLoading={imageGeneration.isLoading}
-              isConvertingHeic={imageUpload.isConvertingHeic}
-              heicProgress={imageUpload.heicProgress}
-              progress={imageGeneration.progress}
-              generatedImage={imageGeneration.generatedImage}
-              imageLoaded={imageGeneration.imageLoaded}
-              onOpenFullscreen={() => setShowFullscreen(true)}
-              onUseAsInput={useGeneratedAsInput}
-              onCopy={copyImageToClipboard}
-              onDownload={downloadImage}
+            <PromptInput prompt={prompt} onPromptChange={setPrompt} currentMode={currentMode} onKeyDown={handleKeyDown} />
+
+            <ArtStyleSelector
+              selectedArtStyle={selectedArtStyle}
+              customArtStyles={customArtStyles}
+              onArtStyleChange={setSelectedArtStyle}
+              onAddCustomStyle={handleAddCustomStyle}
             />
-          </div>
 
-          <div className="mt-4 md:mt-8 pt-3 md:pt-6 border-t border-gray-600/50 select-none">
-            <div className="flex items-center justify-center">
-              <a
-                href="https://github.com/mohtashammurshid"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs md:text-sm text-gray-400 hover:text-white transition-colors duration-200 flex items-center gap-2"
+            <ImageUploadSection
+              useUrls={imageUpload.useUrls}
+              image1Preview={imageUpload.image1Preview}
+              image1Url={imageUpload.image1Url}
+              image2Preview={imageUpload.image2Preview}
+              image2Url={imageUpload.image2Url}
+              onUseUrlsChange={imageUpload.setUseUrls}
+              onFileSelect={handleFileSelect}
+              onDrop={dragDrop.handleDrop}
+              onUrlChange={imageUpload.handleUrlChange}
+              onClear={imageUpload.clearImage}
+            />
+
+            <div className="pt-2">
+              <Button
+                onClick={imageGeneration.generateImage}
+                disabled={!canGenerate || imageGeneration.isLoading || imageUpload.isConvertingHeic}
+                className="w-full h-11 md:h-12 text-sm md:text-base font-semibold bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg transition-colors"
               >
-                <span>View on GitHub</span>
-                <svg className="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  />
-                </svg>
-              </a>
+                {imageUpload.isConvertingHeic ? "Converting HEIC..." : imageGeneration.isLoading ? "Generating..." : "Generate Image"}
+              </Button>
             </div>
           </div>
+
+          {/* Result Section */}
+          <ResultDisplay
+            isLoading={imageGeneration.isLoading}
+            isConvertingHeic={imageUpload.isConvertingHeic}
+            heicProgress={imageUpload.heicProgress}
+            progress={imageGeneration.progress}
+            generatedImage={imageGeneration.generatedImage}
+            imageLoaded={imageGeneration.imageLoaded}
+            onOpenFullscreen={() => setShowFullscreen(true)}
+            onUseAsInput={useGeneratedAsInput}
+            onCopy={copyImageToClipboard}
+            onDownload={downloadImage}
+          />
         </div>
       </div>
 
@@ -357,4 +308,3 @@ export function ImageCombiner({ apiKey }: ImageCombinerProps) {
     </div>
   )
 }
-

@@ -27,16 +27,16 @@ export function ImageUploadSection({
   onClear,
 }: ImageUploadSectionProps) {
   return (
-    <div className="space-y-3 md:space-y-6">
+    <div className="space-y-3">
       <div>
-        <div className="flex items-center justify-between mb-3 md:mb-6 select-none">
-          <label className="text-xs md:text-sm font-medium text-gray-300">Images</label>
-          <div className="inline-flex bg-black/50 border border-gray-600 rounded">
+        <div className="flex items-center justify-between mb-3 select-none">
+          <label className="text-sm font-medium text-foreground/70">Reference Images</label>
+          <div className="inline-flex bg-gray-100 border border-border rounded-lg overflow-hidden">
             <button
               onClick={() => onUseUrlsChange(false)}
               className={cn(
-                "px-2 py-1 md:px-4 md:py-2 text-xs md:text-sm font-medium transition-all rounded-l",
-                !useUrls ? "bg-white text-black" : "text-gray-300 hover:text-white",
+                "px-3 py-1.5 text-xs font-medium transition-all",
+                !useUrls ? "bg-white text-foreground shadow-sm" : "text-foreground/60 hover:text-foreground",
               )}
             >
               Files
@@ -44,8 +44,8 @@ export function ImageUploadSection({
             <button
               onClick={() => onUseUrlsChange(true)}
               className={cn(
-                "px-2 py-1 md:px-4 md:py-2 text-xs md:text-sm font-medium transition-all rounded-r",
-                useUrls ? "bg-white text-black" : "text-gray-300 hover:text-white",
+                "px-3 py-1.5 text-xs font-medium transition-all",
+                useUrls ? "bg-white text-foreground shadow-sm" : "text-foreground/60 hover:text-foreground",
               )}
             >
               URLs
@@ -78,7 +78,7 @@ export function ImageUploadSection({
           </div>
         ) : (
           <div className="space-y-2 select-none" style={{ minHeight: "80px" }}>
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:flex lg:justify-start lg:gap-4">
+            <div className="grid grid-cols-2 gap-3 lg:flex lg:justify-start lg:gap-4">
               <ImageUpload
                 imageNumber={1}
                 preview={image1Preview}
@@ -106,4 +106,3 @@ export function ImageUploadSection({
     </div>
   )
 }
-
