@@ -27,7 +27,7 @@ export default function LandingPage() {
                 Studio
               </Link>
               <Link
-                href="/api/v1"
+                href="/api-docs"
                 className="text-sm text-foreground/70 hover:text-foreground transition-colors"
               >
                 API
