@@ -12,6 +12,7 @@ import { StatsCards } from "@/components/dashboard/stats-cards"
 import { GenerationChart } from "@/components/dashboard/generation-chart"
 import { ImageCombiner } from "@/components/image-combiner/index"
 import { GenerationHistory } from "@/components/dashboard/generation-history"
+import { LogoLoader } from "@/components/logo-icon"
 
 export default function StudioPage() {
   const { isAuthenticated, isLoading } = useConvexAuth()
@@ -65,39 +66,8 @@ export default function StudioPage() {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="h-screen bg-[#f5f5f5] flex flex-col items-center justify-center select-none">
-        <div className="flex flex-col items-center gap-4 animate-pulse">
-          <div className="w-16 h-16 bg-foreground rounded-xl flex items-center justify-center">
-            <svg
-              className="w-9 h-9 text-background"
-              viewBox="0 0 32 32"
-              fill="none"
-            >
-              <path 
-                d="M16 3L28 16L16 29L4 16L16 3Z" 
-                stroke="currentColor" 
-                strokeWidth="2"
-                fill="none"
-              />
-              <circle 
-                cx="16" 
-                cy="16" 
-                r="5" 
-                stroke="currentColor" 
-                strokeWidth="2"
-                fill="none"
-              />
-              <circle 
-                cx="16" 
-                cy="16" 
-                r="2" 
-                fill="currentColor"
-              />
-            </svg>
-          </div>
-          <span className="text-2xl font-bold text-foreground tracking-tight">Eikon</span>
-        </div>
-        <p className="mt-8 text-foreground/50 text-sm animate-pulse">Initializing...</p>
+      <div className="h-screen bg-[#f5f5f5] flex items-center justify-center select-none">
+        <LogoLoader size="lg" text="Initializing" />
       </div>
     )
   }
@@ -105,39 +75,8 @@ export default function StudioPage() {
   // Show nothing while redirecting (if not authenticated)
   if (!isAuthenticated) {
     return (
-      <div className="h-screen bg-[#f5f5f5] flex flex-col items-center justify-center select-none">
-        <div className="flex flex-col items-center gap-4 animate-pulse">
-          <div className="w-16 h-16 bg-foreground rounded-xl flex items-center justify-center">
-            <svg
-              className="w-9 h-9 text-background"
-              viewBox="0 0 32 32"
-              fill="none"
-            >
-              <path 
-                d="M16 3L28 16L16 29L4 16L16 3Z" 
-                stroke="currentColor" 
-                strokeWidth="2"
-                fill="none"
-              />
-              <circle 
-                cx="16" 
-                cy="16" 
-                r="5" 
-                stroke="currentColor" 
-                strokeWidth="2"
-                fill="none"
-              />
-              <circle 
-                cx="16" 
-                cy="16" 
-                r="2" 
-                fill="currentColor"
-              />
-            </svg>
-          </div>
-          <span className="text-2xl font-bold text-foreground tracking-tight">Eikon</span>
-        </div>
-        <p className="mt-8 text-foreground/50 text-sm animate-pulse">Redirecting...</p>
+      <div className="h-screen bg-[#f5f5f5] flex items-center justify-center select-none">
+        <LogoLoader size="lg" text="Redirecting" />
       </div>
     )
   }

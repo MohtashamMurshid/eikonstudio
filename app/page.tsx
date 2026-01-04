@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useConvexAuth } from "convex/react";
 import { Github } from "lucide-react";
+import { Logo } from "@/components/logo";
+import { LogoIcon } from "@/components/logo-icon";
 
 export default function LandingPage() {
   const { isAuthenticated } = useConvexAuth();
@@ -14,40 +16,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-foreground rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-background"
-                  viewBox="0 0 32 32"
-                  fill="none"
-                >
-                  {/* Diamond/prism shape */}
-                  <path 
-                    d="M16 3L28 16L16 29L4 16L16 3Z" 
-                    stroke="currentColor" 
-                    strokeWidth="2.5"
-                    fill="none"
-                  />
-                  {/* Inner eye/lens */}
-                  <circle 
-                    cx="16" 
-                    cy="16" 
-                    r="5" 
-                    stroke="currentColor" 
-                    strokeWidth="2.5"
-                    fill="none"
-                  />
-                  {/* Center dot */}
-                  <circle 
-                    cx="16" 
-                    cy="16" 
-                    r="2" 
-                    fill="currentColor"
-                  />
-                </svg>
-              </div>
-              <span className="font-semibold tracking-tight">Eikon</span>
-            </Link>
+            <Logo asLink href="/" size="sm" colorScheme="dark" />
 
             {/* Nav */}
             <nav className="hidden md:flex items-center gap-6">
@@ -198,18 +167,7 @@ export default function LandingPage() {
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs shrink-0">
-                      <svg
-                        className="w-3.5 h-3.5 text-white"
-                        viewBox="0 0 32 32"
-                        fill="none"
-                      >
-                        <path 
-                          d="M16 5L26 16L16 27L6 16L16 5Z" 
-                          stroke="currentColor" 
-                          strokeWidth="2"
-                        />
-                        <circle cx="16" cy="16" r="3" fill="currentColor" />
-                      </svg>
+                      <LogoIcon className="w-3.5 h-3.5 text-white" strokeWidth={2} />
                     </div>
                     <p className="text-white/70 leading-relaxed">
                       Found 8 matches. Best result: Modern kitchen scene —{" "}
@@ -229,18 +187,7 @@ export default function LandingPage() {
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs shrink-0">
-                      <svg
-                        className="w-3.5 h-3.5 text-white"
-                        viewBox="0 0 32 32"
-                        fill="none"
-                      >
-                        <path 
-                          d="M16 5L26 16L16 27L6 16L16 5Z" 
-                          stroke="currentColor" 
-                          strokeWidth="2"
-                        />
-                        <circle cx="16" cy="16" r="3" fill="currentColor" />
-                      </svg>
+                      <LogoIcon className="w-3.5 h-3.5 text-white" strokeWidth={2} />
                     </div>
                     <p className="text-white/70 leading-relaxed">
                       Done. 4 variations created and saved.
@@ -405,37 +352,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-border py-8 px-6 bg-white">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-foreground rounded-md flex items-center justify-center">
-              <svg
-                className="w-4 h-4 text-background"
-                viewBox="0 0 32 32"
-                fill="none"
-              >
-                <path 
-                  d="M16 3L28 16L16 29L4 16L16 3Z" 
-                  stroke="currentColor" 
-                  strokeWidth="2.5"
-                  fill="none"
-                />
-                <circle 
-                  cx="16" 
-                  cy="16" 
-                  r="5" 
-                  stroke="currentColor" 
-                  strokeWidth="2.5"
-                  fill="none"
-                />
-                <circle 
-                  cx="16" 
-                  cy="16" 
-                  r="2" 
-                  fill="currentColor"
-                />
-              </svg>
-            </div>
-            <span className="text-sm font-semibold">Eikon</span>
-          </div>
+          <Logo size="xs" colorScheme="dark" />
           <p className="text-xs text-foreground/40">
             © 2026 Eikon. All rights reserved.
           </p>

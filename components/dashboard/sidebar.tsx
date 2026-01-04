@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import { LogoIcon } from "@/components/logo-icon"
 
 interface SidebarProps {
   activeTab: "dashboard" | "studio" | "history"
@@ -173,32 +174,7 @@ export function Sidebar({ activeTab, onTabChange, apiKey, onApiKeyChange, isColl
         <div className="p-4 border-b border-border">
           <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"} p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors`}>
             <div className="w-9 h-9 bg-foreground rounded-lg flex items-center justify-center flex-shrink-0">
-              <svg
-                className="w-5 h-5 text-background"
-                viewBox="0 0 32 32"
-                fill="none"
-              >
-                <path 
-                  d="M16 3L28 16L16 29L4 16L16 3Z" 
-                  stroke="currentColor" 
-                  strokeWidth="2.5"
-                  fill="none"
-                />
-                <circle 
-                  cx="16" 
-                  cy="16" 
-                  r="5" 
-                  stroke="currentColor" 
-                  strokeWidth="2.5"
-                  fill="none"
-                />
-                <circle 
-                  cx="16" 
-                  cy="16" 
-                  r="2" 
-                  fill="currentColor"
-                />
-              </svg>
+              <LogoIcon className="w-5 h-5 text-background" />
             </div>
             {!isCollapsed && (
               <>

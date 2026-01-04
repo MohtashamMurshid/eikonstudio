@@ -1,55 +1,58 @@
+import { LogoIcon } from "@/components/logo-icon"
+
 interface ProgressBarProps {
   progress: number
   label?: string
 }
 
 export function ProgressBar({ progress, label = "Generating..." }: ProgressBarProps) {
+  const clampedProgress = Math.min(100, Math.max(0, progress))
+  
   return (
     <div className="w-full h-full flex flex-col items-center justify-center px-8 select-none">
-      <div className="w-full max-w-md">
-        {/* Progress ring */}
-        <div className="flex justify-center mb-6">
-          <div className="relative w-20 h-20">
-            <svg className="w-20 h-20 transform -rotate-90">
-              <circle
-                className="text-gray-200"
-                strokeWidth="6"
-                stroke="currentColor"
-                fill="transparent"
-                r="34"
-                cx="40"
-                cy="40"
-              />
-              <circle
-                className="text-emerald-500 transition-all duration-300 ease-out"
-                strokeWidth="6"
-                strokeLinecap="round"
-                stroke="currentColor"
-                fill="transparent"
-                r="34"
-                cx="40"
-                cy="40"
-                strokeDasharray={`${2 * Math.PI * 34}`}
-                strokeDashoffset={`${2 * Math.PI * 34 * (1 - progress / 100)}`}
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-lg font-semibold text-foreground">{Math.round(progress)}%</span>
+      <div className="flex flex-col items-center">
+        {/* Logo with circular progress ring */}
+        <div className="relative mb-6">
+          {/* Progress ring */}
+          <svg className="w-28 h-28 transform -rotate-90">
+            <circle
+              className="text-foreground/10"
+              strokeWidth="4"
+              stroke="currentColor"
+              fill="transparent"
+              r="52"
+              cx="56"
+              cy="56"
+            />
+            <circle
+              className="text-foreground transition-all duration-300 ease-out"
+              strokeWidth="4"
+              strokeLinecap="round"
+              stroke="currentColor"
+              fill="transparent"
+              r="52"
+              cx="56"
+              cy="56"
+              strokeDasharray={`${2 * Math.PI * 52}`}
+              strokeDashoffset={`${2 * Math.PI * 52 * (1 - clampedProgress / 100)}`}
+            />
+          </svg>
+          
+          {/* Logo in center */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="size-16 bg-foreground rounded-xl flex items-center justify-center">
+              <LogoIcon className="size-9 text-background" />
             </div>
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden mb-4">
-          <div
-            className="absolute inset-0 h-full bg-emerald-500 transition-all duration-300 ease-out rounded-full"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        {/* Percentage */}
+        <span className="text-2xl font-semibold text-foreground mb-2">
+          {Math.round(clampedProgress)}%
+        </span>
 
-        <div className="text-center">
-          <p className="text-sm font-medium text-foreground/70 animate-pulse">{label}</p>
-        </div>
+        {/* Label */}
+        <p className="text-sm text-foreground/60">{label}</p>
       </div>
     </div>
   )

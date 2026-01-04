@@ -19,6 +19,27 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Eikon - AI Image Studio",
   description: "Transform, combine, and generate stunning images with AI. Powered by Google Gemini.",
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: [
+      { url: "/logo.png", sizes: "32x32", type: "image/png" },
+      { url: "/logo.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [
+      { url: "/logo.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  openGraph: {
+    title: "Eikon - AI Image Studio",
+    description: "Transform, combine, and generate stunning images with AI. Powered by Google Gemini.",
+    siteName: "Eikon",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Eikon - AI Image Studio",
+    description: "Transform, combine, and generate stunning images with AI. Powered by Google Gemini.",
+  },
 }
 
 export default function RootLayout({

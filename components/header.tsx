@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import { Logo } from "@/components/logo"
 
 interface HeaderProps {
   apiKey: string
@@ -58,37 +59,7 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
   return (
     <header className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-sm border-b border-border">
       {/* Logo */}
-      <div className="flex items-center gap-2 select-none">
-        <div className="w-7 h-7 bg-foreground rounded-md flex items-center justify-center">
-          <svg
-            className="w-4 h-4 text-background"
-            viewBox="0 0 32 32"
-            fill="none"
-          >
-            <path 
-              d="M16 3L28 16L16 29L4 16L16 3Z" 
-              stroke="currentColor" 
-              strokeWidth="2.5"
-              fill="none"
-            />
-            <circle 
-              cx="16" 
-              cy="16" 
-              r="5" 
-              stroke="currentColor" 
-              strokeWidth="2.5"
-              fill="none"
-            />
-            <circle 
-              cx="16" 
-              cy="16" 
-              r="2" 
-              fill="currentColor"
-            />
-          </svg>
-        </div>
-        <span className="text-sm font-semibold text-foreground tracking-tight">Eikon</span>
-      </div>
+      <Logo asLink href="/" size="xs" colorScheme="dark" />
 
       {/* User Menu */}
       <div className="relative" ref={dropdownRef}>
