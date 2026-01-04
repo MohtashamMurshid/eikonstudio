@@ -219,7 +219,11 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
 
   return (
     <div
-      className="select-none min-h-[60vh] flex flex-col"
+      className={`select-none flex flex-col transition-all duration-500 ease-out ${
+        imageGeneration.isLoading || imageUpload.isConvertingHeic || imageGeneration.generatedImage 
+          ? "min-h-[60vh]" 
+          : "min-h-[calc(100vh-200px)] justify-center"
+      }`}
       onDragEnter={dragDrop.handleGlobalDragEnter}
       onDragLeave={dragDrop.handleGlobalDragLeave}
       onDragOver={dragDrop.handleGlobalDragOver}
@@ -229,11 +233,83 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       <DragOverlay isDragOver={dragDrop.isDragOver} />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-3xl mx-auto px-4">
+      <div className={`flex-1 flex flex-col w-full max-w-3xl mx-auto px-4 transition-all duration-500 ease-out items-center ${
+        imageGeneration.isLoading || imageUpload.isConvertingHeic || imageGeneration.generatedImage 
+          ? "justify-start pt-8" 
+          : "justify-center"
+      }`}>
         
         {/* Input Container - Scira Style */}
-        <div className="w-full">
-          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <div className="w-full transition-all duration-500 ease-out">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm transition-all duration-500 ease-out">
+            {/* Image Previews - Above Textarea */}
+            {(imageUpload.image1Preview || imageUpload.image2Preview) && (
+              <div className="p-4 pb-0">
+                <div className="flex items-start gap-3">
+                  {imageUpload.image1Preview && (
+                    <div className="relative group">
+                      <img 
+                        src={imageUpload.image1Preview} 
+                        alt="Input 1" 
+                        className="w-[100px] h-[100px] rounded-xl object-cover border border-border/50" 
+                      />
+                      {/* Action buttons */}
+                      <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                        <button
+                          onClick={() => document.getElementById("image-upload-1")?.click()}
+                          className="w-7 h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                          title="Replace image"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => imageUpload.clearImage(1)}
+                          className="w-7 h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                          title="Remove image"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {imageUpload.image2Preview && (
+                    <div className="relative group">
+                      <img 
+                        src={imageUpload.image2Preview} 
+                        alt="Input 2" 
+                        className="w-[100px] h-[100px] rounded-xl object-cover border border-border/50" 
+                      />
+                      {/* Action buttons */}
+                      <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                        <button
+                          onClick={() => document.getElementById("image-upload-2")?.click()}
+                          className="w-7 h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                          title="Replace image"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => imageUpload.clearImage(2)}
+                          className="w-7 h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                          title="Remove image"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Textarea */}
             <div className="p-4 pb-2">
               <textarea
@@ -265,38 +341,6 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
                   </svg>
                   <span>Images</span>
                 </button>
-
-                {/* Image Upload Previews */}
-                {(imageUpload.image1Preview || imageUpload.image2Preview) && (
-                  <div className="flex items-center gap-1.5">
-                    {imageUpload.image1Preview && (
-                      <div className="relative group">
-                        <img src={imageUpload.image1Preview} alt="Input 1" className="w-8 h-8 rounded-lg object-cover border border-border" />
-                        <button
-                          onClick={() => imageUpload.clearImage(1)}
-                          className="absolute -top-1 -right-1 w-4 h-4 bg-foreground/80 text-background rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-                    {imageUpload.image2Preview && (
-                      <div className="relative group">
-                        <img src={imageUpload.image2Preview} alt="Input 2" className="w-8 h-8 rounded-lg object-cover border border-border" />
-                        <button
-                          onClick={() => imageUpload.clearImage(2)}
-                          className="absolute -top-1 -right-1 w-4 h-4 bg-foreground/80 text-background rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Aspect Ratio Dropdown */}
                 <Select value={aspectRatio} onValueChange={setAspectRatio}>
@@ -424,6 +468,17 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-sm text-foreground/60">Generated Image</span>
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => imageGeneration.setGeneratedImage(null)}
+                        className="h-8 px-3 flex items-center gap-1.5 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground/80 hover:text-foreground text-sm transition-colors"
+                        title="New Generation"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>New</span>
+                      </button>
+                      <div className="w-px h-5 bg-border" />
                       <button
                         onClick={useGeneratedAsInput}
                         className="p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
