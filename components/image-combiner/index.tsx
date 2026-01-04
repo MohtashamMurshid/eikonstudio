@@ -16,6 +16,7 @@ import { DragOverlay } from "./components/drag-overlay"
 import { FullscreenModal } from "./components/fullscreen-modal"
 import { ProgressBar } from "./components/progress-bar"
 import { predefinedArtStyles } from "./constants"
+import { Logo } from "@/components/logo"
 
 interface ExtendedImageCombinerProps extends ImageCombinerProps {
   pendingInputImage?: string | null
@@ -233,14 +234,24 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       <DragOverlay isDragOver={dragDrop.isDragOver} />
 
       {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col w-full max-w-3xl mx-auto px-0 sm:px-4 transition-all duration-500 ease-out items-center ${
+      <div className={`flex-1 flex flex-col w-full max-w-3xl mx-auto px-0 sm:px-4 transition-all duration-500 ease-out items-center justify-center ${
         imageGeneration.isLoading || imageUpload.isConvertingHeic || imageGeneration.generatedImage 
-          ? "justify-start pt-4 sm:pt-8" 
-          : "justify-center"
+          ? "!justify-start pt-4 sm:pt-8" 
+          : ""
       }`}>
         
         {/* Input Container - Scira Style */}
         <div className="w-full transition-all duration-500 ease-out">
+          {/* Subtle Logo Branding */}
+          <div className="flex justify-center mb-4 sm:mb-6">
+            <Logo 
+              variant="default" 
+              size="sm" 
+              colorScheme="dark"
+              className="opacity-60 hover:opacity-100 transition-opacity"
+            />
+          </div>
+          
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm transition-all duration-500 ease-out">
             {/* Image Previews - Above Textarea */}
             {(imageUpload.image1Preview || imageUpload.image2Preview) && (
