@@ -125,6 +125,9 @@ importers:
       convex:
         specifier: ^1.31.2
         version: 1.31.2(react@19.0.0)
+      convex-helpers:
+        specifier: ^0.1.108
+        version: 0.1.108(@standard-schema/spec@1.1.0)(convex@1.31.2(react@19.0.0))(react@19.0.0)(typescript@5.0.2)(zod@3.25.67)
       date-fns:
         specifier: 4.1.0
         version: 4.1.0
@@ -5746,6 +5749,15 @@ snapshots:
   concat-map@0.0.1: {}
 
   convert-source-map@2.0.0: {}
+
+  convex-helpers@0.1.108(@standard-schema/spec@1.1.0)(convex@1.31.2(react@19.0.0))(react@19.0.0)(typescript@5.0.2)(zod@3.25.67):
+    dependencies:
+      convex: 1.31.2(react@19.0.0)
+    optionalDependencies:
+      '@standard-schema/spec': 1.1.0
+      react: 19.0.0
+      typescript: 5.0.2
+      zod: 3.25.67
 
   convex-helpers@0.1.108(@standard-schema/spec@1.1.0)(convex@1.31.2(react@19.0.0))(react@19.0.0)(typescript@5.0.2)(zod@4.3.4):
     dependencies:

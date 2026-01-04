@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useConvexAuth } from "convex/react"
 import { useRouter } from "next/navigation"
-import { useQuery } from "convex/react"
+import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 

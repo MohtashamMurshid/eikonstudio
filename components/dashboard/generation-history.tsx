@@ -1,9 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery } from "convex-helpers/react/cache/hooks"
+import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
+import { LogoLoader } from "@/components/logo-icon"
 
 interface Generation {
   _id: Id<"generations">
@@ -93,8 +95,7 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
   if (generations === undefined) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
-        <p className="mt-4 text-sm text-foreground/50">Loading history...</p>
+        <LogoLoader size="md" text="Loading history" />
       </div>
     )
   }
