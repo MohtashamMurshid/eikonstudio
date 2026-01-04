@@ -36,9 +36,10 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
   const [pendingInputImage, setPendingInputImage] = useState<string | null>(null)
 
   // Determine active tab from pathname
-  const getActiveTab = (): "dashboard" | "studio" | "history" => {
+  const getActiveTab = (): "dashboard" | "studio" | "history" | "gallery" => {
     if (pathname?.includes("/dashboard")) return "dashboard"
     if (pathname?.includes("/history")) return "history"
+    if (pathname?.includes("/gallery")) return "gallery"
     return "studio" // default for /studio/create or /studio
   }
 
@@ -61,7 +62,7 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
   }
 
   // Handle tab change via navigation
-  const handleTabChange = (tab: "dashboard" | "studio" | "history") => {
+  const handleTabChange = (tab: "dashboard" | "studio" | "history" | "gallery") => {
     switch (tab) {
       case "dashboard":
         router.push("/studio/dashboard")
@@ -71,6 +72,9 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
         break
       case "history":
         router.push("/studio/history")
+        break
+      case "gallery":
+        router.push("/studio/gallery")
         break
     }
   }

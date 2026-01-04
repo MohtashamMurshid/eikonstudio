@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useMutation } from "convex/react"
+import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -15,6 +16,7 @@ import { Toast } from "./components/toast"
 import { DragOverlay } from "./components/drag-overlay"
 import { FullscreenModal } from "./components/fullscreen-modal"
 import { ProgressBar } from "./components/progress-bar"
+import { MentionAutocomplete } from "./components/mention-autocomplete"
 import { predefinedArtStyles } from "./constants"
 import { Logo } from "@/components/logo"
 
@@ -30,11 +32,17 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
   const [imageSize, setImageSize] = useState<string>("2K")
   const [selectedArtStyle, setSelectedArtStyle] = useState<string>("")
   const [customArtStyles, setCustomArtStyles] = useState<string[]>([])
+  const [cursorPosition, setCursorPosition] = useState(0)
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const { toast, showToast } = useToast()
   
   // Convex mutation to save generations
   const saveGeneration = useMutation(api.generations.saveGeneration)
+  
+  // For resolving @mentions - we need gallery images
+  const galleryImages = useQuery(api.gallery.getMyImages, { limit: 100 })
 
   const imageUpload = useImageUpload({
     onError: (message) => showToast(message, "error"),
@@ -206,17 +214,150 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
 
   const canGenerate = prompt.trim().length > 0 && (currentMode === "text-to-image" || (imageUpload.useUrls ? imageUpload.image1Url : imageUpload.image1))
 
+  // Handle prompt change with cursor tracking
+  const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setPrompt(e.target.value)
+    setCursorPosition(e.target.selectionStart || 0)
+    
+    // Check if we should show mention dropdown
+    const text = e.target.value
+    const cursor = e.target.selectionStart || 0
+    
+    // Look backwards from cursor to find @
+    let hasAtSymbol = false
+    for (let i = cursor - 1; i >= 0; i--) {
+      if (/\s/.test(text[i])) break
+      if (text[i] === "@") {
+        hasAtSymbol = true
+        break
+      }
+    }
+    setShowMentionDropdown(hasAtSymbol)
+  }
+
+  // Handle mention selection from autocomplete - load image as input
+  const handleMentionSelect = useCallback(async (filename: string, startIndex: number, endIndex: number, imageData: string) => {
+    // Remove the @... from the prompt (don't insert the @filename text)
+    const before = prompt.slice(0, startIndex)
+    const after = prompt.slice(endIndex)
+    const newPrompt = `${before}${after}`.trim()
+    setPrompt(newPrompt)
+    setShowMentionDropdown(false)
+    
+    // Load the image as an input image
+    try {
+      const response = await fetch(imageData)
+      const blob = await response.blob()
+      const file = new File([blob], `${filename}.png`, { type: "image/png" })
+      
+      // Load into first empty slot, or slot 1 if both are empty
+      if (!imageUpload.image1 && !imageUpload.image1Url) {
+        imageUpload.handleImageUpload(file, 1)
+      } else if (!imageUpload.image2 && !imageUpload.image2Url) {
+        imageUpload.handleImageUpload(file, 2)
+      } else {
+        // Replace slot 1 if both are full
+        imageUpload.handleImageUpload(file, 1)
+      }
+      
+      showToast(`Added "${filename}" as reference image`, "success")
+    } catch (error) {
+      console.error("Failed to load gallery image:", error)
+      showToast("Failed to load image", "error")
+    }
+    
+    // Focus textarea
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus()
+        const newCursorPos = before.length
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos)
+        setCursorPosition(newCursorPos)
+      }
+    }, 0)
+  }, [prompt, imageUpload, showToast])
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Let mention autocomplete handle arrow keys and enter when visible
+    if (showMentionDropdown && ["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) {
+      // The MentionAutocomplete component will handle these
+      return
+    }
+    
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault()
       if (canGenerate && !imageGeneration.isLoading) {
-        imageGeneration.generateImage()
+        handleGenerateWithMentions()
       }
     }
   }
 
   // Art style suggestions (show first 4)
   const artStyleSuggestions = predefinedArtStyles.slice(0, 4)
+
+  // Resolve @mentions in prompt and load referenced images
+  const handleGenerateWithMentions = useCallback(async () => {
+    // Find all @filename mentions in the prompt (word boundary after @)
+    const mentionRegex = /@([a-zA-Z0-9_-]+)/g
+    const matches = [...prompt.matchAll(mentionRegex)]
+    
+    if (matches.length === 0) {
+      // No mentions, generate normally
+      imageGeneration.generateImage()
+      return
+    }
+
+    // Resolve mentions to images
+    const resolvedImages: { filename: string; imageData: string }[] = []
+    let cleanPrompt = prompt
+
+    for (const match of matches) {
+      const filename = match[1]
+      const galleryImage = galleryImages?.find((img: any) => img.filename === filename)
+      
+      if (galleryImage) {
+        resolvedImages.push({
+          filename,
+          imageData: galleryImage.imageData,
+        })
+        // Remove the @filename from prompt (keep just a reference note)
+        cleanPrompt = cleanPrompt.replace(match[0], `[reference: ${filename}]`)
+      }
+      // If not found in gallery, just leave it as text (might be intentional @mention text)
+    }
+
+    // Load resolved images into input slots
+    if (resolvedImages.length > 0) {
+      try {
+        // Load first mention into slot 1 if empty or replace it
+        const firstImage = resolvedImages[0]
+        const response1 = await fetch(firstImage.imageData)
+        const blob1 = await response1.blob()
+        const file1 = new File([blob1], `${firstImage.filename}.png`, { type: "image/png" })
+        imageUpload.handleImageUpload(file1, 1)
+        
+        // Load second mention into slot 2 if available
+        if (resolvedImages.length > 1) {
+          const secondImage = resolvedImages[1]
+          const response2 = await fetch(secondImage.imageData)
+          const blob2 = await response2.blob()
+          const file2 = new File([blob2], `${secondImage.filename}.png`, { type: "image/png" })
+          imageUpload.handleImageUpload(file2, 2)
+        }
+        
+        showToast(`Loaded ${resolvedImages.length} reference image(s) from gallery`, "success")
+        
+        // Update prompt to cleaned version and generate after a short delay to allow image loading
+        setPrompt(cleanPrompt)
+        setTimeout(() => {
+          imageGeneration.generateImage()
+        }, 500)
+      } catch (error) {
+        console.error("Error loading reference images:", error)
+        showToast("Failed to load reference images from gallery", "error")
+      }
+    }
+  }, [prompt, galleryImages, imageGeneration, imageUpload, showToast])
 
   return (
     <div
@@ -321,13 +462,16 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
               </div>
             )}
 
-            {/* Textarea */}
-            <div className="p-3 sm:p-4 pb-2">
+            {/* Textarea with Mention Autocomplete */}
+            <div className="p-3 sm:p-4 pb-2 relative">
               <textarea
+                ref={textareaRef}
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                onChange={handlePromptChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Describe the image you want to generate..."
+                onSelect={(e) => setCursorPosition((e.target as HTMLTextAreaElement).selectionStart || 0)}
+                onClick={(e) => setCursorPosition((e.target as HTMLTextAreaElement).selectionStart || 0)}
+                placeholder="Describe the image you want to generate... (type @ to reference gallery images)"
                 className="w-full min-h-[60px] sm:min-h-[80px] max-h-[120px] sm:max-h-[160px] bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-foreground text-sm sm:text-base placeholder:text-foreground/40 select-text"
                 style={{
                   fontSize: "16px",
@@ -335,6 +479,17 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
                   userSelect: "text",
                 }}
               />
+              
+              {/* Mention Autocomplete Dropdown */}
+              {showMentionDropdown && (
+                <MentionAutocomplete
+                  inputValue={prompt}
+                  cursorPosition={cursorPosition}
+                  onSelect={handleMentionSelect}
+                  onClose={() => setShowMentionDropdown(false)}
+                  textareaRef={textareaRef as React.RefObject<HTMLTextAreaElement>}
+                />
+              )}
             </div>
 
             {/* Bottom Bar with Controls */}
@@ -403,7 +558,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
 
               {/* Generate Button */}
               <Button
-                onClick={imageGeneration.generateImage}
+                onClick={handleGenerateWithMentions}
                 disabled={!canGenerate || imageGeneration.isLoading || imageUpload.isConvertingHeic}
                 className="h-10 sm:h-8 px-4 rounded-full bg-foreground text-background hover:bg-foreground/90 text-sm font-medium transition-colors w-full sm:w-auto"
               >
