@@ -1,6 +1,5 @@
 import { useState } from "react"
 import type { GeneratedImage } from "../types"
-import { preloadImage } from "../utils/image-processing"
 
 interface SaveGenerationParams {
   prompt: string
@@ -115,38 +114,32 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       const data = await response.json()
       clearInterval(progressInterval)
 
-      setProgress(99)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
       setProgress(100)
-
-      await preloadImage(data.url)
-      setImageLoaded(true)
-
+      
+      // Set the generated image immediately and stop loading
       setGeneratedImage(data)
+      setImageLoaded(true)
+      setIsLoading(false)
+      setShowAnimation(false)
+      setProgress(0)
 
-      // Save generation to database if callback provided
+      // Save generation to database in the background (don't block UI)
       if (options.onSaveGeneration) {
-        try {
-          await options.onSaveGeneration({
-            prompt: finalPrompt,
-            imageData: data.url, // This is the base64 data URL
-            mode: currentMode,
-            aspectRatio,
-            imageSize,
-            artStyle: selectedArtStyle || undefined,
-          })
-        } catch (saveError) {
+        options.onSaveGeneration({
+          prompt: finalPrompt,
+          imageData: data.url, // This is the base64 data URL
+          mode: currentMode,
+          aspectRatio,
+          imageSize,
+          artStyle: selectedArtStyle || undefined,
+        }).catch((saveError) => {
           console.error("Error saving generation to database:", saveError)
           // Notify user that saving failed - they should download the image
           options.onSaveError?.(
             "Image too large to save to history. Please download it manually to keep it."
           )
-        }
+        })
       }
-
-      setIsLoading(false)
-      setShowAnimation(false)
-      setProgress(0)
     } catch (error) {
       clearInterval(progressInterval)
       setProgress(0)
