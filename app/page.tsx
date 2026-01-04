@@ -112,7 +112,7 @@ export default function LandingPage() {
           {/* CTAs */}
           <div className="flex items-center justify-center gap-4">
             <Link
-              href={isAuthenticated ? "/studio" : "/auth"}
+              href={"/studio/create"}
               className="px-8 py-3.5 bg-emerald-500 text-white font-medium rounded-lg text-sm hover:bg-emerald-600 transition-all"
             >
               Launch Studio
