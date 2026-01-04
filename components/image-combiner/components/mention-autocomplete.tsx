@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback, memo } from "react"
+import { useState, useEffect, useRef, useCallback, memo, useLayoutEffect } from "react"
 import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
 
@@ -51,25 +51,32 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
   textareaRef,
 }: MentionAutocompleteProps) {
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [position, setPosition] = useState({ top: 0, left: 0 })
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Find mention at cursor
   const mention = findMentionAtCursor(inputValue, cursorPosition)
   
-  // Query gallery images
+  // Query gallery images - always query when mention exists (even empty search term shows all images)
   const searchResults = useQuery(
     api.gallery.searchImages,
-    mention ? { searchTerm: mention.searchTerm, limit: 6 } : "skip"
+    mention !== null ? { searchTerm: mention.searchTerm, limit: 6 } : "skip"
   ) as GalleryImageResult[] | undefined
 
   const images = searchResults ?? []
-  const showDropdown = mention !== null && images.length > 0
+  const isLoading = mention !== null && searchResults === undefined
+  const showDropdown = mention !== null && (images.length > 0 || isLoading)
 
   // Calculate dropdown position based on "@" position - positioned ABOVE the @
-  // Using fixed positioning to escape overflow-hidden containers
-  useEffect(() => {
-    if (!showDropdown || !textareaRef.current || !mention) return
+  // Using useLayoutEffect to calculate position BEFORE paint to avoid animation glitch
+  useLayoutEffect(() => {
+    if (!showDropdown || !textareaRef.current || !mention) {
+      // Only reset if position is currently set (avoid infinite loop)
+      if (position !== null) {
+        setPosition(null)
+      }
+      return
+    }
 
     const textarea = textareaRef.current
     const textareaRect = textarea.getBoundingClientRect()
@@ -87,12 +94,18 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
     const xOffset = Math.max(0, lastLine.length * avgCharWidth)
     const paddingLeft = parseInt(computedStyle.paddingLeft) || 12
 
-    // Position above the textarea using fixed coordinates
-    setPosition({
-      top: textareaRect.top - 8, // Just above the textarea
-      left: textareaRect.left + paddingLeft + Math.min(xOffset, textarea.clientWidth - 200),
+    // Calculate new position
+    const newTop = textareaRect.top - 8
+    const newLeft = textareaRect.left + paddingLeft + Math.min(xOffset, textarea.clientWidth - 200)
+
+    // Only update if position changed (avoid infinite loop)
+    setPosition(prev => {
+      if (prev?.top === newTop && prev?.left === newLeft) {
+        return prev
+      }
+      return { top: newTop, left: newLeft }
     })
-  }, [showDropdown, inputValue, mention, textareaRef, images.length])
+  }, [showDropdown, inputValue, mention, textareaRef, images.length, position])
 
   // Reset selection when results change
   useEffect(() => {
@@ -147,15 +160,16 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [showDropdown, onClose])
 
-  if (!showDropdown) return null
+  // Don't render until we have both showDropdown and a calculated position
+  if (!showDropdown || !position) return null
 
   // Calculate dropdown height for positioning above
-  const dropdownHeight = Math.min(images.length, 5) * 36 + 8
+  const dropdownHeight = isLoading ? 44 : Math.min(images.length, 5) * 36 + 8
 
   return (
     <div
       ref={dropdownRef}
-      className="fixed z-[100] bg-white border border-border rounded-lg shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-100"
+      className="fixed z-[100] bg-white border border-border rounded-lg shadow-lg overflow-hidden animate-in fade-in duration-100"
       style={{
         top: position.top - dropdownHeight,
         left: position.left,
@@ -163,31 +177,57 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
         maxWidth: "240px",
       }}
     >
-      <div className="max-h-[180px] overflow-y-auto">
-        {images.map((image, index) => (
-          <button
-            key={image._id}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 text-left transition-colors ${
-              index === selectedIndex
-                ? "bg-emerald-50"
-                : "hover:bg-secondary/50"
-            }`}
-            onClick={() => {
-              if (mention) {
-                onSelect(image.filename, mention.startIndex, mention.endIndex, image.imageData)
-              }
-            }}
-            onMouseEnter={() => setSelectedIndex(index)}
+      {isLoading ? (
+        <div className="flex items-center gap-2 px-3 py-2.5 text-muted-foreground">
+          <svg
+            className="animate-spin h-4 w-4"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
           >
-            <img
-              src={image.thumbnailData}
-              alt={image.filename}
-              className="w-7 h-7 rounded object-cover border border-border/50 flex-shrink-0"
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
             />
-            <span className="text-sm truncate">@{image.filename}</span>
-          </button>
-        ))}
-      </div>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+          <span className="text-sm">Searching...</span>
+        </div>
+      ) : (
+        <div className="max-h-[180px] overflow-y-auto">
+          {images.map((image, index) => (
+            <button
+              key={image._id}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 text-left transition-colors ${
+                index === selectedIndex
+                  ? "bg-emerald-50"
+                  : "hover:bg-secondary/50"
+              }`}
+              onClick={() => {
+                if (mention) {
+                  onSelect(image.filename, mention.startIndex, mention.endIndex, image.imageData)
+                }
+              }}
+              onMouseEnter={() => setSelectedIndex(index)}
+            >
+              <img
+                src={image.thumbnailData}
+                alt={image.filename}
+                className="w-7 h-7 rounded object-cover border border-border/50 flex-shrink-0"
+              />
+              <span className="text-sm truncate">@{image.filename}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 })
