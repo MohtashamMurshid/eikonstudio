@@ -233,9 +233,9 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       <DragOverlay isDragOver={dragDrop.isDragOver} />
 
       {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col w-full max-w-3xl mx-auto px-4 transition-all duration-500 ease-out items-center ${
+      <div className={`flex-1 flex flex-col w-full max-w-3xl mx-auto px-0 sm:px-4 transition-all duration-500 ease-out items-center ${
         imageGeneration.isLoading || imageUpload.isConvertingHeic || imageGeneration.generatedImage 
-          ? "justify-start pt-8" 
+          ? "justify-start pt-4 sm:pt-8" 
           : "justify-center"
       }`}>
         
@@ -244,32 +244,32 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm transition-all duration-500 ease-out">
             {/* Image Previews - Above Textarea */}
             {(imageUpload.image1Preview || imageUpload.image2Preview) && (
-              <div className="p-4 pb-0">
-                <div className="flex items-start gap-3">
+              <div className="p-3 sm:p-4 pb-0">
+                <div className="flex items-start gap-2 sm:gap-3">
                   {imageUpload.image1Preview && (
                     <div className="relative group">
                       <img 
                         src={imageUpload.image1Preview} 
                         alt="Input 1" 
-                        className="w-[100px] h-[100px] rounded-xl object-cover border border-border/50" 
+                        className="w-[70px] h-[70px] sm:w-[100px] sm:h-[100px] rounded-lg sm:rounded-xl object-cover border border-border/50" 
                       />
-                      {/* Action buttons */}
-                      <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                      {/* Action buttons - always visible on mobile */}
+                      <div className="absolute top-1 right-1 sm:top-2 sm:right-2 flex items-center gap-1">
                         <button
                           onClick={() => document.getElementById("image-upload-1")?.click()}
-                          className="w-7 h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                          className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
                           title="Replace image"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                           </svg>
                         </button>
                         <button
                           onClick={() => imageUpload.clearImage(1)}
-                          className="w-7 h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                          className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
                           title="Remove image"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
@@ -281,25 +281,25 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
                       <img 
                         src={imageUpload.image2Preview} 
                         alt="Input 2" 
-                        className="w-[100px] h-[100px] rounded-xl object-cover border border-border/50" 
+                        className="w-[70px] h-[70px] sm:w-[100px] sm:h-[100px] rounded-lg sm:rounded-xl object-cover border border-border/50" 
                       />
-                      {/* Action buttons */}
-                      <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                      {/* Action buttons - always visible on mobile */}
+                      <div className="absolute top-1 right-1 sm:top-2 sm:right-2 flex items-center gap-1">
                         <button
                           onClick={() => document.getElementById("image-upload-2")?.click()}
-                          className="w-7 h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                          className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
                           title="Replace image"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                           </svg>
                         </button>
                         <button
                           onClick={() => imageUpload.clearImage(2)}
-                          className="w-7 h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                          className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
                           title="Remove image"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
@@ -311,13 +311,13 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
             )}
 
             {/* Textarea */}
-            <div className="p-4 pb-2">
+            <div className="p-3 sm:p-4 pb-2">
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Describe the image you want to generate..."
-                className="w-full min-h-[80px] max-h-[160px] bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-foreground text-base placeholder:text-foreground/40 select-text"
+                className="w-full min-h-[60px] sm:min-h-[80px] max-h-[120px] sm:max-h-[160px] bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-foreground text-sm sm:text-base placeholder:text-foreground/40 select-text"
                 style={{
                   fontSize: "16px",
                   WebkitUserSelect: "text",
@@ -327,24 +327,24 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
             </div>
 
             {/* Bottom Bar with Controls */}
-            <div className="px-4 pb-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
+            <div className="px-3 sm:px-4 pb-3 sm:pb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 {/* Add Images Button */}
                 <button
                   onClick={() => document.getElementById("image-upload-1")?.click()}
-                  className="h-8 px-2.5 flex items-center gap-1.5 bg-secondary/50 text-foreground text-xs rounded-lg hover:bg-secondary transition-colors"
+                  className="h-8 px-2 sm:px-2.5 flex items-center gap-1 sm:gap-1.5 bg-secondary/50 text-foreground text-xs rounded-lg hover:bg-secondary transition-colors"
                 >
                   <svg className="w-3.5 h-3.5 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" strokeWidth={1.5} />
                     <circle cx="8.5" cy="8.5" r="1.5" strokeWidth={1.5} />
                     <polyline points="21,15 16,10 5,21" strokeWidth={1.5} />
                   </svg>
-                  <span>Images</span>
+                  <span className="hidden sm:inline">Images</span>
                 </button>
 
                 {/* Aspect Ratio Dropdown */}
                 <Select value={aspectRatio} onValueChange={setAspectRatio}>
-                  <SelectTrigger className="h-8 px-2.5 bg-secondary/50 border-0 text-foreground text-xs gap-1.5 rounded-lg hover:bg-secondary transition-colors">
+                  <SelectTrigger className="h-8 px-2 sm:px-2.5 bg-secondary/50 border-0 text-foreground text-xs gap-1 sm:gap-1.5 rounded-lg hover:bg-secondary transition-colors">
                     <svg className="w-3.5 h-3.5 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={1.5} />
                     </svg>
@@ -360,7 +360,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
 
                 {/* Size Dropdown */}
                 <Select value={imageSize} onValueChange={setImageSize}>
-                  <SelectTrigger className="h-8 px-2.5 bg-secondary/50 border-0 text-foreground text-xs gap-1.5 rounded-lg hover:bg-secondary transition-colors">
+                  <SelectTrigger className="h-8 px-2 sm:px-2.5 bg-secondary/50 border-0 text-foreground text-xs gap-1 sm:gap-1.5 rounded-lg hover:bg-secondary transition-colors">
                     <svg className="w-3.5 h-3.5 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                     </svg>
@@ -375,11 +375,11 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
 
                 {/* Art Style Dropdown */}
                 <Select value={selectedArtStyle || "none"} onValueChange={(v) => setSelectedArtStyle(v === "none" ? "" : v)}>
-                  <SelectTrigger className="h-8 px-2.5 bg-secondary/50 border-0 text-foreground text-xs gap-1.5 rounded-lg hover:bg-secondary transition-colors min-w-[100px]">
-                    <svg className="w-3.5 h-3.5 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <SelectTrigger className="h-8 px-2 sm:px-2.5 bg-secondary/50 border-0 text-foreground text-xs gap-1 sm:gap-1.5 rounded-lg hover:bg-secondary transition-colors min-w-[70px] sm:min-w-[100px]">
+                    <svg className="w-3.5 h-3.5 text-foreground/60 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.098 19.902a3.75 3.75 0 005.304 0l6.401-6.402M6.75 21A3.75 3.75 0 013 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 003.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008z" />
                     </svg>
-                    <SelectValue placeholder="Style" />
+                    <SelectValue placeholder="Style" className="truncate" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border text-foreground max-h-[300px]">
                     <SelectItem value="none" className="text-xs">No Style</SelectItem>
@@ -394,7 +394,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
               <Button
                 onClick={imageGeneration.generateImage}
                 disabled={!canGenerate || imageGeneration.isLoading || imageUpload.isConvertingHeic}
-                className="h-8 px-4 rounded-full bg-foreground text-background hover:bg-foreground/90 text-sm font-medium transition-colors"
+                className="h-10 sm:h-8 px-4 rounded-full bg-foreground text-background hover:bg-foreground/90 text-sm font-medium transition-colors w-full sm:w-auto"
               >
                 {imageUpload.isConvertingHeic ? (
                   <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,22 +407,25 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
+                  <>
+                    <svg className="w-4 h-4 sm:mr-0 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span className="sm:hidden">Generate</span>
+                  </>
                 )}
               </Button>
             </div>
           </div>
 
           {/* Suggestion Buttons - Below Input */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-3 sm:mt-4">
             {/* Art Style Quick Picks */}
             {artStyleSuggestions.map((style) => (
               <button
                 key={style}
                 onClick={() => setSelectedArtStyle(selectedArtStyle === style ? "" : style)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm transition-all ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border text-xs sm:text-sm transition-all ${
                   selectedArtStyle === style 
                     ? "border-foreground/30 bg-foreground/10 text-foreground" 
                     : "border-border bg-card hover:bg-secondary/50 text-foreground/80 hover:text-foreground"
@@ -452,67 +455,67 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
 
         {/* Result Section - Below Everything */}
         {(imageGeneration.isLoading || imageUpload.isConvertingHeic || imageGeneration.generatedImage) && (
-          <div className="w-full mt-8">
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="w-full mt-4 sm:mt-8">
+            <div className="bg-card border border-border rounded-xl sm:rounded-2xl overflow-hidden">
               {imageGeneration.isLoading ? (
-                <div className="p-8 flex flex-col items-center justify-center min-h-[300px]">
+                <div className="p-4 sm:p-8 flex flex-col items-center justify-center min-h-[200px] sm:min-h-[300px]">
                   <ProgressBar progress={imageGeneration.progress} />
                 </div>
               ) : imageUpload.isConvertingHeic ? (
-                <div className="p-8 flex flex-col items-center justify-center min-h-[300px]">
+                <div className="p-4 sm:p-8 flex flex-col items-center justify-center min-h-[200px] sm:min-h-[300px]">
                   <ProgressBar progress={imageUpload.heicProgress} label="Converting HEIC image..." />
                 </div>
               ) : imageGeneration.generatedImage ? (
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                   {/* Image Actions */}
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm text-foreground/60">Generated Image</span>
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+                    <span className="text-xs sm:text-sm text-foreground/60">Generated Image</span>
+                    <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                       <button
                         onClick={() => imageGeneration.setGeneratedImage(null)}
-                        className="h-8 px-3 flex items-center gap-1.5 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground/80 hover:text-foreground text-sm transition-colors"
+                        className="h-7 sm:h-8 px-2 sm:px-3 flex items-center gap-1 sm:gap-1.5 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground/80 hover:text-foreground text-xs sm:text-sm transition-colors"
                         title="New Generation"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
                         </svg>
                         <span>New</span>
                       </button>
-                      <div className="w-px h-5 bg-border" />
+                      <div className="w-px h-4 sm:h-5 bg-border hidden sm:block" />
                       <button
                         onClick={useGeneratedAsInput}
-                        className="p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
+                        className="p-1.5 sm:p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
                         title="Use as Input"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
                       </button>
                       <button
                         onClick={copyImageToClipboard}
-                        className="p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
+                        className="p-1.5 sm:p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
                         title="Copy"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth={1.5} />
                           <path strokeWidth={1.5} d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
                         </svg>
                       </button>
                       <button
                         onClick={downloadImage}
-                        className="p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
+                        className="p-1.5 sm:p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
                         title="Download"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                       </button>
                       <button
                         onClick={() => setShowFullscreen(true)}
-                        className="p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
+                        className="p-1.5 sm:p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
                         title="Fullscreen"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                         </svg>
                       </button>
@@ -527,13 +530,13 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
                     <img
                       src={imageGeneration.generatedImage.url || "/placeholder.svg"}
                       alt="Generated"
-                      className="max-w-full max-h-[500px] object-contain rounded-xl"
+                      className="max-w-full max-h-[300px] sm:max-h-[500px] object-contain rounded-lg sm:rounded-xl"
                     />
                   </div>
 
                   {/* Prompt Display */}
-                  <div className="mt-4 p-3 bg-secondary/30 rounded-xl">
-                    <p className="text-sm text-foreground/70">
+                  <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-secondary/30 rounded-lg sm:rounded-xl">
+                    <p className="text-xs sm:text-sm text-foreground/70">
                       <span className="font-medium text-foreground/90">Prompt:</span> {imageGeneration.generatedImage.prompt}
                     </p>
                   </div>

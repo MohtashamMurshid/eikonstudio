@@ -95,10 +95,10 @@ export default function StudioPage() {
       />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto lg:ml-0">
+      <main className="flex-1 overflow-auto lg:ml-0 pb-20 lg:pb-0">
         {/* Tab Content */}
         {activeTab === "dashboard" ? (
-          <div className="p-6 space-y-6">
+          <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6">
             {/* Stats Cards with Welcome */}
             <StatsCards userName={displayName} />
 
@@ -106,16 +106,16 @@ export default function StudioPage() {
             <GenerationChart />
           </div>
         ) : activeTab === "history" ? (
-          <div className="p-6 min-h-screen">
+          <div className="p-3 sm:p-4 md:p-6 min-h-screen">
             {/* History Tab */}
-            <div className="bg-white rounded-2xl border border-border p-6 md:p-8 min-h-[calc(100vh-3rem)]">
+            <div className="bg-white rounded-xl sm:rounded-2xl border border-border p-3 sm:p-4 md:p-6 lg:p-8 min-h-[calc(100vh-6rem)] lg:min-h-[calc(100vh-3rem)]">
               <GenerationHistory onUseAsInput={handleUseAsInput} />
             </div>
           </div>
         ) : (
-          <div className="p-6 min-h-screen">
+          <div className="p-3 sm:p-4 md:p-6 min-h-screen">
             {/* Studio Tab */}
-            <div className="bg-white rounded-2xl border border-border p-6 md:p-8 min-h-[calc(100vh-3rem)]">
+            <div className="bg-white rounded-xl sm:rounded-2xl border border-border p-3 sm:p-4 md:p-6 lg:p-8 min-h-[calc(100vh-6rem)] lg:min-h-[calc(100vh-3rem)]">
               <ImageCombiner 
                 apiKey={apiKey} 
                 pendingInputImage={pendingInputImage}
