@@ -307,9 +307,8 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       return
     }
 
-    // Resolve mentions to images
+    // Resolve mentions to images (but keep prompt unchanged)
     const resolvedImages: { filename: string; imageData: string }[] = []
-    let cleanPrompt = prompt
 
     for (const match of matches) {
       const filename = match[1]
@@ -320,13 +319,11 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
           filename,
           imageData: galleryImage.imageData,
         })
-        // Remove the @filename from prompt (keep just a reference note)
-        cleanPrompt = cleanPrompt.replace(match[0], `[reference: ${filename}]`)
       }
       // If not found in gallery, just leave it as text (might be intentional @mention text)
     }
 
-    // Load resolved images into input slots
+    // Load resolved images into input slots, then generate
     if (resolvedImages.length > 0) {
       try {
         // Load first mention into slot 1 if empty or replace it
@@ -347,8 +344,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
         
         showToast(`Loaded ${resolvedImages.length} reference image(s) from gallery`, "success")
         
-        // Update prompt to cleaned version and generate after a short delay to allow image loading
-        setPrompt(cleanPrompt)
+        // Generate after a short delay to allow image loading (keep prompt as-is with @mentions)
         setTimeout(() => {
           imageGeneration.generateImage()
         }, 500)
@@ -356,6 +352,9 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
         console.error("Error loading reference images:", error)
         showToast("Failed to load reference images from gallery", "error")
       }
+    } else {
+      // No valid mentions found, generate normally
+      imageGeneration.generateImage()
     }
   }, [prompt, galleryImages, imageGeneration, imageUpload, showToast])
 
@@ -394,73 +393,80 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
           </div>
           
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm transition-all duration-500 ease-out">
-            {/* Image Previews - Above Textarea */}
-            {(imageUpload.image1Preview || imageUpload.image2Preview) && (
-              <div className="p-3 sm:p-4 pb-0">
-                <div className="flex items-start gap-2 sm:gap-3">
-                  {imageUpload.image1Preview && (
-                    <div className="relative group">
-                      <img 
-                        src={imageUpload.image1Preview} 
-                        alt="Input 1" 
-                        className="w-[70px] h-[70px] sm:w-[100px] sm:h-[100px] rounded-lg sm:rounded-xl object-cover border border-border/50" 
-                      />
-                      {/* Action buttons - always visible on mobile */}
-                      <div className="absolute top-1 right-1 sm:top-2 sm:right-2 flex items-center gap-1">
-                        <button
-                          onClick={() => document.getElementById("image-upload-1")?.click()}
-                          className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
-                          title="Replace image"
-                        >
-                          <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => imageUpload.clearImage(1)}
-                          className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
-                          title="Remove image"
-                        >
-                          <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
+            {/* Image Previews - Above Textarea with smooth height animation */}
+            <div 
+              className="grid transition-all duration-300 ease-out"
+              style={{ 
+                gridTemplateRows: (imageUpload.image1Preview || imageUpload.image2Preview) ? "1fr" : "0fr",
+              }}
+            >
+              <div className="overflow-hidden">
+                <div className="p-3 sm:p-4 pb-0">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    {imageUpload.image1Preview && (
+                      <div className="relative group animate-in fade-in zoom-in-95 duration-200">
+                        <img 
+                          src={imageUpload.image1Preview} 
+                          alt="Input 1" 
+                          className="w-[70px] h-[70px] sm:w-[100px] sm:h-[100px] rounded-lg sm:rounded-xl object-cover border border-border/50" 
+                        />
+                        {/* Action buttons - always visible on mobile */}
+                        <div className="absolute top-1 right-1 sm:top-2 sm:right-2 flex items-center gap-1">
+                          <button
+                            onClick={() => document.getElementById("image-upload-1")?.click()}
+                            className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                            title="Replace image"
+                          >
+                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => imageUpload.clearImage(1)}
+                            className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                            title="Remove image"
+                          >
+                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {imageUpload.image2Preview && (
-                    <div className="relative group">
-                      <img 
-                        src={imageUpload.image2Preview} 
-                        alt="Input 2" 
-                        className="w-[70px] h-[70px] sm:w-[100px] sm:h-[100px] rounded-lg sm:rounded-xl object-cover border border-border/50" 
-                      />
-                      {/* Action buttons - always visible on mobile */}
-                      <div className="absolute top-1 right-1 sm:top-2 sm:right-2 flex items-center gap-1">
-                        <button
-                          onClick={() => document.getElementById("image-upload-2")?.click()}
-                          className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
-                          title="Replace image"
-                        >
-                          <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => imageUpload.clearImage(2)}
-                          className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
-                          title="Remove image"
-                        >
-                          <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
+                    )}
+                    {imageUpload.image2Preview && (
+                      <div className="relative group animate-in fade-in zoom-in-95 duration-200">
+                        <img 
+                          src={imageUpload.image2Preview} 
+                          alt="Input 2" 
+                          className="w-[70px] h-[70px] sm:w-[100px] sm:h-[100px] rounded-lg sm:rounded-xl object-cover border border-border/50" 
+                        />
+                        {/* Action buttons - always visible on mobile */}
+                        <div className="absolute top-1 right-1 sm:top-2 sm:right-2 flex items-center gap-1">
+                          <button
+                            onClick={() => document.getElementById("image-upload-2")?.click()}
+                            className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                            title="Replace image"
+                          >
+                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => imageUpload.clearImage(2)}
+                            className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                            title="Remove image"
+                          >
+                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Textarea with Mention Autocomplete */}
             <div className="p-3 sm:p-4 pb-2 relative">

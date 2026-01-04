@@ -24,10 +24,74 @@ interface GenerationHistoryProps {
   onUseAsInput?: (imageData: string) => void
 }
 
-// Lazy-loaded image component
+// Thumbnail cache to avoid re-generating thumbnails
+const thumbnailCache = new Map<string, string>()
+
+// Generate compressed thumbnail from image URL
+const generateThumbnail = async (src: string, maxSize: number = 200): Promise<string> => {
+  // Check cache first
+  const cacheKey = `${src}_${maxSize}`
+  if (thumbnailCache.has(cacheKey)) {
+    return thumbnailCache.get(cacheKey)!
+  }
+
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    
+    img.onload = () => {
+      const canvas = document.createElement("canvas")
+      const ctx = canvas.getContext("2d")
+      
+      if (!ctx) {
+        resolve(src) // Fallback to original
+        return
+      }
+      
+      // Calculate thumbnail dimensions maintaining aspect ratio
+      let width = img.width
+      let height = img.height
+      
+      if (width > height) {
+        if (width > maxSize) {
+          height = Math.round((height * maxSize) / width)
+          width = maxSize
+        }
+      } else {
+        if (height > maxSize) {
+          width = Math.round((width * maxSize) / height)
+          height = maxSize
+        }
+      }
+      
+      canvas.width = width
+      canvas.height = height
+      
+      // Use better image smoothing
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = "medium"
+      
+      ctx.drawImage(img, 0, 0, width, height)
+      
+      // Convert to compressed JPEG (quality 0.6 for good compression)
+      const thumbnail = canvas.toDataURL("image/jpeg", 0.6)
+      thumbnailCache.set(cacheKey, thumbnail)
+      resolve(thumbnail)
+    }
+    
+    img.onerror = () => {
+      resolve(src) // Fallback to original on error
+    }
+    
+    img.src = src
+  })
+}
+
+// Lazy-loaded image component with thumbnail compression
 const LazyImage = memo(({ src, alt, className }: { src: string; alt: string; className: string }) => {
   const [isLoaded, setIsLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)
+  const [thumbnailSrc, setThumbnailSrc] = useState<string | null>(null)
   const imgRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -52,15 +116,22 @@ const LazyImage = memo(({ src, alt, className }: { src: string; alt: string; cla
     }
   }, [])
 
+  // Generate thumbnail when in view
+  useEffect(() => {
+    if (!isInView || thumbnailSrc) return
+    
+    generateThumbnail(src, 250).then(setThumbnailSrc)
+  }, [isInView, src, thumbnailSrc])
+
   return (
     <div ref={imgRef} className={className}>
-      {!isInView ? (
+      {!isInView || !thumbnailSrc ? (
         <div className="w-full h-full bg-secondary/20 animate-pulse" />
       ) : (
         <>
           {!isLoaded && <div className="w-full h-full bg-secondary/20 animate-pulse absolute inset-0" />}
           <img
-            src={src}
+            src={thumbnailSrc}
             alt={alt}
             className={`w-full h-full object-cover ${isLoaded ? "opacity-100" : "opacity-0"} transition-opacity duration-300`}
             loading="lazy"
