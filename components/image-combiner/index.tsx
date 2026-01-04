@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useMutation } from "convex/react"
+import { api } from "@/convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { ImageCombinerProps, GeneratedImage } from "./types"
@@ -15,7 +17,12 @@ import { FullscreenModal } from "./components/fullscreen-modal"
 import { ProgressBar } from "./components/progress-bar"
 import { predefinedArtStyles } from "./constants"
 
-export function ImageCombiner({ apiKey }: ImageCombinerProps) {
+interface ExtendedImageCombinerProps extends ImageCombinerProps {
+  pendingInputImage?: string | null
+  onInputImageLoaded?: () => void
+}
+
+export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }: ExtendedImageCombinerProps) {
   const [prompt, setPrompt] = useState("")
   const [showFullscreen, setShowFullscreen] = useState(false)
   const [aspectRatio, setAspectRatio] = useState<string>("square")
@@ -24,6 +31,9 @@ export function ImageCombiner({ apiKey }: ImageCombinerProps) {
   const [customArtStyles, setCustomArtStyles] = useState<string[]>([])
 
   const { toast, showToast } = useToast()
+  
+  // Convex mutation to save generations
+  const saveGeneration = useMutation(api.generations.saveGeneration)
 
   const imageUpload = useImageUpload({
     onError: (message) => showToast(message, "error"),
@@ -44,6 +54,10 @@ export function ImageCombiner({ apiKey }: ImageCombinerProps) {
     imageSize,
     selectedArtStyle,
     onError: (message) => showToast(message, "error"),
+    onSaveGeneration: async (params) => {
+      await saveGeneration(params)
+    },
+    onSaveError: (message) => showToast(message, "warning"),
   })
 
   usePasteHandler({
@@ -64,6 +78,41 @@ export function ImageCombiner({ apiKey }: ImageCombinerProps) {
     handleImageUpload: imageUpload.handleImageUpload,
     onError: (message) => showToast(message, "error"),
   })
+
+  // Handle pending input image from history
+  useEffect(() => {
+    const loadPendingImage = async () => {
+      if (!pendingInputImage) return
+      
+      try {
+        // Convert base64 data URL to a file
+        const response = await fetch(pendingInputImage)
+        const blob = await response.blob()
+        const file = new File([blob], "history-image.png", { type: "image/png" })
+        
+        // Load into the first available slot, or replace slot 1
+        if (!imageUpload.image1Preview && !imageUpload.image1) {
+          imageUpload.handleImageUpload(file, 1)
+          showToast("Image loaded from history", "success")
+        } else if (!imageUpload.image2Preview && !imageUpload.image2) {
+          imageUpload.handleImageUpload(file, 2)
+          showToast("Image loaded from history into Input 2", "success")
+        } else {
+          imageUpload.handleImageUpload(file, 1)
+          showToast("Image from history replaced Input 1", "success")
+        }
+        
+        // Notify parent that we've loaded the image
+        onInputImageLoaded?.()
+      } catch (error) {
+        console.error("Error loading image from history:", error)
+        showToast("Failed to load image from history", "error")
+        onInputImageLoaded?.()
+      }
+    }
+    
+    loadPendingImage()
+  }, [pendingInputImage])
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {

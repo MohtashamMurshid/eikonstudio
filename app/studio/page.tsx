@@ -11,13 +11,15 @@ import { Sidebar } from "@/components/dashboard/sidebar"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { GenerationChart } from "@/components/dashboard/generation-chart"
 import { ImageCombiner } from "@/components/image-combiner/index"
+import { GenerationHistory } from "@/components/dashboard/generation-history"
 
 export default function StudioPage() {
   const { isAuthenticated, isLoading } = useConvexAuth()
   const router = useRouter()
   const [apiKey, setApiKey] = useState<string>("")
-  const [activeTab, setActiveTab] = useState<"dashboard" | "studio">("studio")
+  const [activeTab, setActiveTab] = useState<"dashboard" | "studio" | "history">("studio")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
+  const [pendingInputImage, setPendingInputImage] = useState<string | null>(null)
   
   const { data: session } = authClient.useSession()
   const user = useQuery(api.auth.getCurrentUser)
@@ -40,6 +42,17 @@ export default function StudioPage() {
     } else {
       localStorage.removeItem("pixelforge_api_key")
     }
+  }
+
+  // Handle using a history image as input
+  const handleUseAsInput = (imageData: string) => {
+    setPendingInputImage(imageData)
+    setActiveTab("studio")
+  }
+
+  // Clear pending input after it's been loaded
+  const handleInputImageLoaded = () => {
+    setPendingInputImage(null)
   }
 
   useEffect(() => {
@@ -153,11 +166,22 @@ export default function StudioPage() {
             {/* Generation Chart */}
             <GenerationChart />
           </div>
+        ) : activeTab === "history" ? (
+          <div className="p-6 min-h-screen">
+            {/* History Tab */}
+            <div className="bg-white rounded-2xl border border-border p-6 md:p-8 min-h-[calc(100vh-3rem)]">
+              <GenerationHistory onUseAsInput={handleUseAsInput} />
+            </div>
+          </div>
         ) : (
           <div className="p-6 min-h-screen">
             {/* Studio Tab */}
             <div className="bg-white rounded-2xl border border-border p-6 md:p-8 min-h-[calc(100vh-3rem)]">
-              <ImageCombiner apiKey={apiKey} />
+              <ImageCombiner 
+                apiKey={apiKey} 
+                pendingInputImage={pendingInputImage}
+                onInputImageLoaded={handleInputImageLoaded}
+              />
             </div>
           </div>
         )}

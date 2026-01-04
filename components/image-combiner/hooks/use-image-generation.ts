@@ -2,6 +2,15 @@ import { useState } from "react"
 import type { GeneratedImage } from "../types"
 import { preloadImage } from "../utils/image-processing"
 
+interface SaveGenerationParams {
+  prompt: string
+  imageData: string
+  mode: "text-to-image" | "image-editing"
+  aspectRatio: string
+  imageSize: string
+  artStyle?: string
+}
+
 interface UseImageGenerationOptions {
   apiKey: string
   currentMode: "text-to-image" | "image-editing"
@@ -15,6 +24,8 @@ interface UseImageGenerationOptions {
   imageSize: string
   selectedArtStyle: string
   onError?: (message: string) => void
+  onSaveGeneration?: (params: SaveGenerationParams) => Promise<void>
+  onSaveError?: (message: string) => void
 }
 
 export const useImageGeneration = (options: UseImageGenerationOptions) => {
@@ -112,6 +123,27 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       setImageLoaded(true)
 
       setGeneratedImage(data)
+
+      // Save generation to database if callback provided
+      if (options.onSaveGeneration) {
+        try {
+          await options.onSaveGeneration({
+            prompt: finalPrompt,
+            imageData: data.url, // This is the base64 data URL
+            mode: currentMode,
+            aspectRatio,
+            imageSize,
+            artStyle: selectedArtStyle || undefined,
+          })
+        } catch (saveError) {
+          console.error("Error saving generation to database:", saveError)
+          // Notify user that saving failed - they should download the image
+          options.onSaveError?.(
+            "Image too large to save to history. Please download it manually to keep it."
+          )
+        }
+      }
+
       setIsLoading(false)
       setShowAnimation(false)
       setProgress(0)

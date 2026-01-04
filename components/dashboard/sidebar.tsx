@@ -8,8 +8,8 @@ import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
 interface SidebarProps {
-  activeTab: "dashboard" | "studio"
-  onTabChange: (tab: "dashboard" | "studio") => void
+  activeTab: "dashboard" | "studio" | "history"
+  onTabChange: (tab: "dashboard" | "studio" | "history") => void
   apiKey: string
   onApiKeyChange: (key: string) => void
   isCollapsed?: boolean
@@ -148,8 +148,8 @@ export function Sidebar({ activeTab, onTabChange, apiKey, onApiKeyChange, isColl
   }
 
   const handleItemClick = (id: string) => {
-    if (id === "dashboard" || id === "studio") {
-      onTabChange(id as "dashboard" | "studio")
+    if (id === "dashboard" || id === "studio" || id === "history") {
+      onTabChange(id as "dashboard" | "studio" | "history")
     }
   }
 
@@ -221,7 +221,7 @@ export function Sidebar({ activeTab, onTabChange, apiKey, onApiKeyChange, isColl
             {!isCollapsed && <p className="px-3 mb-2 text-xs font-medium text-foreground/40 uppercase tracking-wider">Main Menu</p>}
             <ul className="space-y-1">
               {mainMenuItems.map((item) => {
-                const isActive = (item.id === "dashboard" || item.id === "studio") && activeTab === item.id
+                const isActive = (item.id === "dashboard" || item.id === "studio" || item.id === "history") && activeTab === item.id
                 return (
                   <li key={item.id}>
                     <button
