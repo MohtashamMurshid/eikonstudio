@@ -49,6 +49,11 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
   const generateUploadUrl = useMutation(api.generations.generateUploadUrl)
   const saveGeneration = useMutation(api.generations.saveGeneration)
   
+  // Gallery mutations
+  const galleryGenerateUploadUrl = useMutation(api.gallery.generateUploadUrl)
+  const saveToGallery = useMutation(api.gallery.saveImage)
+  const [isAddingToGallery, setIsAddingToGallery] = useState(false)
+  
   // For resolving @mentions - we need gallery images
   const galleryImages = useQuery(api.gallery.getMyImages, { limit: 100 })
 
@@ -187,19 +192,61 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     if (imageGeneration.generatedImage) {
       try {
         showToast("Copying image...", "success")
-        window.focus()
-        let response
-        try {
-          response = await fetch(imageGeneration.generatedImage.url, { mode: "cors" })
-        } catch {
-          const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imageGeneration.generatedImage.url)}`
-          response = await fetch(proxyUrl)
+        
+        const imageUrl = imageGeneration.generatedImage.url
+        
+        // For data URLs, convert to PNG blob using canvas for proper clipboard support
+        if (imageUrl.startsWith("data:")) {
+          const img = new Image()
+          img.crossOrigin = "anonymous"
+          
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => {
+              const canvas = document.createElement("canvas")
+              canvas.width = img.width
+              canvas.height = img.height
+              const ctx = canvas.getContext("2d")
+              if (!ctx) {
+                reject(new Error("Could not get canvas context"))
+                return
+              }
+              ctx.drawImage(img, 0, 0)
+              canvas.toBlob(async (blob) => {
+                if (!blob) {
+                  reject(new Error("Could not create blob"))
+                  return
+                }
+                try {
+                  const clipboardItem = new ClipboardItem({ "image/png": blob })
+                  await navigator.clipboard.write([clipboardItem])
+                  showToast("Image copied to clipboard!", "success")
+                  resolve()
+                } catch (clipErr) {
+                  reject(clipErr)
+                }
+              }, "image/png")
+            }
+            img.onerror = () => reject(new Error("Failed to load image"))
+            img.src = imageUrl
+          })
+        } else {
+          // For regular URLs, fetch and copy
+          window.focus()
+          let response
+          try {
+            response = await fetch(imageUrl, { mode: "cors" })
+          } catch {
+            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`
+            response = await fetch(proxyUrl)
+          }
+          if (!response.ok) throw new Error("Failed to fetch image")
+          const blob = await response.blob()
+          // Ensure it's PNG for clipboard compatibility
+          const pngBlob = blob.type === "image/png" ? blob : await convertToPngBlob(blob)
+          const clipboardItem = new ClipboardItem({ "image/png": pngBlob })
+          await navigator.clipboard.write([clipboardItem])
+          showToast("Image copied to clipboard!", "success")
         }
-        if (!response.ok) throw new Error("Failed to fetch image")
-        const blob = await response.blob()
-        const clipboardItem = new ClipboardItem({ "image/png": blob })
-        await navigator.clipboard.write([clipboardItem])
-        showToast("Image copied to clipboard!", "success")
       } catch (error) {
         console.error("Error copying image:", error)
         if (error instanceof Error && error.message.includes("not focused")) {
@@ -208,6 +255,123 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
           showToast("Failed to copy image to clipboard", "error")
         }
       }
+    }
+  }
+
+  // Helper to convert any image blob to PNG
+  const convertToPngBlob = (blob: Blob): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement("canvas")
+        canvas.width = img.width
+        canvas.height = img.height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          reject(new Error("Could not get canvas context"))
+          return
+        }
+        ctx.drawImage(img, 0, 0)
+        canvas.toBlob((pngBlob) => {
+          if (pngBlob) resolve(pngBlob)
+          else reject(new Error("Could not convert to PNG"))
+        }, "image/png")
+      }
+      img.onerror = () => reject(new Error("Failed to load image"))
+      img.src = URL.createObjectURL(blob)
+    })
+  }
+
+  // Add generated image to gallery
+  const addToGallery = async () => {
+    if (!imageGeneration.generatedImage?.url) return
+    
+    setIsAddingToGallery(true)
+    try {
+      const imageUrl = imageGeneration.generatedImage.url
+      
+      // Convert data URL to blob
+      const response = await fetch(imageUrl)
+      const imageBlob = await response.blob()
+      
+      // Generate thumbnail
+      const thumbnailBlob = await new Promise<Blob>((resolve, reject) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement("canvas")
+          const size = 250
+          canvas.width = size
+          canvas.height = size
+          const ctx = canvas.getContext("2d")
+          if (!ctx) {
+            reject(new Error("Could not get canvas context"))
+            return
+          }
+          
+          // Calculate dimensions to maintain aspect ratio
+          let width = size
+          let height = size
+          if (img.width > img.height) {
+            height = (img.height / img.width) * size
+          } else {
+            width = (img.width / img.height) * size
+          }
+          
+          // Fill with background and center image
+          ctx.fillStyle = "#f5f5f5"
+          ctx.fillRect(0, 0, size, size)
+          const x = (size - width) / 2
+          const y = (size - height) / 2
+          ctx.drawImage(img, x, y, width, height)
+          
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob)
+            else reject(new Error("Could not create thumbnail"))
+          }, "image/jpeg", 0.7)
+        }
+        img.onerror = () => reject(new Error("Failed to load image"))
+        img.src = imageUrl
+      })
+      
+      // Upload both to storage
+      const [imageUploadUrl, thumbnailUploadUrl] = await Promise.all([
+        galleryGenerateUploadUrl(),
+        galleryGenerateUploadUrl(),
+      ])
+      
+      const [imageUploadRes, thumbnailUploadRes] = await Promise.all([
+        fetch(imageUploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": imageBlob.type || "image/png" },
+          body: imageBlob,
+        }),
+        fetch(thumbnailUploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": "image/jpeg" },
+          body: thumbnailBlob,
+        }),
+      ])
+      
+      const [{ storageId: imageStorageId }, { storageId: thumbnailStorageId }] = await Promise.all([
+        imageUploadRes.json(),
+        thumbnailUploadRes.json(),
+      ])
+      
+      // Generate a unique filename based on timestamp
+      const filename = `gen-${Date.now()}`
+      
+      await saveToGallery({
+        filename,
+        imageStorageId,
+        thumbnailStorageId,
+      })
+      
+      showToast("Image added to gallery!", "success")
+    } catch (error) {
+      console.error("Error adding to gallery:", error)
+      showToast("Failed to add to gallery", "error")
+    } finally {
+      setIsAddingToGallery(false)
     }
   }
 
@@ -814,6 +978,24 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
                         </svg>
                         <span>New</span>
+                      </button>
+                      <button
+                        onClick={addToGallery}
+                        disabled={isAddingToGallery}
+                        className="h-7 sm:h-8 px-2 sm:px-3 flex items-center gap-1 sm:gap-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 hover:text-emerald-700 text-xs sm:text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Add to Gallery"
+                      >
+                        {isAddingToGallery ? (
+                          <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" strokeWidth={4} />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        )}
+                        <span>{isAddingToGallery ? "Adding..." : "Add to Gallery"}</span>
                       </button>
                       <div className="w-px h-4 sm:h-5 bg-border hidden sm:block" />
                       <button
