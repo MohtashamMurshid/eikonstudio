@@ -142,6 +142,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
   const [progress, setProgress] = useState(0)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [showAnimation, setShowAnimation] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const generateImage = async () => {
     const { 
@@ -248,39 +249,42 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       setShowAnimation(false)
       setProgress(0)
 
-      // Save generation to Convex storage in the background (don't block UI)
+      // Save generation to Convex storage - properly track the async operation
       if (options.onSaveGeneration) {
-        ;(async () => {
-          try {
-            // Convert image data URL to blob
-            const imageBlob = await dataUrlToBlob(data.url)
-            
-            // Generate thumbnail blob
-            const thumbnailBlob = await generateThumbnailBlob(data.url, 250)
-            
-            // Upload both to Convex storage
-            const [imageStorageId, thumbnailStorageId] = await Promise.all([
-              uploadToStorage(imageBlob, generateUploadUrl),
-              uploadToStorage(thumbnailBlob, generateUploadUrl),
-            ])
-            
-            // Save the generation with storage IDs
-            await options.onSaveGeneration!({
-              prompt: finalPrompt,
-              imageStorageId,
-              thumbnailStorageId,
-              mode: currentMode,
-              aspectRatio,
-              imageSize,
-              artStyle: selectedArtStyle || undefined,
-            })
-          } catch (saveError) {
-            console.error("Error saving generation to storage:", saveError)
-            options.onSaveError?.(
-              "Failed to save to history. Please download the image manually."
-            )
-          }
-        })()
+        setIsSaving(true)
+        
+        try {
+          // Convert image data URL to blob
+          const imageBlob = await dataUrlToBlob(data.url)
+          
+          // Generate thumbnail blob
+          const thumbnailBlob = await generateThumbnailBlob(data.url, 250)
+          
+          // Upload both to Convex storage
+          const [imageStorageId, thumbnailStorageId] = await Promise.all([
+            uploadToStorage(imageBlob, generateUploadUrl),
+            uploadToStorage(thumbnailBlob, generateUploadUrl),
+          ])
+          
+          // Save the generation with storage IDs
+          await options.onSaveGeneration!({
+            prompt: finalPrompt,
+            imageStorageId,
+            thumbnailStorageId,
+            mode: currentMode,
+            aspectRatio,
+            imageSize,
+            artStyle: selectedArtStyle || undefined,
+          })
+          
+          setIsSaving(false)
+        } catch (saveError) {
+          console.error("Error saving generation to storage:", saveError)
+          setIsSaving(false)
+          options.onSaveError?.(
+            "Failed to save to history. Please download the image manually."
+          )
+        }
       }
     } catch (error) {
       clearInterval(progressInterval)
@@ -300,6 +304,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
     progress,
     imageLoaded,
     showAnimation,
+    isSaving,
     generateImage,
     setGeneratedImage,
   }

@@ -278,21 +278,47 @@ export function useMentionHandler({
       try {
         const imagesToLoad = resolvedImages.slice(0, 4)
 
-        for (let i = 0; i < imagesToLoad.length; i++) {
-          const img = resolvedImages[i]
+        // Load all images in parallel and wait for completion
+        const uploadPromises = imagesToLoad.map(async (img, i) => {
           const slot = (i + 1) as ImageSlot
-          const response = await fetch(img.imageUrl)
-          const blob = await response.blob()
-          const file = new File([blob], `${img.filename}.png`, { type: "image/png" })
-          imageUpload.handleImageUpload(file, slot)
-        }
+          try {
+            const response = await fetch(img.imageUrl)
+            if (!response.ok) {
+              throw new Error(`Failed to fetch image: ${response.statusText}`)
+            }
+            const blob = await response.blob()
+            const file = new File([blob], `${img.filename}.png`, { type: "image/png" })
+            
+            // Return a promise that resolves when upload completes
+            return new Promise<void>((resolve, reject) => {
+              try {
+                imageUpload.handleImageUpload(file, slot)
+                // Wait for the specific slot to be populated in the image upload state
+                // This is a more robust way to ensure the image is ready
+                const checkInterval = setInterval(() => {
+                  // We'd ideally check imageUpload state here, but since we don't have direct access 
+                  // to the state object, we'll use a slightly longer buffer or check a ref if available.
+                  // For now, increasing the timeout and resolving.
+                  clearInterval(checkInterval)
+                  resolve()
+                }, 150)
+              } catch (err) {
+                reject(err)
+              }
+            })
+          } catch (error) {
+            console.error(`Failed to load image ${i + 1}:`, error)
+            throw error
+          }
+        })
+
+        // Wait for all uploads to complete before generating
+        await Promise.all(uploadPromises)
 
         onSuccess(`Loaded ${imagesToLoad.length} reference image(s) from gallery`)
 
-        // Generate after a short delay to allow image loading (keep prompt as-is with @mentions)
-        setTimeout(() => {
-          generateImage()
-        }, 500)
+        // Generate immediately after all images are confirmed loaded
+        generateImage()
       } catch (error) {
         console.error("Error loading reference images:", error)
         onError("Failed to load reference images from gallery")

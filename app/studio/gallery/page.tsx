@@ -7,16 +7,19 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { LogoLoader } from "@/components/logo-icon"
 import { DragOverlay } from "@/components/image-combiner/components/drag-overlay"
-import { Breadcrumb } from "@/components/gallery/breadcrumb"
-import { FolderCard } from "@/components/gallery/folder-card"
-import { GalleryCard } from "@/components/gallery/gallery-card"
-import { UploadModal } from "@/components/gallery/upload-modal"
-import { CreateFolderModal } from "@/components/gallery/create-folder-modal"
-import { MoveFolderModal } from "@/components/gallery/move-folder-modal"
-import { FullImageModal } from "@/components/gallery/full-image-modal"
-import { RenameModal } from "@/components/gallery/rename-modal"
-import { ConfirmModal } from "@/components/gallery/confirm-modal"
-import type { GalleryImage, Folder } from "@/components/gallery/types"
+import { 
+  FolderGrid, 
+  GalleryHeader, 
+  ImageGrid,
+  UploadModal,
+  CreateFolderModal,
+  MoveFolderModal,
+  FullImageModal,
+  RenameModal,
+  ConfirmModal,
+  type GalleryImage, 
+  type Folder 
+} from "@/components/gallery"
 import { useGalleryUpload } from "@/hooks/gallery/use-gallery-upload"
 import { useGalleryOperations } from "@/hooks/gallery/use-gallery-operations"
 
@@ -291,89 +294,22 @@ export default function GalleryPage() {
       <div className="bg-white rounded-xl sm:rounded-2xl border border-border p-3 sm:p-4 md:p-6 lg:p-8 min-h-[calc(100vh-6rem)] lg:min-h-[calc(100vh-3rem)]">
         <div className="space-y-4">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <Breadcrumb
-                currentFolder={currentFolder}
-                onNavigateToRoot={() => setCurrentFolderId(null)}
-              />
-              <p className="text-sm text-foreground/50 mt-1">
-                {currentFolderId 
-                  ? `${currentViewImages.length} image${currentViewImages.length !== 1 ? "s" : ""} in folder`
-                  : `${folders?.length || 0} folder${(folders?.length || 0) !== 1 ? "s" : ""} • ${uncategorizedImages.length} loose image${uncategorizedImages.length !== 1 ? "s" : ""}`
-                }
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              {currentFolderId && (
-                <button
-                  onClick={() => setCurrentFolderId(null)}
-                  className="sm:hidden h-9 px-3 flex items-center gap-1.5 bg-secondary/50 hover:bg-secondary rounded-lg text-sm font-medium transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  Back
-                </button>
-              )}
-              
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-36 sm:w-48 h-9 pl-9 pr-3 bg-secondary/50 border-0 rounded-lg text-sm text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              
-              {!currentFolderId && (
-                <button
-                  onClick={() => setShowCreateFolderModal(true)}
-                  className="h-9 px-3 flex items-center gap-2 bg-secondary/50 hover:bg-secondary rounded-lg text-sm font-medium transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span className="hidden sm:inline">New Folder</span>
-                </button>
-              )}
-              
-              <button
-                onClick={() => uploadHook.fileInputRef.current?.click()}
-                disabled={uploadHook.isUploading}
-                className="h-9 px-3 flex items-center gap-2 bg-foreground text-background rounded-lg text-sm font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50"
-              >
-                {uploadHook.uploadProgress ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    <span className="hidden sm:inline">{uploadHook.uploadProgress}</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span className="hidden sm:inline">Upload</span>
-                  </>
-                )}
-              </button>
-              <input
-                ref={uploadHook.fileInputRef}
-                type="file"
-                accept="image/*,.heic,.heif"
-                onChange={uploadHook.handleFileSelect}
-                className="hidden"
-              />
-            </div>
-          </div>
+          <GalleryHeader
+            currentFolder={currentFolder}
+            currentFolderId={currentFolderId}
+            foldersCount={folders?.length || 0}
+            uncategorizedImagesCount={uncategorizedImages.length}
+            currentViewImagesCount={currentViewImages.length}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onNavigateToRoot={() => setCurrentFolderId(null)}
+            onCreateFolder={() => setShowCreateFolderModal(true)}
+            onUploadClick={() => uploadHook.fileInputRef.current?.click()}
+            uploadProgress={uploadHook.uploadProgress}
+            isUploading={uploadHook.isUploading}
+            fileInputRef={uploadHook.fileInputRef}
+            onFileSelect={uploadHook.handleFileSelect}
+          />
 
           {uploadHook.uploadError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
@@ -383,49 +319,22 @@ export default function GalleryPage() {
 
           {/* Content based on navigation state */}
           {currentFolderId ? (
-            <>
-              {filteredCurrentViewImages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
-                  {searchTerm ? (
-                    <p className="text-foreground/50">No images match "{searchTerm}"</p>
-                  ) : (
-                    <>
-                      <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mb-4">
-                        <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-lg font-semibold text-foreground mb-2">Empty folder</h3>
-                      <p className="text-sm text-foreground/50 max-w-sm mb-4">
-                        Upload images to this folder to use them with @{currentFolder?.name}
-                      </p>
-                      <button
-                        onClick={() => uploadHook.fileInputRef.current?.click()}
-                        className="px-4 py-2 bg-foreground text-background rounded-lg text-sm font-medium hover:bg-foreground/90 transition-colors"
-                      >
-                        Upload Image
-                      </button>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                  {filteredCurrentViewImages.map((image) => (
-                    <GalleryCard
-                      key={image._id}
-                      image={image}
-                      onRename={operationsHook.openRenameModal}
-                      onDelete={operationsHook.openDeleteModal}
-                      onViewFull={operationsHook.setSelectedImage}
-                      onMove={openMoveModal}
-                      deletingId={operationsHook.deletingId}
-                      renamingId={operationsHook.renamingId}
-                      showFolderBadge={false}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
+            <ImageGrid
+              images={filteredCurrentViewImages}
+              onRename={operationsHook.openRenameModal}
+              onDelete={operationsHook.openDeleteModal}
+              onViewFull={operationsHook.setSelectedImage}
+              onMove={openMoveModal}
+              deletingId={operationsHook.deletingId}
+              renamingId={operationsHook.renamingId}
+              showFolderBadge={false}
+              emptyState={{
+                searchTerm: searchTerm || undefined,
+                message: searchTerm ? undefined : `Upload images to this folder to use them with @${currentFolder?.name}`,
+                actionLabel: searchTerm ? undefined : "Upload Image",
+                onAction: searchTerm ? undefined : () => uploadHook.fileInputRef.current?.click(),
+              }}
+            />
           ) : (
             <>
               {images.length === 0 && (!folders || folders.length === 0) ? (
@@ -459,24 +368,12 @@ export default function GalleryPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {filteredFolders && filteredFolders.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-medium text-foreground/60 uppercase tracking-wider mb-3">
-                        Folders
-                      </h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                        {filteredFolders.map((folder) => (
-                          <FolderCard
-                            key={folder._id}
-                            folder={folder}
-                            onOpen={() => setCurrentFolderId(folder._id)}
-                            onRename={() => openFolderRenameModal(folder._id, folder.name)}
-                            onDelete={() => openFolderDeleteModal(folder._id)}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <FolderGrid
+                    folders={filteredFolders || []}
+                    onFolderOpen={setCurrentFolderId}
+                    onFolderRename={openFolderRenameModal}
+                    onFolderDelete={openFolderDeleteModal}
+                  />
 
                   {(filteredUncategorizedImages.length > 0 || (searchTerm && uncategorizedImages.length > 0)) && (
                     <div>
@@ -496,29 +393,19 @@ export default function GalleryPage() {
                       </button>
                       
                       {uncategorizedExpanded && (
-                        <>
-                          {filteredUncategorizedImages.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-8 text-center">
-                              <p className="text-foreground/50">No images match "{searchTerm}"</p>
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                              {filteredUncategorizedImages.map((image) => (
-                                <GalleryCard
-                                  key={image._id}
-                                  image={image}
-                                  onRename={operationsHook.openRenameModal}
-                                  onDelete={operationsHook.openDeleteModal}
-                                  onViewFull={operationsHook.setSelectedImage}
-                                  onMove={openMoveModal}
-                                  deletingId={operationsHook.deletingId}
-                                  renamingId={operationsHook.renamingId}
-                                  showFolderBadge={false}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </>
+                        <ImageGrid
+                          images={filteredUncategorizedImages}
+                          onRename={operationsHook.openRenameModal}
+                          onDelete={operationsHook.openDeleteModal}
+                          onViewFull={operationsHook.setSelectedImage}
+                          onMove={openMoveModal}
+                          deletingId={operationsHook.deletingId}
+                          renamingId={operationsHook.renamingId}
+                          showFolderBadge={false}
+                          emptyState={{
+                            searchTerm: searchTerm || undefined,
+                          }}
+                        />
                       )}
                     </div>
                   )}

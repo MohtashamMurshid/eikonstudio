@@ -354,6 +354,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
           heicProgress={imageUpload.heicProgress}
           generatedImage={imageGeneration.generatedImage}
           isAddingToGallery={galleryOperations.isAddingToGallery}
+          isSavingToHistory={imageGeneration.isSaving}
           onNewGeneration={() => imageGeneration.setGeneratedImage(null)}
           onAddToGallery={galleryOperations.addToGallery}
           onUseAsInput={useGeneratedAsInput}
