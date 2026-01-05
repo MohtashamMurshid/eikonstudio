@@ -5,8 +5,8 @@ export default defineSchema({
   generations: defineTable({
     userId: v.string(),
     prompt: v.string(),
-    imageData: v.string(), // base64 encoded image or URL
-    thumbnailData: v.string(), // smaller base64 for list display
+    imageStorageId: v.id("_storage"), // Full image in Convex storage
+    thumbnailStorageId: v.id("_storage"), // Thumbnail in Convex storage
     mode: v.union(v.literal("text-to-image"), v.literal("image-editing")),
     aspectRatio: v.string(),
     imageSize: v.string(),
@@ -19,8 +19,8 @@ export default defineSchema({
   gallery: defineTable({
     userId: v.string(),
     filename: v.string(), // User-defined name for @mention
-    imageData: v.string(), // base64 encoded image
-    thumbnailData: v.string(), // smaller base64 for list display
+    imageStorageId: v.id("_storage"), // Full image in Convex storage
+    thumbnailStorageId: v.id("_storage"), // Thumbnail in Convex storage
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])

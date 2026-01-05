@@ -2,12 +2,24 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 
-// Save a new generation for the current user
+// Generate upload URL for uploading images to Convex storage
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) {
+      throw new Error("Must be authenticated to upload images");
+    }
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+// Save a new generation for the current user (with storage IDs)
 export const saveGeneration = mutation({
   args: {
     prompt: v.string(),
-    imageData: v.string(),
-    thumbnailData: v.string(),
+    imageStorageId: v.id("_storage"),
+    thumbnailStorageId: v.id("_storage"),
     mode: v.union(v.literal("text-to-image"), v.literal("image-editing")),
     aspectRatio: v.string(),
     imageSize: v.string(),
@@ -22,8 +34,8 @@ export const saveGeneration = mutation({
     const generationId = await ctx.db.insert("generations", {
       userId: user._id,
       prompt: args.prompt,
-      imageData: args.imageData,
-      thumbnailData: args.thumbnailData,
+      imageStorageId: args.imageStorageId,
+      thumbnailStorageId: args.thumbnailStorageId,
       mode: args.mode,
       aspectRatio: args.aspectRatio,
       imageSize: args.imageSize,
@@ -35,7 +47,7 @@ export const saveGeneration = mutation({
   },
 });
 
-// Get the current user's generation history (newest first)
+// Get the current user's generation history (newest first) with URLs
 export const getMyGenerations = query({
   args: {
     limit: v.optional(v.number()),
@@ -54,7 +66,20 @@ export const getMyGenerations = query({
       .order("desc")
       .take(limit);
 
-    return generations;
+    // Get URLs for each generation's images
+    const generationsWithUrls = await Promise.all(
+      generations.map(async (gen) => {
+        const imageUrl = await ctx.storage.getUrl(gen.imageStorageId);
+        const thumbnailUrl = await ctx.storage.getUrl(gen.thumbnailStorageId);
+        return {
+          ...gen,
+          imageUrl,
+          thumbnailUrl,
+        };
+      })
+    );
+
+    return generationsWithUrls;
   },
 });
 
@@ -78,8 +103,12 @@ export const deleteGeneration = mutation({
       throw new Error("Cannot delete another user's generation");
     }
 
+    // Delete the files from storage
+    await ctx.storage.delete(generation.imageStorageId);
+    await ctx.storage.delete(generation.thumbnailStorageId);
+
+    // Delete the database record
     await ctx.db.delete(args.generationId);
     return { success: true };
   },
 });
-

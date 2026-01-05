@@ -38,7 +38,8 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
 
   const { toast, showToast } = useToast()
   
-  // Convex mutation to save generations
+  // Convex mutations for saving generations
+  const generateUploadUrl = useMutation(api.generations.generateUploadUrl)
   const saveGeneration = useMutation(api.generations.saveGeneration)
   
   // For resolving @mentions - we need gallery images
@@ -63,6 +64,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     imageSize,
     selectedArtStyle,
     onError: (message) => showToast(message, "error"),
+    generateUploadUrl,
     onSaveGeneration: async (params) => {
       await saveGeneration(params)
     },
@@ -308,16 +310,16 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     }
 
     // Resolve mentions to images (but keep prompt unchanged)
-    const resolvedImages: { filename: string; imageData: string }[] = []
+    const resolvedImages: { filename: string; imageUrl: string }[] = []
 
     for (const match of matches) {
       const filename = match[1]
       const galleryImage = galleryImages?.find((img: any) => img.filename === filename)
       
-      if (galleryImage) {
+      if (galleryImage && galleryImage.imageUrl) {
         resolvedImages.push({
           filename,
-          imageData: galleryImage.imageData,
+          imageUrl: galleryImage.imageUrl,
         })
       }
       // If not found in gallery, just leave it as text (might be intentional @mention text)
@@ -328,7 +330,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       try {
         // Load first mention into slot 1 if empty or replace it
         const firstImage = resolvedImages[0]
-        const response1 = await fetch(firstImage.imageData)
+        const response1 = await fetch(firstImage.imageUrl)
         const blob1 = await response1.blob()
         const file1 = new File([blob1], `${firstImage.filename}.png`, { type: "image/png" })
         imageUpload.handleImageUpload(file1, 1)
@@ -336,7 +338,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
         // Load second mention into slot 2 if available
         if (resolvedImages.length > 1) {
           const secondImage = resolvedImages[1]
-          const response2 = await fetch(secondImage.imageData)
+          const response2 = await fetch(secondImage.imageUrl)
           const blob2 = await response2.blob()
           const file2 = new File([blob2], `${secondImage.filename}.png`, { type: "image/png" })
           imageUpload.handleImageUpload(file2, 2)

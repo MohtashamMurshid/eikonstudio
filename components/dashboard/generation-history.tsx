@@ -12,8 +12,10 @@ interface Generation {
   _creationTime: number
   userId: string
   prompt: string
-  imageData: string
-  thumbnailData: string
+  imageStorageId: Id<"_storage">
+  thumbnailStorageId: Id<"_storage">
+  imageUrl: string | null
+  thumbnailUrl: string | null
   mode: "text-to-image" | "image-editing"
   aspectRatio: string
   imageSize: string
@@ -22,7 +24,7 @@ interface Generation {
 }
 
 interface GenerationHistoryProps {
-  onUseAsInput?: (imageData: string) => void
+  onUseAsInput?: (imageUrl: string) => void
 }
 
 // Lazy-loaded image component - uses pre-stored thumbnail for fast loading
@@ -90,7 +92,7 @@ const GenerationCard = memo(({
   generation: Generation
   formattedDate: string
   onSelect: () => void
-  onUseAsInput?: (imageData: string) => void
+  onUseAsInput?: (imageUrl: string) => void
   onCopyPrompt: (generation: Generation) => void
   onDownload: (generation: Generation) => void
   onDelete: (id: Id<"generations">) => void
@@ -105,18 +107,18 @@ const GenerationCard = memo(({
       {/* Image - use compressed thumbnail for fast loading */}
       <div className="aspect-square relative">
         <LazyImage
-          src={generation.thumbnailData}
+          src={generation.thumbnailUrl || ""}
           alt={generation.prompt}
           className="aspect-square relative"
         />
         
         {/* Overlay on hover */}
         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-          {onUseAsInput && (
+          {onUseAsInput && generation.imageUrl && (
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                onUseAsInput(generation.imageData)
+                onUseAsInput(generation.imageUrl!)
               }}
               className="p-2 bg-emerald-500/80 hover:bg-emerald-500 rounded-lg transition-colors"
               title="Use as input image"
@@ -233,12 +235,21 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
 
   const handleDownload = useCallback(async (generation: Generation) => {
     try {
+      if (!generation.imageUrl) return
+      
+      // Fetch the image and download it
+      const response = await fetch(generation.imageUrl)
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      
       const link = document.createElement("a")
-      link.href = generation.imageData
+      link.href = url
       link.download = `eikon-${generation.mode}-${generation._id}.png`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      
+      URL.revokeObjectURL(url)
     } catch (error) {
       console.error("Error downloading image:", error)
     }
@@ -375,7 +386,7 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
               {/* Image */}
               <div className="flex justify-center">
                 <img
-                  src={selectedImage.imageData}
+                  src={selectedImage.imageUrl || ""}
                   alt={selectedImage.prompt}
                   className="max-w-full max-h-[50vh] object-contain rounded-xl"
                 />
@@ -448,10 +459,10 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
                 </svg>
                 Download
               </button>
-              {onUseAsInput && (
+              {onUseAsInput && selectedImage.imageUrl && (
                 <button
                   onClick={() => {
-                    onUseAsInput(selectedImage.imageData)
+                    onUseAsInput(selectedImage.imageUrl!)
                     handleCloseModal()
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg text-sm font-medium transition-colors"

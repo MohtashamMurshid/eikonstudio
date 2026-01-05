@@ -1,19 +1,26 @@
 import { useState } from "react"
 import type { GeneratedImage } from "../types"
+import type { Id } from "@/convex/_generated/dataModel"
 
 interface SaveGenerationParams {
   prompt: string
-  imageData: string
-  thumbnailData: string
+  imageStorageId: Id<"_storage">
+  thumbnailStorageId: Id<"_storage">
   mode: "text-to-image" | "image-editing"
   aspectRatio: string
   imageSize: string
   artStyle?: string
 }
 
-// Generate compressed thumbnail from image URL/data
-const generateThumbnail = async (src: string, size = 200): Promise<string> => {
-  return new Promise((resolve) => {
+// Convert data URL to Blob
+const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
+  const response = await fetch(dataUrl)
+  return await response.blob()
+}
+
+// Generate compressed thumbnail from image URL/data and return as Blob
+const generateThumbnailBlob = async (src: string, size = 250): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
     const img = new Image()
     img.crossOrigin = "anonymous"
     
@@ -22,7 +29,7 @@ const generateThumbnail = async (src: string, size = 200): Promise<string> => {
       const ctx = canvas.getContext("2d")
       
       if (!ctx) {
-        resolve(src) // Fallback to original
+        reject(new Error("Could not get canvas context"))
         return
       }
       
@@ -51,15 +58,41 @@ const generateThumbnail = async (src: string, size = 200): Promise<string> => {
       ctx.imageSmoothingQuality = "medium"
       
       ctx.drawImage(img, x, y, width, height)
-      resolve(canvas.toDataURL("image/jpeg", 0.7))
+      
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob)
+          } else {
+            reject(new Error("Could not create blob"))
+          }
+        },
+        "image/jpeg",
+        0.7
+      )
     }
     
     img.onerror = () => {
-      resolve(src) // Fallback to original on error
+      reject(new Error("Could not load image"))
     }
     
     img.src = src
   })
+}
+
+// Upload blob to Convex storage
+const uploadToStorage = async (
+  blob: Blob,
+  generateUploadUrl: () => Promise<string>
+): Promise<Id<"_storage">> => {
+  const uploadUrl = await generateUploadUrl()
+  const response = await fetch(uploadUrl, {
+    method: "POST",
+    headers: { "Content-Type": blob.type },
+    body: blob,
+  })
+  const { storageId } = await response.json()
+  return storageId
 }
 
 interface UseImageGenerationOptions {
@@ -75,6 +108,7 @@ interface UseImageGenerationOptions {
   imageSize: string
   selectedArtStyle: string
   onError?: (message: string) => void
+  generateUploadUrl: () => Promise<string>
   onSaveGeneration?: (params: SaveGenerationParams) => Promise<void>
   onSaveError?: (message: string) => void
 }
@@ -87,7 +121,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
   const [showAnimation, setShowAnimation] = useState(false)
 
   const generateImage = async () => {
-    const { currentMode, useUrls, image1, image1Url, image2, image2Url, prompt, aspectRatio, imageSize, selectedArtStyle, apiKey, onError } =
+    const { currentMode, useUrls, image1, image1Url, image2, image2Url, prompt, aspectRatio, imageSize, selectedArtStyle, apiKey, onError, generateUploadUrl } =
       options
 
     if (currentMode === "image-editing" && !useUrls && !image1) return
@@ -175,26 +209,39 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       setShowAnimation(false)
       setProgress(0)
 
-      // Save generation to database in the background (don't block UI)
+      // Save generation to Convex storage in the background (don't block UI)
       if (options.onSaveGeneration) {
-        // Generate thumbnail first, then save
-        generateThumbnail(data.url, 250).then((thumbnailData) => {
-          options.onSaveGeneration!({
-            prompt: finalPrompt,
-            imageData: data.url, // This is the base64 data URL
-            thumbnailData,
-            mode: currentMode,
-            aspectRatio,
-            imageSize,
-            artStyle: selectedArtStyle || undefined,
-          }).catch((saveError) => {
-            console.error("Error saving generation to database:", saveError)
-            // Notify user that saving failed - they should download the image
+        ;(async () => {
+          try {
+            // Convert image data URL to blob
+            const imageBlob = await dataUrlToBlob(data.url)
+            
+            // Generate thumbnail blob
+            const thumbnailBlob = await generateThumbnailBlob(data.url, 250)
+            
+            // Upload both to Convex storage
+            const [imageStorageId, thumbnailStorageId] = await Promise.all([
+              uploadToStorage(imageBlob, generateUploadUrl),
+              uploadToStorage(thumbnailBlob, generateUploadUrl),
+            ])
+            
+            // Save the generation with storage IDs
+            await options.onSaveGeneration!({
+              prompt: finalPrompt,
+              imageStorageId,
+              thumbnailStorageId,
+              mode: currentMode,
+              aspectRatio,
+              imageSize,
+              artStyle: selectedArtStyle || undefined,
+            })
+          } catch (saveError) {
+            console.error("Error saving generation to storage:", saveError)
             options.onSaveError?.(
-              "Image too large to save to history. Please download it manually to keep it."
+              "Failed to save to history. Please download the image manually."
             )
-          })
-        })
+          }
+        })()
       }
     } catch (error) {
       clearInterval(progressInterval)
@@ -218,4 +265,3 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
     setGeneratedImage,
   }
 }
-

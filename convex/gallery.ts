@@ -2,12 +2,24 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 
-// Save a new gallery image for the current user
+// Generate upload URL for uploading images to Convex storage
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) {
+      throw new Error("Must be authenticated to upload images");
+    }
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+// Save a new gallery image for the current user (with storage IDs)
 export const saveImage = mutation({
   args: {
     filename: v.string(),
-    imageData: v.string(),
-    thumbnailData: v.string(),
+    imageStorageId: v.id("_storage"),
+    thumbnailStorageId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
@@ -36,8 +48,8 @@ export const saveImage = mutation({
     const imageId = await ctx.db.insert("gallery", {
       userId: user._id,
       filename: args.filename,
-      imageData: args.imageData,
-      thumbnailData: args.thumbnailData,
+      imageStorageId: args.imageStorageId,
+      thumbnailStorageId: args.thumbnailStorageId,
       createdAt: Date.now(),
     });
 
@@ -45,7 +57,7 @@ export const saveImage = mutation({
   },
 });
 
-// Get all gallery images for the current user
+// Get all gallery images for the current user with URLs
 export const getMyImages = query({
   args: {
     limit: v.optional(v.number()),
@@ -64,11 +76,24 @@ export const getMyImages = query({
       .order("desc")
       .take(limit);
 
-    return images;
+    // Get URLs for each image
+    const imagesWithUrls = await Promise.all(
+      images.map(async (img) => {
+        const imageUrl = await ctx.storage.getUrl(img.imageStorageId);
+        const thumbnailUrl = await ctx.storage.getUrl(img.thumbnailStorageId);
+        return {
+          ...img,
+          imageUrl,
+          thumbnailUrl,
+        };
+      })
+    );
+
+    return imagesWithUrls;
   },
 });
 
-// Get a single gallery image by filename
+// Get a single gallery image by filename with URLs
 export const getImageByFilename = query({
   args: {
     filename: v.string(),
@@ -86,11 +111,20 @@ export const getImageByFilename = query({
       )
       .first();
 
-    return image;
+    if (!image) return null;
+
+    const imageUrl = await ctx.storage.getUrl(image.imageStorageId);
+    const thumbnailUrl = await ctx.storage.getUrl(image.thumbnailStorageId);
+
+    return {
+      ...image,
+      imageUrl,
+      thumbnailUrl,
+    };
   },
 });
 
-// Search gallery images by filename (for autocomplete)
+// Search gallery images by filename (for autocomplete) with URLs
 export const searchImages = query({
   args: {
     searchTerm: v.string(),
@@ -116,13 +150,21 @@ export const searchImages = query({
       .filter((img) => img.filename.toLowerCase().includes(searchLower))
       .slice(0, limit);
 
-    // Return fields needed for autocomplete and image loading
-    return filtered.map((img) => ({
-      _id: img._id,
-      filename: img.filename,
-      thumbnailData: img.thumbnailData,
-      imageData: img.imageData,
-    }));
+    // Get URLs for filtered images
+    const imagesWithUrls = await Promise.all(
+      filtered.map(async (img) => {
+        const imageUrl = await ctx.storage.getUrl(img.imageStorageId);
+        const thumbnailUrl = await ctx.storage.getUrl(img.thumbnailStorageId);
+        return {
+          _id: img._id,
+          filename: img.filename,
+          imageUrl,
+          thumbnailUrl,
+        };
+      })
+    );
+
+    return imagesWithUrls;
   },
 });
 
@@ -193,8 +235,12 @@ export const deleteImage = mutation({
       throw new Error("Cannot delete another user's image");
     }
 
+    // Delete the files from storage
+    await ctx.storage.delete(image.imageStorageId);
+    await ctx.storage.delete(image.thumbnailStorageId);
+
+    // Delete the database record
     await ctx.db.delete(args.imageId);
     return { success: true };
   },
 });
-

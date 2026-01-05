@@ -14,8 +14,10 @@ interface GalleryImage {
   _creationTime: number
   userId: string
   filename: string
-  imageData: string
-  thumbnailData: string
+  imageStorageId: Id<"_storage">
+  thumbnailStorageId: Id<"_storage">
+  imageUrl: string | null
+  thumbnailUrl: string | null
   createdAt: number
 }
 
@@ -91,7 +93,7 @@ const GalleryCard = memo(({
       {/* Image */}
       <div className="aspect-square relative">
         <LazyImage
-          src={image.thumbnailData}
+          src={image.thumbnailUrl || ""}
           alt={image.filename}
           className="aspect-square relative"
         />
@@ -149,13 +151,18 @@ const GalleryCard = memo(({
 
 GalleryCard.displayName = "GalleryCard"
 
-// Create thumbnail from image data
-const createThumbnail = async (imageDataUrl: string, size = 200): Promise<string> => {
-  return new Promise((resolve) => {
+// Create thumbnail blob from image data
+const createThumbnailBlob = async (imageDataUrl: string, size = 250): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {
       const canvas = document.createElement("canvas")
-      const ctx = canvas.getContext("2d")!
+      const ctx = canvas.getContext("2d")
+      
+      if (!ctx) {
+        reject(new Error("Could not get canvas context"))
+        return
+      }
       
       // Calculate dimensions to maintain aspect ratio
       let width = size
@@ -179,14 +186,48 @@ const createThumbnail = async (imageDataUrl: string, size = 200): Promise<string
       ctx.fillRect(0, 0, size, size)
       
       ctx.drawImage(img, x, y, width, height)
-      resolve(canvas.toDataURL("image/jpeg", 0.7))
+      
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob)
+          } else {
+            reject(new Error("Could not create blob"))
+          }
+        },
+        "image/jpeg",
+        0.7
+      )
     }
+    img.onerror = () => reject(new Error("Could not load image"))
     img.src = imageDataUrl
   })
 }
 
+// Convert data URL to Blob
+const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
+  const response = await fetch(dataUrl)
+  return await response.blob()
+}
+
+// Upload blob to Convex storage
+const uploadToStorage = async (
+  blob: Blob,
+  generateUploadUrl: () => Promise<string>
+): Promise<Id<"_storage">> => {
+  const uploadUrl = await generateUploadUrl()
+  const response = await fetch(uploadUrl, {
+    method: "POST",
+    headers: { "Content-Type": blob.type },
+    body: blob,
+  })
+  const { storageId } = await response.json()
+  return storageId
+}
+
 export default function GalleryPage() {
   const images = useQuery(api.gallery.getMyImages, { limit: 100 }) as GalleryImage[] | undefined
+  const generateUploadUrl = useMutation(api.gallery.generateUploadUrl)
   const saveImage = useMutation(api.gallery.saveImage)
   const renameImage = useMutation(api.gallery.renameImage)
   const deleteImage = useMutation(api.gallery.deleteImage)
@@ -349,13 +390,20 @@ export default function GalleryPage() {
     setUploadError("")
     
     try {
-      // Create thumbnail
-      const thumbnailData = await createThumbnail(uploadPreview)
+      // Convert image to blob and create thumbnail blob
+      const imageBlob = await dataUrlToBlob(uploadPreview)
+      const thumbnailBlob = await createThumbnailBlob(uploadPreview)
+      
+      // Upload both to Convex storage
+      const [imageStorageId, thumbnailStorageId] = await Promise.all([
+        uploadToStorage(imageBlob, generateUploadUrl),
+        uploadToStorage(thumbnailBlob, generateUploadUrl),
+      ])
       
       await saveImage({
         filename: uploadFilename.trim(),
-        imageData: uploadPreview,
-        thumbnailData,
+        imageStorageId,
+        thumbnailStorageId,
       })
       
       // Reset modal state
@@ -680,7 +728,7 @@ export default function GalleryPage() {
               <div className="flex-1 overflow-auto p-4 space-y-4">
                 <div className="flex justify-center">
                   <img
-                    src={selectedImage.imageData}
+                    src={selectedImage.imageUrl || ""}
                     alt={selectedImage.filename}
                     className="max-w-full max-h-[50vh] object-contain rounded-xl"
                   />

@@ -7,14 +7,14 @@ import { api } from "@/convex/_generated/api"
 interface GalleryImageResult {
   _id: string
   filename: string
-  thumbnailData: string
-  imageData: string
+  thumbnailUrl: string | null
+  imageUrl: string | null
 }
 
 interface MentionAutocompleteProps {
   inputValue: string
   cursorPosition: number
-  onSelect: (filename: string, startIndex: number, endIndex: number, imageData: string) => void
+  onSelect: (filename: string, startIndex: number, endIndex: number, imageUrl: string) => void
   onClose: () => void
   textareaRef: React.RefObject<HTMLTextAreaElement>
 }
@@ -128,8 +128,8 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
       case "Enter":
       case "Tab":
         e.preventDefault()
-        if (images[selectedIndex] && mention) {
-          onSelect(images[selectedIndex].filename, mention.startIndex, mention.endIndex, images[selectedIndex].imageData)
+        if (images[selectedIndex] && mention && images[selectedIndex].imageUrl) {
+          onSelect(images[selectedIndex].filename, mention.startIndex, mention.endIndex, images[selectedIndex].imageUrl)
         }
         break
       case "Escape":
@@ -212,14 +212,14 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
                   : "hover:bg-secondary/50"
               }`}
               onClick={() => {
-                if (mention) {
-                  onSelect(image.filename, mention.startIndex, mention.endIndex, image.imageData)
+                if (mention && image.imageUrl) {
+                  onSelect(image.filename, mention.startIndex, mention.endIndex, image.imageUrl)
                 }
               }}
               onMouseEnter={() => setSelectedIndex(index)}
             >
               <img
-                src={image.thumbnailData}
+                src={image.thumbnailUrl || ""}
                 alt={image.filename}
                 className="w-7 h-7 rounded object-cover border border-border/50 flex-shrink-0"
               />
