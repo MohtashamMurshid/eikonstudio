@@ -11,67 +11,24 @@ export function Toast({ toast }: ToastProps) {
   const getToastStyles = () => {
     switch (toast.type) {
       case "success":
-        return "border-emerald-200 text-emerald-800"
+        return "bg-foreground/90 text-background"
       case "warning":
-        return "border-amber-200 text-amber-800"
+        return "bg-amber-600/90 text-white"
       case "error":
       default:
-        return "border-red-200 text-red-800"
-    }
-  }
-
-  const getIcon = () => {
-    switch (toast.type) {
-      case "success":
-        return (
-          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        )
-      case "warning":
-        return (
-          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-          </div>
-        )
-      case "error":
-      default:
-        return (
-          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </div>
-        )
+        return "bg-red-600/90 text-white"
     }
   }
 
   return (
-    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300 select-none">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 select-none">
       <div
         className={cn(
-          "bg-white backdrop-blur-sm border rounded-xl p-4 shadow-lg max-w-sm",
+          "px-4 py-2.5 rounded-full shadow-lg text-sm font-medium backdrop-blur-sm",
           getToastStyles(),
         )}
       >
-        <div className="flex items-center gap-3">
-          {getIcon()}
-          <p className="text-sm font-medium">{toast.message}</p>
-        </div>
+        {toast.message}
       </div>
     </div>
   )

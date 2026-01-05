@@ -34,6 +34,10 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
   const [customArtStyles, setCustomArtStyles] = useState<string[]>([])
   const [cursorPosition, setCursorPosition] = useState(0)
   const [showMentionDropdown, setShowMentionDropdown] = useState(false)
+  // Track which @mentions are loaded in which image slots: { filename: slotNumber }
+  const [mentionSlots, setMentionSlots] = useState<{ [filename: string]: 1 | 2 }>({})
+  // Track images being removed for exit animation
+  const [removingImages, setRemovingImages] = useState<{ 1?: boolean; 2?: boolean }>({})
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const { toast, showToast } = useToast()
@@ -218,18 +222,62 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
 
   // Handle prompt change with cursor tracking
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setPrompt(e.target.value)
+    const newText = e.target.value
+    const oldText = prompt
+    
+    // Check for removed @mentions and clear their associated images
+    const oldMentions = [...oldText.matchAll(/@([a-zA-Z0-9_-]+)/g)].map(m => m[1])
+    const newMentions = [...newText.matchAll(/@([a-zA-Z0-9_-]+)/g)].map(m => m[1])
+    
+    // Find mentions that were in old text but not in new text
+    const removedMentions = oldMentions.filter(m => !newMentions.includes(m))
+    
+    // Clear images for removed mentions with animation
+    if (removedMentions.length > 0) {
+      const updatedSlots = { ...mentionSlots }
+      const slotsToRemove: (1 | 2)[] = []
+      
+      removedMentions.forEach(filename => {
+        const slot = mentionSlots[filename]
+        if (slot) {
+          slotsToRemove.push(slot)
+          delete updatedSlots[filename]
+        }
+      })
+      
+      // Start exit animation
+      if (slotsToRemove.length > 0) {
+        setRemovingImages(prev => {
+          const next = { ...prev }
+          slotsToRemove.forEach(slot => { next[slot] = true })
+          return next
+        })
+        
+        // Actually clear after animation completes
+        setTimeout(() => {
+          slotsToRemove.forEach(slot => imageUpload.clearImage(slot))
+          setRemovingImages(prev => {
+            const next = { ...prev }
+            slotsToRemove.forEach(slot => { delete next[slot] })
+            return next
+          })
+        }, 200)
+      }
+      
+      setMentionSlots(updatedSlots)
+    }
+    
+    setPrompt(newText)
     setCursorPosition(e.target.selectionStart || 0)
     
     // Check if we should show mention dropdown
-    const text = e.target.value
     const cursor = e.target.selectionStart || 0
     
     // Look backwards from cursor to find @
     let hasAtSymbol = false
     for (let i = cursor - 1; i >= 0; i--) {
-      if (/\s/.test(text[i])) break
-      if (text[i] === "@") {
+      if (/\s/.test(newText[i])) break
+      if (newText[i] === "@") {
         hasAtSymbol = true
         break
       }
@@ -239,10 +287,11 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
 
   // Handle mention selection from autocomplete - keep @filename in prompt and load image
   const handleMentionSelect = useCallback(async (filename: string, startIndex: number, endIndex: number, imageData: string) => {
-    // Replace partial @... with complete @filename (keep it in the prompt)
+    // Replace partial @... with complete @filename + space (keep it in the prompt)
     const before = prompt.slice(0, startIndex)
     const after = prompt.slice(endIndex)
-    const newPrompt = `${before}@${filename} ${after}`.trimEnd()
+    // Add space after @filename so user can continue typing immediately
+    const newPrompt = `${before}@${filename} ${after.trimStart()}`
     setPrompt(newPrompt)
     setShowMentionDropdown(false)
     
@@ -252,23 +301,26 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       const blob = await response.blob()
       const file = new File([blob], `${filename}.png`, { type: "image/png" })
       
-      // Load into first empty slot, or slot 1 if both are empty
+      // Determine which slot to use and track it
+      let targetSlot: 1 | 2 = 1
       if (!imageUpload.image1 && !imageUpload.image1Url) {
-        imageUpload.handleImageUpload(file, 1)
+        targetSlot = 1
       } else if (!imageUpload.image2 && !imageUpload.image2Url) {
-        imageUpload.handleImageUpload(file, 2)
+        targetSlot = 2
       } else {
         // Replace slot 1 if both are full
-        imageUpload.handleImageUpload(file, 1)
+        targetSlot = 1
       }
       
-      showToast(`Added "${filename}" as reference image`, "success")
+      imageUpload.handleImageUpload(file, targetSlot)
+      
+      // Track which slot this mention is using
+      setMentionSlots(prev => ({ ...prev, [filename]: targetSlot }))
     } catch (error) {
       console.error("Failed to load gallery image:", error)
-      showToast("Failed to load image", "error")
     }
     
-    // Focus textarea and place cursor after the @filename
+    // Focus textarea and place cursor after the @filename + space
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus()
@@ -277,7 +329,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
         setCursorPosition(newCursorPos)
       }
     }, 0)
-  }, [prompt, imageUpload, showToast])
+  }, [prompt, imageUpload])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Let mention autocomplete handle arrow keys and enter when visible
@@ -406,7 +458,13 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
                 <div className="p-3 sm:p-4 pb-0">
                   <div className="flex items-start gap-2 sm:gap-3">
                     {imageUpload.image1Preview && (
-                      <div className="relative group animate-in fade-in zoom-in-95 duration-200">
+                      <div 
+                        className={`relative group transition-all duration-200 ease-out ${
+                          removingImages[1] 
+                            ? "opacity-0 scale-90" 
+                            : "opacity-100 scale-100 animate-in fade-in zoom-in-95"
+                        }`}
+                      >
                         <img 
                           src={imageUpload.image1Preview} 
                           alt="Input 1" 
@@ -436,7 +494,13 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
                       </div>
                     )}
                     {imageUpload.image2Preview && (
-                      <div className="relative group animate-in fade-in zoom-in-95 duration-200">
+                      <div 
+                        className={`relative group transition-all duration-200 ease-out ${
+                          removingImages[2] 
+                            ? "opacity-0 scale-90" 
+                            : "opacity-100 scale-100 animate-in fade-in zoom-in-95"
+                        }`}
+                      >
                         <img 
                           src={imageUpload.image2Preview} 
                           alt="Input 2" 
@@ -607,23 +671,25 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
             </div>
           </div>
 
-          {/* Suggestion Buttons - Below Input */}
-          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-3 sm:mt-4">
-            {/* Art Style Quick Picks */}
-            {artStyleSuggestions.map((style) => (
-              <button
-                key={style}
-                onClick={() => setSelectedArtStyle(selectedArtStyle === style ? "" : style)}
-                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border text-xs sm:text-sm transition-all ${
-                  selectedArtStyle === style 
-                    ? "border-foreground/30 bg-foreground/10 text-foreground" 
-                    : "border-border bg-card hover:bg-secondary/50 text-foreground/80 hover:text-foreground"
-                }`}
-              >
-                <span>{style}</span>
-              </button>
-            ))}
-          </div>
+          {/* Suggestion Buttons - Below Input (hidden during generation) */}
+          {!imageGeneration.isLoading && !imageUpload.isConvertingHeic && !imageGeneration.generatedImage && (
+            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-3 sm:mt-4">
+              {/* Art Style Quick Picks */}
+              {artStyleSuggestions.map((style) => (
+                <button
+                  key={style}
+                  onClick={() => setSelectedArtStyle(selectedArtStyle === style ? "" : style)}
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border text-xs sm:text-sm transition-all ${
+                    selectedArtStyle === style 
+                      ? "border-foreground/30 bg-foreground/10 text-foreground" 
+                      : "border-border bg-card hover:bg-secondary/50 text-foreground/80 hover:text-foreground"
+                  }`}
+                >
+                  <span>{style}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Hidden file input */}
           <input
