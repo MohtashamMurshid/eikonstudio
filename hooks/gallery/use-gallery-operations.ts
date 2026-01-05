@@ -5,6 +5,18 @@ import { api } from "@/convex/_generated/api"
 import { dataUrlToBlob, createThumbnailBlob, uploadToStorage } from "@/utils/gallery/image-utils"
 import type { GalleryImage } from "@/components/gallery/types"
 
+interface RenameModalState {
+  isOpen: boolean
+  id: Id<"gallery"> | null
+  currentName: string
+  error: string
+}
+
+interface DeleteModalState {
+  isOpen: boolean
+  id: Id<"gallery"> | null
+}
+
 /**
  * Hook for gallery operations
  * @param generateUploadUrl - The function to generate a upload URL for the image
@@ -23,45 +35,103 @@ export function useGalleryOperations(
   const [deletingId, setDeletingId] = useState<Id<"gallery"> | null>(null)
   const [renamingId, setRenamingId] = useState<Id<"gallery"> | null>(null)
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null)
+  
+  // Modal states
+  const [renameModal, setRenameModal] = useState<RenameModalState>({
+    isOpen: false,
+    id: null,
+    currentName: "",
+    error: "",
+  })
+  
+  const [deleteModal, setDeleteModal] = useState<DeleteModalState>({
+    isOpen: false,
+    id: null,
+  })
 
   const renameImage = useMutation(api.gallery.renameImage)
   const deleteImage = useMutation(api.gallery.deleteImage)
 
-  const handleRename = useCallback(async (id: Id<"gallery">, currentName: string) => {
-    const newName = prompt("Enter new filename:", currentName)
-    if (!newName || newName === currentName) return
+  // Open rename modal
+  const openRenameModal = useCallback((id: Id<"gallery">, currentName: string) => {
+    setRenameModal({
+      isOpen: true,
+      id,
+      currentName,
+      error: "",
+    })
+  }, [])
+
+  // Close rename modal
+  const closeRenameModal = useCallback(() => {
+    setRenameModal({
+      isOpen: false,
+      id: null,
+      currentName: "",
+      error: "",
+    })
+  }, [])
+
+  // Confirm rename
+  const confirmRename = useCallback(async (newName: string) => {
+    if (!renameModal.id) return
     
     const filenameRegex = /^[a-zA-Z0-9_-]+$/
     if (!filenameRegex.test(newName)) {
-      alert("Filename can only contain letters, numbers, hyphens, and underscores")
+      setRenameModal(prev => ({
+        ...prev,
+        error: "Filename can only contain letters, numbers, hyphens, and underscores",
+      }))
       return
     }
     
-    setRenamingId(id)
+    setRenamingId(renameModal.id)
     try {
-      await renameImage({ imageId: id, newFilename: newName })
+      await renameImage({ imageId: renameModal.id, newFilename: newName })
+      closeRenameModal()
     } catch (error: any) {
       console.error("Error renaming image:", error)
-      alert(error.message || "Failed to rename image")
+      setRenameModal(prev => ({
+        ...prev,
+        error: error.message || "Failed to rename image",
+      }))
     } finally {
       setRenamingId(null)
     }
-  }, [renameImage])
+  }, [renameModal.id, renameImage, closeRenameModal])
 
-  const handleDelete = useCallback(async (id: Id<"gallery">) => {
-    if (!confirm("Are you sure you want to delete this reference image?")) return
+  // Open delete modal
+  const openDeleteModal = useCallback((id: Id<"gallery">) => {
+    setDeleteModal({
+      isOpen: true,
+      id,
+    })
+  }, [])
+
+  // Close delete modal
+  const closeDeleteModal = useCallback(() => {
+    setDeleteModal({
+      isOpen: false,
+      id: null,
+    })
+  }, [])
+
+  // Confirm delete
+  const confirmDelete = useCallback(async () => {
+    if (!deleteModal.id) return
     
-    setDeletingId(id)
+    setDeletingId(deleteModal.id)
     try {
-      await deleteImage({ imageId: id })
-      setSelectedImage((prev) => (prev?._id === id ? null : prev))
+      await deleteImage({ imageId: deleteModal.id })
+      setSelectedImage((prev) => (prev?._id === deleteModal.id ? null : prev))
+      closeDeleteModal()
     } catch (error) {
       console.error("Error deleting image:", error)
-      alert("Failed to delete image")
+      // Keep modal open on error, user can retry or cancel
     } finally {
       setDeletingId(null)
     }
-  }, [deleteImage])
+  }, [deleteModal.id, deleteImage, closeDeleteModal])
 
   const handleUploadConfirm = useCallback(async (
     uploadPreview: string,
@@ -98,9 +168,17 @@ export function useGalleryOperations(
     renamingId,
     selectedImage,
     setSelectedImage,
-    handleRename,
-    handleDelete,
+    // Rename modal
+    renameModal,
+    openRenameModal,
+    closeRenameModal,
+    confirmRename,
+    // Delete modal
+    deleteModal,
+    openDeleteModal,
+    closeDeleteModal,
+    confirmDelete,
+    // Upload
     handleUploadConfirm,
   }
 }
-

@@ -14,6 +14,8 @@ import { UploadModal } from "@/components/gallery/upload-modal"
 import { CreateFolderModal } from "@/components/gallery/create-folder-modal"
 import { MoveFolderModal } from "@/components/gallery/move-folder-modal"
 import { FullImageModal } from "@/components/gallery/full-image-modal"
+import { RenameModal } from "@/components/gallery/rename-modal"
+import { ConfirmModal } from "@/components/gallery/confirm-modal"
 import type { GalleryImage, Folder } from "@/components/gallery/types"
 import { useGalleryUpload } from "@/hooks/gallery/use-gallery-upload"
 import { useGalleryOperations } from "@/hooks/gallery/use-gallery-operations"
@@ -38,6 +40,39 @@ export default function GalleryPage() {
   const [folderError, setFolderError] = useState("")
   const [showMoveModal, setShowMoveModal] = useState(false)
   const [imageToMove, setImageToMove] = useState<Id<"gallery"> | null>(null)
+  
+  // Folder rename modal state
+  const [folderRenameModal, setFolderRenameModal] = useState<{
+    isOpen: boolean
+    folderId: Id<"folders"> | null
+    currentName: string
+    error: string
+    isLoading: boolean
+  }>({
+    isOpen: false,
+    folderId: null,
+    currentName: "",
+    error: "",
+    isLoading: false,
+  })
+  
+  // Folder delete modal state
+  const [folderDeleteModal, setFolderDeleteModal] = useState<{
+    isOpen: boolean
+    folderId: Id<"folders"> | null
+    folderName: string
+    imageCount: number
+    isLoading: boolean
+  }>({
+    isOpen: false,
+    folderId: null,
+    folderName: "",
+    imageCount: 0,
+    isLoading: false,
+  })
+  
+  // Move image error state
+  const [moveError, setMoveError] = useState("")
   
   // Upload hook
   const uploadHook = useGalleryUpload(currentFolderId)
@@ -123,55 +158,112 @@ export default function GalleryPage() {
     }
   }
   
-  const handleRenameFolder = async (folderId: Id<"folders">, currentName: string) => {
-    const newName = prompt("Enter new folder name:", currentName)
-    if (!newName || newName === currentName) return
+  // Open folder rename modal
+  const openFolderRenameModal = (folderId: Id<"folders">, currentName: string) => {
+    setFolderRenameModal({
+      isOpen: true,
+      folderId,
+      currentName,
+      error: "",
+      isLoading: false,
+    })
+  }
+  
+  // Close folder rename modal
+  const closeFolderRenameModal = () => {
+    setFolderRenameModal({
+      isOpen: false,
+      folderId: null,
+      currentName: "",
+      error: "",
+      isLoading: false,
+    })
+  }
+  
+  // Confirm folder rename
+  const confirmFolderRename = async (newName: string) => {
+    if (!folderRenameModal.folderId) return
     
     const nameRegex = /^[a-zA-Z0-9_-]+$/
     if (!nameRegex.test(newName)) {
-      alert("Folder name can only contain letters, numbers, hyphens, and underscores")
+      setFolderRenameModal(prev => ({
+        ...prev,
+        error: "Folder name can only contain letters, numbers, hyphens, and underscores",
+      }))
       return
     }
     
+    setFolderRenameModal(prev => ({ ...prev, isLoading: true }))
     try {
-      await renameFolder({ folderId, newName })
+      await renameFolder({ folderId: folderRenameModal.folderId, newName })
+      closeFolderRenameModal()
     } catch (error: any) {
-      alert(error.message || "Failed to rename folder")
+      setFolderRenameModal(prev => ({
+        ...prev,
+        error: error.message || "Failed to rename folder",
+        isLoading: false,
+      }))
     }
   }
   
-  const handleDeleteFolder = async (folderId: Id<"folders">) => {
+  // Open folder delete modal
+  const openFolderDeleteModal = (folderId: Id<"folders">) => {
     const folder = folders?.find(f => f._id === folderId)
-    const confirmMsg = folder?.imageCount 
-      ? `This will delete the folder "${folder.name}" and all ${folder.imageCount} image(s) inside. Are you sure?`
-      : `Delete folder "${folder?.name}"?`
+    if (!folder) return
     
-    if (!confirm(confirmMsg)) return
+    setFolderDeleteModal({
+      isOpen: true,
+      folderId,
+      folderName: folder.name,
+      imageCount: folder.imageCount || 0,
+      isLoading: false,
+    })
+  }
+  
+  // Close folder delete modal
+  const closeFolderDeleteModal = () => {
+    setFolderDeleteModal({
+      isOpen: false,
+      folderId: null,
+      folderName: "",
+      imageCount: 0,
+      isLoading: false,
+    })
+  }
+  
+  // Confirm folder delete
+  const confirmFolderDelete = async () => {
+    if (!folderDeleteModal.folderId) return
     
+    setFolderDeleteModal(prev => ({ ...prev, isLoading: true }))
     try {
-      await deleteFolder({ folderId })
-      if (currentFolderId === folderId) {
+      await deleteFolder({ folderId: folderDeleteModal.folderId })
+      if (currentFolderId === folderDeleteModal.folderId) {
         setCurrentFolderId(null)
       }
+      closeFolderDeleteModal()
     } catch (error: any) {
-      alert(error.message || "Failed to delete folder")
+      // Keep modal open on error so user can see something went wrong
+      setFolderDeleteModal(prev => ({ ...prev, isLoading: false }))
     }
   }
   
   const handleMoveImage = async (targetFolderId: Id<"folders"> | undefined) => {
     if (!imageToMove) return
     
+    setMoveError("")
     try {
       await moveImageToFolder({ imageId: imageToMove, folderId: targetFolderId })
       setShowMoveModal(false)
       setImageToMove(null)
     } catch (error: any) {
-      alert(error.message || "Failed to move image")
+      setMoveError(error.message || "Failed to move image")
     }
   }
   
   const openMoveModal = (imageId: Id<"gallery">) => {
     setImageToMove(imageId)
+    setMoveError("")
     setShowMoveModal(true)
   }
 
@@ -322,8 +414,8 @@ export default function GalleryPage() {
                     <GalleryCard
                       key={image._id}
                       image={image}
-                      onRename={operationsHook.handleRename}
-                      onDelete={operationsHook.handleDelete}
+                      onRename={operationsHook.openRenameModal}
+                      onDelete={operationsHook.openDeleteModal}
                       onViewFull={operationsHook.setSelectedImage}
                       onMove={openMoveModal}
                       deletingId={operationsHook.deletingId}
@@ -378,8 +470,8 @@ export default function GalleryPage() {
                             key={folder._id}
                             folder={folder}
                             onOpen={() => setCurrentFolderId(folder._id)}
-                            onRename={() => handleRenameFolder(folder._id, folder.name)}
-                            onDelete={() => handleDeleteFolder(folder._id)}
+                            onRename={() => openFolderRenameModal(folder._id, folder.name)}
+                            onDelete={() => openFolderDeleteModal(folder._id)}
                           />
                         ))}
                       </div>
@@ -415,8 +507,8 @@ export default function GalleryPage() {
                                 <GalleryCard
                                   key={image._id}
                                   image={image}
-                                  onRename={operationsHook.handleRename}
-                                  onDelete={operationsHook.handleDelete}
+                                  onRename={operationsHook.openRenameModal}
+                                  onDelete={operationsHook.openDeleteModal}
                                   onViewFull={operationsHook.setSelectedImage}
                                   onMove={openMoveModal}
                                   deletingId={operationsHook.deletingId}
@@ -471,8 +563,8 @@ export default function GalleryPage() {
           image={operationsHook.selectedImage}
           deletingId={operationsHook.deletingId}
           onClose={() => operationsHook.setSelectedImage(null)}
-          onRename={operationsHook.handleRename}
-          onDelete={operationsHook.handleDelete}
+          onRename={operationsHook.openRenameModal}
+          onDelete={operationsHook.openDeleteModal}
           onMove={openMoveModal}
         />
 
@@ -495,8 +587,59 @@ export default function GalleryPage() {
           onClose={() => {
             setShowMoveModal(false)
             setImageToMove(null)
+            setMoveError("")
           }}
           onMove={handleMoveImage}
+        />
+        
+        {/* Image Rename Modal */}
+        <RenameModal
+          isOpen={operationsHook.renameModal.isOpen}
+          currentName={operationsHook.renameModal.currentName}
+          itemType="image"
+          error={operationsHook.renameModal.error}
+          isLoading={operationsHook.renamingId !== null}
+          onClose={operationsHook.closeRenameModal}
+          onConfirm={operationsHook.confirmRename}
+        />
+        
+        {/* Image Delete Modal */}
+        <ConfirmModal
+          isOpen={operationsHook.deleteModal.isOpen}
+          title="Delete Image"
+          message="Are you sure you want to delete this reference image? This action cannot be undone."
+          confirmText="Delete"
+          isDangerous={true}
+          isLoading={operationsHook.deletingId !== null}
+          onClose={operationsHook.closeDeleteModal}
+          onConfirm={operationsHook.confirmDelete}
+        />
+        
+        {/* Folder Rename Modal */}
+        <RenameModal
+          isOpen={folderRenameModal.isOpen}
+          currentName={folderRenameModal.currentName}
+          itemType="folder"
+          error={folderRenameModal.error}
+          isLoading={folderRenameModal.isLoading}
+          onClose={closeFolderRenameModal}
+          onConfirm={confirmFolderRename}
+        />
+        
+        {/* Folder Delete Modal */}
+        <ConfirmModal
+          isOpen={folderDeleteModal.isOpen}
+          title="Delete Folder"
+          message={
+            folderDeleteModal.imageCount > 0
+              ? `This will delete the folder "${folderDeleteModal.folderName}" and all ${folderDeleteModal.imageCount} image${folderDeleteModal.imageCount !== 1 ? "s" : ""} inside. This action cannot be undone.`
+              : `Delete folder "${folderDeleteModal.folderName}"? This action cannot be undone.`
+          }
+          confirmText="Delete"
+          isDangerous={true}
+          isLoading={folderDeleteModal.isLoading}
+          onClose={closeFolderDeleteModal}
+          onConfirm={confirmFolderDelete}
         />
       </div>
     </div>

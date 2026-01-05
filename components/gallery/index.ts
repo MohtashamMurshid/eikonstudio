@@ -6,5 +6,7 @@ export { UploadModal } from "./upload-modal"
 export { CreateFolderModal } from "./create-folder-modal"
 export { MoveFolderModal } from "./move-folder-modal"
 export { FullImageModal } from "./full-image-modal"
+export { RenameModal } from "./rename-modal"
+export { ConfirmModal } from "./confirm-modal"
 export type { GalleryImage, Folder } from "./types"
 
