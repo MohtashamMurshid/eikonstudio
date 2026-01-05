@@ -39,6 +39,8 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
   // Track images being removed for exit animation
   const [removingImages, setRemovingImages] = useState<{ 1?: boolean; 2?: boolean; 3?: boolean; 4?: boolean }>({})
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  // Track expected prompt after mention selection to prevent stale cursor repositioning
+  const expectedPromptRef = useRef<string | null>(null)
 
   const { toast, showToast } = useToast()
   
@@ -402,6 +404,10 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     const newText = e.target.value
     const oldText = prompt
     
+    // Clear expected prompt ref to prevent stale cursor repositioning from mention selection
+    // This ensures that if user types while folder images are loading, cursor won't jump
+    expectedPromptRef.current = null
+    
     // Check for removed @mentions and clear their associated images
     // Support both @filename and @folder/filename patterns
     const mentionPattern = /@([a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)?)/g
@@ -482,6 +488,8 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     const after = prompt.slice(endIndex)
     // Add space after @filename so user can continue typing immediately
     const newPrompt = `${before}@${filename} ${after.trimStart()}`
+    // Store expected prompt to guard against stale cursor repositioning
+    expectedPromptRef.current = newPrompt
     setPrompt(newPrompt)
     setShowMentionDropdown(false)
     
@@ -548,13 +556,18 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     }
     
     // Focus textarea and place cursor after the @filename + space
+    // Use the stored expected prompt to avoid stale cursor repositioning if user types
+    const expectedPrompt = newPrompt
     setTimeout(() => {
-      if (textareaRef.current) {
+      // Only reposition cursor if user hasn't typed (prompt unchanged)
+      if (textareaRef.current && expectedPromptRef.current === expectedPrompt) {
         textareaRef.current.focus()
         const newCursorPos = startIndex + filename.length + 2 // +2 for @ and space
         textareaRef.current.setSelectionRange(newCursorPos, newCursorPos)
         setCursorPosition(newCursorPos)
       }
+      // Clear the expected prompt ref
+      expectedPromptRef.current = null
     }, 0)
   }, [prompt, imageUpload, showToast, convex])
 
