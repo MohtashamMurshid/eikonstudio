@@ -51,19 +51,6 @@ export default function GalleryPage() {
     return folders.find(f => f._id === currentFolderId) || null
   }, [currentFolderId, folders])
 
-  // Get images grouped by folder for previews
-  const imagesByFolder = useMemo(() => {
-    if (!images) return new Map<Id<"folders">, GalleryImage[]>()
-    const map = new Map<Id<"folders">, GalleryImage[]>()
-    images.forEach(img => {
-      if (img.folderId) {
-        const existing = map.get(img.folderId) || []
-        map.set(img.folderId, [...existing, img])
-      }
-    })
-    return map
-  }, [images])
-
   // Get uncategorized images (no folder)
   const uncategorizedImages = useMemo(() => {
     if (!images) return []
@@ -390,7 +377,6 @@ export default function GalleryPage() {
                           <FolderCard
                             key={folder._id}
                             folder={folder}
-                            previewImages={imagesByFolder.get(folder._id) || []}
                             onOpen={() => setCurrentFolderId(folder._id)}
                             onRename={() => handleRenameFolder(folder._id, folder.name)}
                             onDelete={() => handleDeleteFolder(folder._id)}

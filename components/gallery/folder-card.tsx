@@ -1,11 +1,10 @@
 "use client"
 
 import { useState, memo } from "react"
-import type { Folder, GalleryImage } from "./types"
+import type { Folder } from "./types"
 
 interface FolderCardProps {
   folder: Folder
-  previewImages: GalleryImage[]
   onOpen: () => void
   onRename: () => void
   onDelete: () => void
@@ -13,7 +12,6 @@ interface FolderCardProps {
 
 export const FolderCard = memo(({
   folder,
-  previewImages,
   onOpen,
   onRename,
   onDelete,
@@ -22,43 +20,14 @@ export const FolderCard = memo(({
 
   return (
     <div
-      className="group relative bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl overflow-hidden border border-amber-200/60 hover:border-amber-300 hover:shadow-lg hover:shadow-amber-100/50 transition-all cursor-pointer"
+      className="group relative cursor-pointer"
       onClick={onOpen}
     >
-      {/* Thumbnail Preview Grid */}
-      <div className="aspect-square relative p-3">
-        <div className="w-full h-full rounded-lg overflow-hidden bg-white/60 border border-amber-100">
-          {previewImages.length > 0 ? (
-            <div className="grid grid-cols-2 gap-0.5 h-full">
-              {[0, 1, 2, 3].map((idx) => (
-                <div key={idx} className="relative bg-amber-50">
-                  {previewImages[idx]?.thumbnailUrl ? (
-                    <img
-                      src={previewImages[idx].thumbnailUrl!}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full" />
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <svg className="w-12 h-12 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
-            </div>
-          )}
-        </div>
-        
-        {/* Folder icon badge */}
-        <div className="absolute top-1.5 left-1.5 w-7 h-7 bg-amber-500 rounded-lg flex items-center justify-center shadow-sm">
-          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-          </svg>
-        </div>
+      {/* Folder Icon */}
+      <div className="aspect-square relative flex items-center justify-center">
+        <svg className="w-16 h-16 text-primary" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
 
         {/* Hover Actions */}
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
