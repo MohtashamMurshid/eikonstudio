@@ -219,7 +219,9 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       return
     }
     
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    // Shift+Enter for new line (default behavior, don't prevent)
+    // Enter without shift to submit
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       if (canGenerate && !imageGeneration.isLoading) {
         mentionHandler.handleGenerateWithMentions(() => imageGeneration.generateImage())
