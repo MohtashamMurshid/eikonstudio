@@ -154,19 +154,23 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault()
+        e.stopPropagation()
         setSelectedIndex((prev) => (prev + 1) % combinedResults.length)
         break
       case "ArrowUp":
         e.preventDefault()
+        e.stopPropagation()
         setSelectedIndex((prev) => (prev - 1 + combinedResults.length) % combinedResults.length)
         break
       case "Enter":
       case "Tab":
         e.preventDefault()
+        e.stopPropagation()
         handleSelect(selectedIndex)
         break
       case "Escape":
         e.preventDefault()
+        e.stopPropagation()
         onClose()
         break
     }

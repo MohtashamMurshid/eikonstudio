@@ -5,6 +5,12 @@ import { api } from "@/convex/_generated/api"
 import { dataUrlToBlob, createThumbnailBlob, uploadToStorage } from "@/utils/gallery/image-utils"
 import type { GalleryImage } from "@/components/gallery/types"
 
+/**
+ * Hook for gallery operations
+ * @param generateUploadUrl - The function to generate a upload URL for the image
+ * @param saveImage - The function to save the image to the gallery
+ * @returns The gallery operations hook
+ */
 export function useGalleryOperations(
   generateUploadUrl: () => Promise<string>,
   saveImage: (args: {
@@ -12,7 +18,7 @@ export function useGalleryOperations(
     imageStorageId: Id<"_storage">
     thumbnailStorageId: Id<"_storage">
     folderId?: Id<"folders">
-  }) => Promise<void>
+  }) => Promise<unknown>
 ) {
   const [deletingId, setDeletingId] = useState<Id<"gallery"> | null>(null)
   const [renamingId, setRenamingId] = useState<Id<"gallery"> | null>(null)
