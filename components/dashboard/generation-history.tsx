@@ -13,6 +13,7 @@ interface Generation {
   userId: string
   prompt: string
   imageData: string
+  thumbnailData: string
   mode: "text-to-image" | "image-editing"
   aspectRatio: string
   imageSize: string
@@ -24,74 +25,10 @@ interface GenerationHistoryProps {
   onUseAsInput?: (imageData: string) => void
 }
 
-// Thumbnail cache to avoid re-generating thumbnails
-const thumbnailCache = new Map<string, string>()
-
-// Generate compressed thumbnail from image URL
-const generateThumbnail = async (src: string, maxSize: number = 200): Promise<string> => {
-  // Check cache first
-  const cacheKey = `${src}_${maxSize}`
-  if (thumbnailCache.has(cacheKey)) {
-    return thumbnailCache.get(cacheKey)!
-  }
-
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.crossOrigin = "anonymous"
-    
-    img.onload = () => {
-      const canvas = document.createElement("canvas")
-      const ctx = canvas.getContext("2d")
-      
-      if (!ctx) {
-        resolve(src) // Fallback to original
-        return
-      }
-      
-      // Calculate thumbnail dimensions maintaining aspect ratio
-      let width = img.width
-      let height = img.height
-      
-      if (width > height) {
-        if (width > maxSize) {
-          height = Math.round((height * maxSize) / width)
-          width = maxSize
-        }
-      } else {
-        if (height > maxSize) {
-          width = Math.round((width * maxSize) / height)
-          height = maxSize
-        }
-      }
-      
-      canvas.width = width
-      canvas.height = height
-      
-      // Use better image smoothing
-      ctx.imageSmoothingEnabled = true
-      ctx.imageSmoothingQuality = "medium"
-      
-      ctx.drawImage(img, 0, 0, width, height)
-      
-      // Convert to compressed JPEG (quality 0.6 for good compression)
-      const thumbnail = canvas.toDataURL("image/jpeg", 0.6)
-      thumbnailCache.set(cacheKey, thumbnail)
-      resolve(thumbnail)
-    }
-    
-    img.onerror = () => {
-      resolve(src) // Fallback to original on error
-    }
-    
-    img.src = src
-  })
-}
-
-// Lazy-loaded image component with thumbnail compression
+// Lazy-loaded image component - uses pre-stored thumbnail for fast loading
 const LazyImage = memo(({ src, alt, className }: { src: string; alt: string; className: string }) => {
   const [isLoaded, setIsLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)
-  const [thumbnailSrc, setThumbnailSrc] = useState<string | null>(null)
   const imgRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -116,22 +53,15 @@ const LazyImage = memo(({ src, alt, className }: { src: string; alt: string; cla
     }
   }, [])
 
-  // Generate thumbnail when in view
-  useEffect(() => {
-    if (!isInView || thumbnailSrc) return
-    
-    generateThumbnail(src, 250).then(setThumbnailSrc)
-  }, [isInView, src, thumbnailSrc])
-
   return (
     <div ref={imgRef} className={className}>
-      {!isInView || !thumbnailSrc ? (
+      {!isInView ? (
         <div className="w-full h-full bg-secondary/20 animate-pulse" />
       ) : (
         <>
           {!isLoaded && <div className="w-full h-full bg-secondary/20 animate-pulse absolute inset-0" />}
           <img
-            src={thumbnailSrc}
+            src={src}
             alt={alt}
             className={`w-full h-full object-cover ${isLoaded ? "opacity-100" : "opacity-0"} transition-opacity duration-300`}
             loading="lazy"
@@ -172,10 +102,10 @@ const GenerationCard = memo(({
       className="group relative bg-secondary/30 rounded-xl overflow-hidden border border-border hover:border-foreground/20 transition-all cursor-pointer"
       onClick={onSelect}
     >
-      {/* Image */}
+      {/* Image - use compressed thumbnail for fast loading */}
       <div className="aspect-square relative">
         <LazyImage
-          src={generation.imageData}
+          src={generation.thumbnailData}
           alt={generation.prompt}
           className="aspect-square relative"
         />

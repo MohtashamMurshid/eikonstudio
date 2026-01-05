@@ -7,6 +7,7 @@ export const saveGeneration = mutation({
   args: {
     prompt: v.string(),
     imageData: v.string(),
+    thumbnailData: v.string(),
     mode: v.union(v.literal("text-to-image"), v.literal("image-editing")),
     aspectRatio: v.string(),
     imageSize: v.string(),
@@ -22,6 +23,7 @@ export const saveGeneration = mutation({
       userId: user._id,
       prompt: args.prompt,
       imageData: args.imageData,
+      thumbnailData: args.thumbnailData,
       mode: args.mode,
       aspectRatio: args.aspectRatio,
       imageSize: args.imageSize,

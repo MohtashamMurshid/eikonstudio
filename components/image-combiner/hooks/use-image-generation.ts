@@ -4,10 +4,62 @@ import type { GeneratedImage } from "../types"
 interface SaveGenerationParams {
   prompt: string
   imageData: string
+  thumbnailData: string
   mode: "text-to-image" | "image-editing"
   aspectRatio: string
   imageSize: string
   artStyle?: string
+}
+
+// Generate compressed thumbnail from image URL/data
+const generateThumbnail = async (src: string, size = 200): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    
+    img.onload = () => {
+      const canvas = document.createElement("canvas")
+      const ctx = canvas.getContext("2d")
+      
+      if (!ctx) {
+        resolve(src) // Fallback to original
+        return
+      }
+      
+      // Calculate dimensions to maintain aspect ratio
+      let width = size
+      let height = size
+      
+      if (img.width > img.height) {
+        height = (img.height / img.width) * size
+      } else {
+        width = (img.width / img.height) * size
+      }
+      
+      canvas.width = size
+      canvas.height = size
+      
+      // Center the image
+      const x = (size - width) / 2
+      const y = (size - height) / 2
+      
+      // Fill with white background
+      ctx.fillStyle = "#f5f5f5"
+      ctx.fillRect(0, 0, size, size)
+      
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = "medium"
+      
+      ctx.drawImage(img, x, y, width, height)
+      resolve(canvas.toDataURL("image/jpeg", 0.7))
+    }
+    
+    img.onerror = () => {
+      resolve(src) // Fallback to original on error
+    }
+    
+    img.src = src
+  })
 }
 
 interface UseImageGenerationOptions {
@@ -125,19 +177,23 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
 
       // Save generation to database in the background (don't block UI)
       if (options.onSaveGeneration) {
-        options.onSaveGeneration({
-          prompt: finalPrompt,
-          imageData: data.url, // This is the base64 data URL
-          mode: currentMode,
-          aspectRatio,
-          imageSize,
-          artStyle: selectedArtStyle || undefined,
-        }).catch((saveError) => {
-          console.error("Error saving generation to database:", saveError)
-          // Notify user that saving failed - they should download the image
-          options.onSaveError?.(
-            "Image too large to save to history. Please download it manually to keep it."
-          )
+        // Generate thumbnail first, then save
+        generateThumbnail(data.url, 250).then((thumbnailData) => {
+          options.onSaveGeneration!({
+            prompt: finalPrompt,
+            imageData: data.url, // This is the base64 data URL
+            thumbnailData,
+            mode: currentMode,
+            aspectRatio,
+            imageSize,
+            artStyle: selectedArtStyle || undefined,
+          }).catch((saveError) => {
+            console.error("Error saving generation to database:", saveError)
+            // Notify user that saving failed - they should download the image
+            options.onSaveError?.(
+              "Image too large to save to history. Please download it manually to keep it."
+            )
+          })
         })
       }
     } catch (error) {

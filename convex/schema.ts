@@ -5,7 +5,8 @@ export default defineSchema({
   generations: defineTable({
     userId: v.string(),
     prompt: v.string(),
-    imageData: v.string(), // base64 encoded image
+    imageData: v.string(), // base64 encoded image or URL
+    thumbnailData: v.string(), // smaller base64 for list display
     mode: v.union(v.literal("text-to-image"), v.literal("image-editing")),
     aspectRatio: v.string(),
     imageSize: v.string(),

@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { LogoLoader } from "@/components/logo-icon"
 import { validateImageFormat, compressImage, convertHeicToPng } from "@/components/image-combiner/utils/image-processing"
+import { DragOverlay } from "@/components/image-combiner/components/drag-overlay"
 
 interface GalleryImage {
   _id: Id<"gallery">
@@ -205,11 +206,12 @@ export default function GalleryPage() {
   const [uploadError, setUploadError] = useState("")
   
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Drag and drop state
+  const [isDragOver, setIsDragOver] = useState(false)
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    
+  // Process file for upload (shared between file input, drag-drop, and paste)
+  const processFileForUpload = useCallback(async (file: File) => {
     if (!validateImageFormat(file)) {
       setUploadError("Please select a valid image file (JPG, PNG, WebP, HEIC)")
       return
@@ -256,6 +258,73 @@ export default function GalleryPage() {
       setUploadError("Failed to process image. Please try again.")
       setUploadProgress("")
     }
+  }, [])
+
+  // Drag and drop handlers
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDragOver(true)
+    }
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false)
+    }
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+
+    const file = e.dataTransfer.files[0]
+    if (file && file.type.startsWith("image/")) {
+      processFileForUpload(file)
+    } else {
+      setUploadError("Please drop a valid image file")
+    }
+  }, [processFileForUpload])
+
+  // Paste handler
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+
+      // Check if we're in an input field (don't intercept paste in inputs)
+      const activeElement = document.activeElement
+      const isInputFocused = activeElement?.tagName === "INPUT" || activeElement?.tagName === "TEXTAREA"
+      
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+
+        // Handle image files
+        if (item.type.startsWith("image/")) {
+          e.preventDefault()
+          const file = item.getAsFile()
+          if (file) {
+            processFileForUpload(file)
+          }
+          return
+        }
+      }
+    }
+
+    document.addEventListener("paste", handlePaste)
+    return () => document.removeEventListener("paste", handlePaste)
+  }, [processFileForUpload])
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    await processFileForUpload(file)
     
     // Reset file input
     if (fileInputRef.current) {
@@ -357,7 +426,14 @@ export default function GalleryPage() {
   }
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 min-h-screen">
+    <div 
+      className="p-3 sm:p-4 md:p-6 min-h-screen relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <DragOverlay isDragOver={isDragOver} />
       <div className="bg-white rounded-xl sm:rounded-2xl border border-border p-3 sm:p-4 md:p-6 lg:p-8 min-h-[calc(100vh-6rem)] lg:min-h-[calc(100vh-3rem)]">
         <div className="space-y-6">
           {/* Header */}
@@ -366,6 +442,9 @@ export default function GalleryPage() {
               <h2 className="text-xl font-semibold text-foreground">Reference Gallery</h2>
               <p className="text-sm text-foreground/50 mt-1">
                 {images.length} image{images.length !== 1 ? "s" : ""} • Use @filename in prompts to reference images
+              </p>
+              <p className="text-xs text-foreground/40 mt-0.5">
+                Drag & drop or paste images to upload
               </p>
             </div>
             
@@ -441,6 +520,9 @@ export default function GalleryPage() {
               >
                 Upload Your First Image
               </button>
+              <p className="text-xs text-foreground/40 mt-4">
+                Or drag & drop images here, or paste from clipboard
+              </p>
             </div>
           ) : filteredImages?.length === 0 ? (
             <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
