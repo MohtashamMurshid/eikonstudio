@@ -395,14 +395,19 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground">Generation History</h2>
-          <p className="text-sm text-foreground/50 mt-1">
-            {generations.length} generation{generations.length !== 1 ? "s" : ""}
-          </p>
-        </div>
+      {/* Header - Gallery style */}
+      <div>
+        <nav className="flex items-center gap-1.5 text-sm">
+          <span className="flex items-center gap-1.5 px-2 py-1 text-foreground font-medium">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            History
+          </span>
+        </nav>
+        <p className="text-sm text-foreground/50 mt-1">
+          {generations.length} generation{generations.length !== 1 ? "s" : ""}
+        </p>
       </div>
 
       {/* Date-grouped Grid */}
