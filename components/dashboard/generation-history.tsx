@@ -101,7 +101,7 @@ const GenerationCard = memo(({
 }) => {
   return (
     <div
-      className="group relative bg-secondary/30 rounded-xl overflow-hidden border border-border hover:border-foreground/20 transition-all cursor-pointer"
+      className="group relative bg-secondary/30 rounded-lg overflow-hidden border border-border hover:border-foreground/20 transition-all cursor-pointer"
       onClick={onSelect}
     >
       {/* Image - use compressed thumbnail for fast loading */}
@@ -183,13 +183,13 @@ const GenerationCard = memo(({
       </div>
 
       {/* Info */}
-      <div className="p-2">
-        <p className="text-xs text-foreground/70 truncate" title={generation.prompt}>
+      <div className="p-1.5">
+        <p className="text-[10px] text-foreground/70 truncate" title={generation.prompt}>
           {generation.prompt}
         </p>
-        <div className="flex items-center justify-between mt-1">
-          <span className="text-[10px] text-foreground/40">{formattedDate}</span>
-          <span className="text-[10px] px-1.5 py-0.5 bg-secondary rounded text-foreground/50">
+        <div className="flex items-center justify-between mt-0.5">
+          <span className="text-[9px] text-foreground/40">{formattedDate}</span>
+          <span className="text-[9px] px-1 py-0.5 bg-secondary rounded text-foreground/50">
             {generation.imageSize}
           </span>
         </div>
@@ -286,6 +286,62 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
     return dates
   }, [generations, formatDate])
 
+  // Group generations by date for display
+  const groupedGenerations = useMemo(() => {
+    if (!generations) return []
+    
+    const groups: { dateLabel: string; dateKey: string; generations: Generation[] }[] = []
+    const groupMap = new Map<string, Generation[]>()
+    
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const yesterday = today - 86400000
+    const thisWeekStart = today - (now.getDay() * 86400000)
+    const lastWeekStart = thisWeekStart - 7 * 86400000
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime()
+    
+    generations.forEach((gen) => {
+      const genDate = new Date(gen.createdAt)
+      const genDay = new Date(genDate.getFullYear(), genDate.getMonth(), genDate.getDate()).getTime()
+      
+      let dateKey: string
+      let dateLabel: string
+      
+      if (genDay >= today) {
+        dateKey = "today"
+        dateLabel = "Today"
+      } else if (genDay >= yesterday) {
+        dateKey = "yesterday"
+        dateLabel = "Yesterday"
+      } else if (genDay >= thisWeekStart) {
+        dateKey = "this-week"
+        dateLabel = "This Week"
+      } else if (genDay >= lastWeekStart) {
+        dateKey = "last-week"
+        dateLabel = "Last Week"
+      } else if (genDay >= thisMonthStart) {
+        dateKey = "this-month"
+        dateLabel = "This Month"
+      } else if (genDay >= lastMonthStart) {
+        dateKey = "last-month"
+        dateLabel = "Last Month"
+      } else {
+        // Group by month/year for older items
+        dateKey = `${genDate.getFullYear()}-${genDate.getMonth()}`
+        dateLabel = genDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+      }
+      
+      if (!groupMap.has(dateKey)) {
+        groupMap.set(dateKey, [])
+        groups.push({ dateKey, dateLabel, generations: groupMap.get(dateKey)! })
+      }
+      groupMap.get(dateKey)!.push(gen)
+    })
+    
+    return groups
+  }, [generations])
+
   // Memoize modal close handler
   const handleCloseModal = useCallback(() => {
     setSelectedImage(null)
@@ -340,21 +396,37 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {generations.map((generation) => (
-          <GenerationCard
-            key={generation._id}
-            generation={generation}
-            formattedDate={formattedDates.get(generation._id) || formatDate(generation.createdAt)}
-            onSelect={() => setSelectedImage(generation)}
-            onUseAsInput={onUseAsInput}
-            onCopyPrompt={handleCopyPrompt}
-            onDownload={handleDownload}
-            onDelete={handleDelete}
-            deletingId={deletingId}
-            copiedPromptId={copiedPromptId}
-          />
+      {/* Date-grouped Grid */}
+      <div className="space-y-8">
+        {groupedGenerations.map((group) => (
+          <div key={group.dateKey}>
+            {/* Date Header */}
+            <div className="flex items-center gap-3 mb-4">
+              <h3 className="text-sm font-medium text-foreground/70">{group.dateLabel}</h3>
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-foreground/40">
+                {group.generations.length} image{group.generations.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            
+            {/* Grid */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+              {group.generations.map((generation) => (
+                <GenerationCard
+                  key={generation._id}
+                  generation={generation}
+                  formattedDate={formattedDates.get(generation._id) || formatDate(generation.createdAt)}
+                  onSelect={() => setSelectedImage(generation)}
+                  onUseAsInput={onUseAsInput}
+                  onCopyPrompt={handleCopyPrompt}
+                  onDownload={handleDownload}
+                  onDelete={handleDelete}
+                  deletingId={deletingId}
+                  copiedPromptId={copiedPromptId}
+                />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 

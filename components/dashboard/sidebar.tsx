@@ -1,18 +1,16 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
-import { useRouter, usePathname } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
 import { LogoIcon } from "@/components/logo-icon"
 
 interface SidebarProps {
-  activeTab?: "dashboard" | "studio" | "history" | "gallery"
-  onTabChange?: (tab: "dashboard" | "studio" | "history" | "gallery") => void
-  apiKey: string
-  onApiKeyChange: (key: string) => void
+  activeTab?: "dashboard" | "studio" | "history" | "gallery" | "settings"
+  onTabChange?: (tab: "dashboard" | "studio" | "history" | "gallery" | "settings") => void
   isCollapsed?: boolean
   onCollapsedChange?: (collapsed: boolean) => void
 }
@@ -86,38 +84,23 @@ const analyticsItems = [
 
 const settingsItems = [
   {
-    id: "api-keys",
-    label: "API Keys",
-    comingSoon: true,
+    id: "settings",
+    label: "Settings",
+    href: "/studio/settings",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
       </svg>
     ),
   },
-  {
-    id: "preferences",
-    label: "Preferences",
-    comingSoon: true,
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
-  },
 ]
 
-export function Sidebar({ activeTab: propActiveTab, onTabChange, apiKey, onApiKeyChange, isCollapsed: controlledCollapsed, onCollapsedChange }: SidebarProps) {
+export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: controlledCollapsed, onCollapsedChange }: SidebarProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(false)
   const isCollapsed = controlledCollapsed ?? internalCollapsed
   const setIsCollapsed = onCollapsedChange ?? setInternalCollapsed
   
   const [isMobileOpen, setIsMobileOpen] = useState(false)
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [showApiKeySection, setShowApiKeySection] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const router = useRouter()
   const pathname = usePathname()
   
   const { data: session } = authClient.useSession()
@@ -128,35 +111,16 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, apiKey, onApiKe
   const displayImage = user?.image || session?.user?.image
   
   // Determine active tab from pathname or prop
-  const getActiveTab = (): "dashboard" | "studio" | "history" | "gallery" => {
+  const getActiveTab = (): "dashboard" | "studio" | "history" | "gallery" | "settings" => {
     if (propActiveTab) return propActiveTab
     if (pathname?.includes("/dashboard")) return "dashboard"
     if (pathname?.includes("/history")) return "history"
     if (pathname?.includes("/gallery")) return "gallery"
+    if (pathname?.includes("/settings")) return "settings"
     return "studio"
   }
   const activeTab = getActiveTab()
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false)
-        setShowApiKeySection(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
-
-  const handleSignOut = async () => {
-    await authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          router.push("/auth")
-        },
-      },
-    })
-  }
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return "?"
@@ -169,8 +133,8 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, apiKey, onApiKe
   }
 
   const handleItemClick = (id: string) => {
-    if (onTabChange && (id === "dashboard" || id === "studio" || id === "history" || id === "gallery")) {
-      onTabChange(id as "dashboard" | "studio" | "history" | "gallery")
+    if (onTabChange && (id === "dashboard" || id === "studio" || id === "history" || id === "gallery" || id === "settings")) {
+      onTabChange(id as "dashboard" | "studio" | "history" | "gallery" | "settings")
     }
     // Close mobile sidebar after navigation
     setIsMobileOpen(false)
@@ -298,24 +262,28 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, apiKey, onApiKe
           <div>
             {!isCollapsed && <p className="px-3 mb-2 text-xs font-medium text-foreground/40 uppercase tracking-wider">Settings</p>}
             <ul className="space-y-1">
-              {settingsItems.map((item) => (
-                <li key={item.id}>
-                  <div
-                    title={isCollapsed ? `${item.label} - Coming Soon` : undefined}
-                    className={`w-full flex items-center ${isCollapsed ? "justify-center" : "gap-3 justify-between"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/40 cursor-not-allowed`}
-                  >
-                    <div className={`flex items-center ${isCollapsed ? "" : "gap-3"}`}>
-                      {item.icon}
+              {settingsItems.map((item) => {
+                const isActive = activeTab === item.id
+                return (
+                  <li key={item.id}>
+                    <Link
+                      href={item.href}
+                      onClick={() => handleItemClick(item.id)}
+                      title={isCollapsed ? item.label : undefined}
+                      className={`
+                        w-full flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium transition-colors
+                        ${isActive 
+                          ? "bg-emerald-50 text-emerald-700" 
+                          : "text-foreground/70 hover:bg-gray-50 hover:text-foreground"
+                        }
+                      `}
+                    >
+                      <span className={isActive ? "text-emerald-600" : ""}>{item.icon}</span>
                       {!isCollapsed && item.label}
-                    </div>
-                    {!isCollapsed && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-foreground/10 text-foreground/40 rounded font-medium">
-                        Soon
-                      </span>
-                    )}
-                  </div>
-                </li>
-              ))}
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           </div>
         </nav>
@@ -324,156 +292,26 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, apiKey, onApiKe
 
         {/* User Profile & Footer */}
         <div className={`${isCollapsed ? "p-2" : "p-4"} border-t border-border space-y-2`}>
-          {/* User Menu */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => {
-                setIsDropdownOpen(!isDropdownOpen)
-                if (isDropdownOpen) setShowApiKeySection(false)
-              }}
-              title={isCollapsed ? displayName : undefined}
-              className={`w-full flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-gray-50 hover:text-foreground transition-colors`}
-            >
-              {displayImage ? (
-                <img
-                  src={displayImage}
-                  alt={displayName}
-                  className="w-8 h-8 rounded-full object-cover border border-border flex-shrink-0"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-xs font-medium text-white flex-shrink-0">
-                  {getInitials(displayName)}
-                </div>
-              )}
-              {!isCollapsed && (
-                <>
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
-                    <p className="text-xs text-foreground/50 truncate">{displayEmail}</p>
-                  </div>
-                  <svg
-                    className={`w-4 h-4 text-foreground/40 transition-transform flex-shrink-0 ${isDropdownOpen ? "rotate-180" : ""}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </>
-              )}
-            </button>
-
-            {/* Dropdown Menu */}
-            {isDropdownOpen && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
-                {/* API Key Section */}
-                <button
-                  onClick={() => setShowApiKeySection(!showApiKeySection)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-foreground hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <svg className="w-4 h-4 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                    </svg>
-                    <span>API Key</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {apiKey ? (
-                      <span className="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">Set</span>
-                    ) : (
-                      <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Not set</span>
-                    )}
-                    <svg
-                      className={`w-4 h-4 text-foreground/40 transition-transform ${showApiKeySection ? "rotate-180" : ""}`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </button>
-
-                {/* API Key Expanded Section */}
-                {showApiKeySection && (
-                  <div className="px-4 py-3 bg-gray-50 border-y border-border animate-in slide-in-from-bottom-1 duration-150">
-                    <div className="mb-2">
-                      <p className="text-xs text-foreground/60 mb-2">
-                        Get your free API key from{" "}
-                        <a
-                          href="https://aistudio.google.com/app/apikey"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-emerald-600 hover:text-emerald-700 underline"
-                        >
-                          Google AI Studio
-                        </a>
-                      </p>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="password"
-                        value={apiKey}
-                        onChange={(e) => onApiKeyChange(e.target.value)}
-                        placeholder="Enter your Gemini API key..."
-                        className="w-full p-2 pr-16 bg-white border border-border text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded font-mono"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      {apiKey && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onApiKeyChange("")
-                          }}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs px-2 py-0.5 bg-red-100 text-red-600 hover:bg-red-200 rounded transition-colors"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                    {apiKey ? (
-                      <p className="mt-2 text-xs text-emerald-600 flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Saved locally in your browser
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-xs text-amber-600 flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        Using server default (may have rate limits)
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Divider */}
-                <div className="border-t border-border" />
-
-                {/* Sign Out */}
-                <button
-                  onClick={handleSignOut}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                    />
-                  </svg>
-                  Sign out
-                </button>
+          {/* User Info */}
+          <div
+            title={isCollapsed ? displayName : undefined}
+            className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium`}
+          >
+            {displayImage ? (
+              <img
+                src={displayImage}
+                alt={displayName}
+                className="w-8 h-8 rounded-full object-cover border border-border flex-shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-xs font-medium text-white flex-shrink-0">
+                {getInitials(displayName)}
+              </div>
+            )}
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+                <p className="text-xs text-foreground/50 truncate">{displayEmail}</p>
               </div>
             )}
           </div>

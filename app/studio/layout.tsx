@@ -2,9 +2,11 @@
 
 import { useState, useEffect, createContext, useContext, type ReactNode } from "react"
 import { useConvexAuth } from "convex/react"
+import { useQuery } from "convex-helpers/react/cache/hooks"
 import { useRouter, usePathname } from "next/navigation"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { LogoLoader } from "@/components/logo-icon"
+import { api } from "@/convex/_generated/api"
 
 // Context for sharing state between studio routes
 interface StudioContextType {
@@ -34,6 +36,9 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
   const [apiKey, setApiKey] = useState<string>("")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [pendingInputImage, setPendingInputImage] = useState<string | null>(null)
+  
+  // Load API key from secure storage
+  const storedApiKey = useQuery(api.apiKeys.getApiKey, isAuthenticated ? {} : "skip")
 
   // Determine active tab from pathname
   const getActiveTab = (): "dashboard" | "studio" | "history" | "gallery" => {
@@ -43,21 +48,28 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
     return "studio" // default for /studio/create or /studio
   }
 
-  // Load API key from localStorage on mount
+  // Sync API key from secure storage when it loads
   useEffect(() => {
-    const savedApiKey = localStorage.getItem("pixelforge_api_key")
-    if (savedApiKey) {
+    if (storedApiKey?.apiKey) {
+      setApiKey(storedApiKey.apiKey)
+    }
+  }, [storedApiKey?.apiKey])
+
+  // Also check localStorage as fallback (for immediate use before Convex loads)
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem("gemini-api-key")
+    if (savedApiKey && !apiKey) {
       setApiKey(savedApiKey)
     }
-  }, [])
+  }, [apiKey])
 
-  // Save API key to localStorage whenever it changes
+  // Save API key to localStorage whenever it changes (for sync)
   const handleApiKeyChange = (key: string) => {
     setApiKey(key)
     if (key) {
-      localStorage.setItem("pixelforge_api_key", key)
+      localStorage.setItem("gemini-api-key", key)
     } else {
-      localStorage.removeItem("pixelforge_api_key")
+      localStorage.removeItem("gemini-api-key")
     }
   }
 
@@ -121,8 +133,6 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
         <Sidebar
           activeTab={getActiveTab()}
           onTabChange={handleTabChange}
-          apiKey={apiKey}
-          onApiKeyChange={handleApiKeyChange}
           isCollapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}
         />

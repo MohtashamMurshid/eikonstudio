@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { GoogleGenAI } from "@google/genai"
+import { calculateCost, getModelName } from "@/lib/cost-calculator"
 
 export async function POST(request: NextRequest) {
   try {
@@ -273,12 +274,19 @@ export async function POST(request: NextRequest) {
     const imageUrl = resultUrl
     const description = resultDescription
 
+    // Calculate cost for this generation
+    const estimatedCost = calculateCost(imageSize, mode as "text-to-image" | "image-editing")
+    const model = getModelName()
+
     console.log("API: Generated image URL:", imageUrl)
+    console.log("API: Estimated cost:", estimatedCost)
 
     return NextResponse.json({
       url: imageUrl,
       prompt: prompt,
       description: description,
+      estimatedCost,
+      model,
     })
   } catch (error) {
     console.error("API: Error generating image:", error)

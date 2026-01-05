@@ -12,6 +12,9 @@ export default defineSchema({
     imageSize: v.string(),
     artStyle: v.optional(v.string()),
     createdAt: v.number(),
+    // Analytics fields (added for dashboard)
+    estimatedCost: v.optional(v.number()), // Cost in USD
+    model: v.optional(v.string()), // Model name used for generation
   })
     .index("by_user", ["userId"])
     .index("by_user_created", ["userId", "createdAt"]),
@@ -35,5 +38,15 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_filename", ["userId", "filename"])
     .index("by_folder", ["folderId"]),
+
+  // Secure API key storage
+  apiKeys: defineTable({
+    userId: v.string(),
+    encryptedKey: v.string(), // AES-GCM encrypted API key
+    iv: v.string(), // Initialization vector for decryption
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
 });
 
