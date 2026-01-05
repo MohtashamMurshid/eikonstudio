@@ -7,6 +7,11 @@ interface UseImageUploadOptions {
 
 export type ImageSlot = 1 | 2 | 3 | 4
 
+/**
+ * Hook for uploading images
+ * @param options - The options for the hook
+ * @returns The image upload hook
+ */
 export const useImageUpload = ({ onError }: UseImageUploadOptions = {}) => {
   const [image1, setImage1] = useState<File | null>(null)
   const [image1Preview, setImage1Preview] = useState<string>("")

@@ -12,13 +12,22 @@ interface SaveGenerationParams {
   artStyle?: string
 }
 
-// Convert data URL to Blob
+/**
+ * Convert data URL to Blob
+ * @param dataUrl - The data URL to convert
+ * @returns The blob
+ */
 const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
   const response = await fetch(dataUrl)
   return await response.blob()
 }
 
-// Generate compressed thumbnail from image URL/data and return as Blob
+/**
+ * Generate compressed thumbnail from image URL/data and return as Blob
+ * @param src - The image URL/data
+ * @param size - The size of the thumbnail
+ * @returns The thumbnail blob
+ */
 const generateThumbnailBlob = async (src: string, size = 250): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -80,7 +89,12 @@ const generateThumbnailBlob = async (src: string, size = 250): Promise<Blob> => 
   })
 }
 
-// Upload blob to Convex storage
+/**
+ * Upload blob to Convex storage
+ * @param blob - The blob to upload
+ * @param generateUploadUrl - The function to generate a upload URL for the image
+ * @returns The storage ID
+ */
 const uploadToStorage = async (
   blob: Blob,
   generateUploadUrl: () => Promise<string>
@@ -117,6 +131,11 @@ interface UseImageGenerationOptions {
   onSaveError?: (message: string) => void
 }
 
+/**
+ * Hook for generating images
+ * @param options - The options for the hook
+ * @returns The generated image
+ */
 export const useImageGeneration = (options: UseImageGenerationOptions) => {
   const [generatedImage, setGeneratedImage] = useState<GeneratedImage | null>(null)
   const [isLoading, setIsLoading] = useState(false)

@@ -12,6 +12,17 @@ interface UseDragDropOptions {
   onError?: (message: string) => void
 }
 
+/**
+ * Hook for handling drag and drop events
+ * @param useUrls - Whether to use URLs for the images
+ * @param image1 - The first image
+ * @param image2 - The second image
+ * @param image3 - The third image
+ * @param image4 - The fourth image
+ * @param handleImageUpload - The function to upload the image
+ * @param getFirstAvailableSlot - The function to get the first available slot
+ * @param onError - The function to call if there is an error
+ */
 export const useDragDrop = (options: UseDragDropOptions) => {
   const { useUrls, handleImageUpload, getFirstAvailableSlot, onError } = options
   const [isDragOver, setIsDragOver] = useState(false)

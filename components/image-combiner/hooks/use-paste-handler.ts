@@ -17,6 +17,11 @@ interface UsePasteHandlerOptions {
   getFirstAvailableSlot: () => ImageSlot | null
 }
 
+/**
+ * Hook for handling paste events
+ * @param options - The options for the hook
+ * @returns The paste handler hook
+ */
 export const usePasteHandler = (options: UsePasteHandlerOptions) => {
   const { 
     useUrls, image1, image2, image3, image4, 

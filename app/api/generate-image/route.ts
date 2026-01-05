@@ -107,12 +107,18 @@ export async function POST(request: NextRequest) {
 
       const image1 = formData.get("image1") as File
       const image2 = formData.get("image2") as File
+      const image3 = formData.get("image3") as File
+      const image4 = formData.get("image4") as File
       const image1Url = formData.get("image1Url") as string
       const image2Url = formData.get("image2Url") as string
+      const image3Url = formData.get("image3Url") as string
+      const image4Url = formData.get("image4Url") as string
 
       // Check if we have at least one image (file or URL)
       const hasImage1 = image1 || image1Url
       const hasImage2 = image2 || image2Url
+      const hasImage3 = image3 || image3Url
+      const hasImage4 = image4 || image4Url
 
       if (!hasImage1) {
         console.log("API: Missing first image for editing mode")
@@ -161,6 +167,46 @@ export async function POST(request: NextRequest) {
       } else if (image2Url) {
         imageUrls.push(image2Url)
         console.log("API: Using Image2 URL:", image2Url)
+      }
+
+      // Process third image if present
+      if (image3) {
+        const image3Buffer = await image3.arrayBuffer()
+        const image3Base64 = `data:${image3.type};base64,${Buffer.from(image3Buffer).toString("base64")}`
+
+        if (image3Base64.length > 1500000) {
+          console.log(
+            "API: WARNING - Image3 base64 is very large:",
+            image3Base64.length,
+            "bytes. This may cause issues.",
+          )
+        }
+
+        imageUrls.push(image3Base64)
+        console.log("API: Image3 base64 length:", image3Base64.length)
+      } else if (image3Url) {
+        imageUrls.push(image3Url)
+        console.log("API: Using Image3 URL:", image3Url)
+      }
+
+      // Process fourth image if present
+      if (image4) {
+        const image4Buffer = await image4.arrayBuffer()
+        const image4Base64 = `data:${image4.type};base64,${Buffer.from(image4Buffer).toString("base64")}`
+
+        if (image4Base64.length > 1500000) {
+          console.log(
+            "API: WARNING - Image4 base64 is very large:",
+            image4Base64.length,
+            "bytes. This may cause issues.",
+          )
+        }
+
+        imageUrls.push(image4Base64)
+        console.log("API: Image4 base64 length:", image4Base64.length)
+      } else if (image4Url) {
+        imageUrls.push(image4Url)
+        console.log("API: Using Image4 URL:", image4Url)
       }
 
       console.log("API: Total images for editing:", imageUrls.length)

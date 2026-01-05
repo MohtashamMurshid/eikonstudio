@@ -8,6 +8,13 @@ interface UseImageActionsProps {
   onSuccess: (message: string) => void
 }
 
+/**
+ * Hook for handling image actions
+ * @param generatedImage - The generated image
+ * @param currentMode - The current mode
+ * @param onError - The function to call if there is an error
+ * @param onSuccess - The function to call if the image is added to the gallery
+ */
 export function useImageActions({
   generatedImage,
   currentMode,

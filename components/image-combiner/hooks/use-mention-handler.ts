@@ -18,6 +18,16 @@ interface UseMentionHandlerProps {
   textareaRef: React.RefObject<HTMLTextAreaElement>
 }
 
+/**
+ * Hook for handling mentions in the prompt
+ * @param prompt - The current prompt
+ * @param setPrompt - The function to set the prompt
+ * @param galleryImages - The gallery images
+ * @param imageUpload - The image upload hook
+ * @param onError - The function to call if there is an error
+ * @param onSuccess - The function to call if the image is added to the gallery
+ * @param textareaRef - The textarea ref
+ */
 export function useMentionHandler({
   prompt,
   setPrompt,

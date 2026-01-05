@@ -9,7 +9,14 @@ interface UseGalleryOperationsProps {
   onError: (message: string) => void
   onSuccess: (message: string) => void
 }
-
+/**
+ * Hook for adding images to the gallery
+ * @param generatedImage - The generated image to add to the gallery
+ * @param generateUploadUrl - The function to generate a upload URL for the image
+ * @param saveToGallery - The function to save the image to the gallery
+ * @param onError - The function to call if there is an error
+ * @param onSuccess - The function to call if the image is added to the gallery
+ */
 export function useGalleryOperations({
   generatedImage,
   generateUploadUrl,
