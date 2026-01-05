@@ -1,14 +1,14 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useMutation } from "convex/react"
+import { useMutation, useConvex } from "convex/react"
 import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { ImageCombinerProps, GeneratedImage } from "./types"
 import { useToast } from "./hooks/use-toast"
-import { useImageUpload } from "./hooks/use-image-upload"
+import { useImageUpload, type ImageSlot } from "./hooks/use-image-upload"
 import { useImageGeneration } from "./hooks/use-image-generation"
 import { usePasteHandler } from "./hooks/use-paste-handler"
 import { useDragDrop } from "./hooks/use-drag-drop"
@@ -34,13 +34,16 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
   const [customArtStyles, setCustomArtStyles] = useState<string[]>([])
   const [cursorPosition, setCursorPosition] = useState(0)
   const [showMentionDropdown, setShowMentionDropdown] = useState(false)
-  // Track which @mentions are loaded in which image slots: { filename: slotNumber }
-  const [mentionSlots, setMentionSlots] = useState<{ [filename: string]: 1 | 2 }>({})
+  // Track which @mentions are loaded in which image slots: { filename: slotNumber or array for folders }
+  const [mentionSlots, setMentionSlots] = useState<{ [filename: string]: ImageSlot | ImageSlot[] }>({})
   // Track images being removed for exit animation
-  const [removingImages, setRemovingImages] = useState<{ 1?: boolean; 2?: boolean }>({})
+  const [removingImages, setRemovingImages] = useState<{ 1?: boolean; 2?: boolean; 3?: boolean; 4?: boolean }>({})
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const { toast, showToast } = useToast()
+  
+  // Convex client for direct queries
+  const convex = useConvex()
   
   // Convex mutations for saving generations
   const generateUploadUrl = useMutation(api.generations.generateUploadUrl)
@@ -63,6 +66,10 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     image1Url: imageUpload.image1Url,
     image2: imageUpload.image2,
     image2Url: imageUpload.image2Url,
+    image3: imageUpload.image3,
+    image3Url: imageUpload.image3Url,
+    image4: imageUpload.image4,
+    image4Url: imageUpload.image4Url,
     prompt,
     aspectRatio,
     imageSize,
@@ -79,18 +86,26 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     useUrls: imageUpload.useUrls,
     image1: imageUpload.image1,
     image2: imageUpload.image2,
+    image3: imageUpload.image3,
+    image4: imageUpload.image4,
     image1Url: imageUpload.image1Url,
     image2Url: imageUpload.image2Url,
+    image3Url: imageUpload.image3Url,
+    image4Url: imageUpload.image4Url,
     handleImageUpload: imageUpload.handleImageUpload,
     handleUrlChange: imageUpload.handleUrlChange,
     setUseUrls: imageUpload.setUseUrls,
+    getFirstAvailableSlot: imageUpload.getFirstAvailableSlot,
   })
 
   const dragDrop = useDragDrop({
     useUrls: imageUpload.useUrls,
     image1: imageUpload.image1,
     image2: imageUpload.image2,
+    image3: imageUpload.image3,
+    image4: imageUpload.image4,
     handleImageUpload: imageUpload.handleImageUpload,
+    getFirstAvailableSlot: imageUpload.getFirstAvailableSlot,
     onError: (message) => showToast(message, "error"),
   })
 
@@ -140,7 +155,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     return () => document.removeEventListener("keydown", handleEscape)
   }, [showFullscreen])
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, imageNumber: 1 | 2) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, imageNumber: ImageSlot) => {
     const file = e.target.files?.[0]
     if (file) {
       imageUpload.handleImageUpload(file, imageNumber)
@@ -202,12 +217,10 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       const response = await fetch(imageGeneration.generatedImage.url)
       const blob = await response.blob()
       const file = new File([blob], "generated-image.png", { type: "image/png" })
-      if (!imageUpload.image1Preview && !imageUpload.image1) {
-        imageUpload.handleImageUpload(file, 1)
-        showToast("Image loaded into Input 1", "success")
-      } else if (!imageUpload.image2Preview && !imageUpload.image2) {
-        imageUpload.handleImageUpload(file, 2)
-        showToast("Image loaded into Input 2", "success")
+      const availableSlot = imageUpload.getFirstAvailableSlot()
+      if (availableSlot) {
+        imageUpload.handleImageUpload(file, availableSlot)
+        showToast(`Image loaded into Input ${availableSlot}`, "success")
       } else {
         imageUpload.handleImageUpload(file, 1)
         showToast("Image replaced in Input 1", "success")
@@ -226,8 +239,10 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     const oldText = prompt
     
     // Check for removed @mentions and clear their associated images
-    const oldMentions = [...oldText.matchAll(/@([a-zA-Z0-9_-]+)/g)].map(m => m[1])
-    const newMentions = [...newText.matchAll(/@([a-zA-Z0-9_-]+)/g)].map(m => m[1])
+    // Support both @filename and @folder/filename patterns
+    const mentionPattern = /@([a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)?)/g
+    const oldMentions = [...oldText.matchAll(mentionPattern)].map(m => m[1])
+    const newMentions = [...newText.matchAll(mentionPattern)].map(m => m[1])
     
     // Find mentions that were in old text but not in new text
     const removedMentions = oldMentions.filter(m => !newMentions.includes(m))
@@ -235,12 +250,17 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     // Clear images for removed mentions with animation
     if (removedMentions.length > 0) {
       const updatedSlots = { ...mentionSlots }
-      const slotsToRemove: (1 | 2)[] = []
+      const slotsToRemove: ImageSlot[] = []
       
       removedMentions.forEach(filename => {
-        const slot = mentionSlots[filename]
-        if (slot) {
-          slotsToRemove.push(slot)
+        const slotData = mentionSlots[filename]
+        if (slotData) {
+          // Handle both single slot and array of slots (for folders)
+          if (Array.isArray(slotData)) {
+            slotsToRemove.push(...slotData)
+          } else {
+            slotsToRemove.push(slotData)
+          }
           delete updatedSlots[filename]
         }
       })
@@ -285,8 +305,14 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     setShowMentionDropdown(hasAtSymbol)
   }
 
-  // Handle mention selection from autocomplete - keep @filename in prompt and load image
-  const handleMentionSelect = useCallback(async (filename: string, startIndex: number, endIndex: number, imageData: string) => {
+  // Handle mention selection from autocomplete - supports single image or folder (multiple images)
+  const handleMentionSelect = useCallback(async (
+    filename: string, 
+    startIndex: number, 
+    endIndex: number, 
+    imageData: string | string[], // Can be single URL or array of URLs for folder
+    isFolder?: boolean
+  ) => {
     // Replace partial @... with complete @filename + space (keep it in the prompt)
     const before = prompt.slice(0, startIndex)
     const after = prompt.slice(endIndex)
@@ -295,29 +321,66 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     setPrompt(newPrompt)
     setShowMentionDropdown(false)
     
-    // Load the image as an input image
-    try {
-      const response = await fetch(imageData)
-      const blob = await response.blob()
-      const file = new File([blob], `${filename}.png`, { type: "image/png" })
-      
-      // Determine which slot to use and track it
-      let targetSlot: 1 | 2 = 1
-      if (!imageUpload.image1 && !imageUpload.image1Url) {
-        targetSlot = 1
-      } else if (!imageUpload.image2 && !imageUpload.image2Url) {
-        targetSlot = 2
-      } else {
-        // Replace slot 1 if both are full
-        targetSlot = 1
+    // Handle folder selection - fetch images from the folder
+    if (isFolder) {
+      try {
+        // Fetch folder images directly using convex client
+        const folderImages = await convex.query(api.gallery.getImagesByFolderName, { folderName: filename })
+        
+        if (!folderImages || folderImages.length === 0) {
+          showToast(`Folder @${filename} is empty`, "error")
+          return
+        }
+        
+        // Clear all existing images first when loading a folder
+        imageUpload.clearAllImages()
+        
+        // Load up to 4 images from the folder
+        const imagesToLoad = folderImages.slice(0, 4)
+        const loadedSlots: ImageSlot[] = []
+        
+        for (let i = 0; i < imagesToLoad.length; i++) {
+          const img = imagesToLoad[i]
+          if (!img.imageUrl) continue
+          
+          const slot = (i + 1) as ImageSlot
+          try {
+            const response = await fetch(img.imageUrl)
+            const blob = await response.blob()
+            const file = new File([blob], `${filename}-${i + 1}.png`, { type: "image/png" })
+            imageUpload.handleImageUpload(file, slot)
+            loadedSlots.push(slot)
+          } catch (error) {
+            console.error(`Failed to load folder image ${i + 1}:`, error)
+          }
+        }
+        
+        // Track the folder mention with all slots it occupies
+        if (loadedSlots.length > 0) {
+          setMentionSlots(prev => ({ ...prev, [filename]: loadedSlots }))
+        }
+        showToast(`Loaded ${loadedSlots.length} image(s) from @${filename}`, "success")
+      } catch (error) {
+        console.error("Failed to fetch folder images:", error)
+        showToast(`Failed to load folder @${filename}`, "error")
       }
-      
-      imageUpload.handleImageUpload(file, targetSlot)
-      
-      // Track which slot this mention is using
-      setMentionSlots(prev => ({ ...prev, [filename]: targetSlot }))
-    } catch (error) {
-      console.error("Failed to load gallery image:", error)
+    } else if (typeof imageData === "string" && imageData) {
+      // Single image selection
+      try {
+        const response = await fetch(imageData)
+        const blob = await response.blob()
+        const file = new File([blob], `${filename}.png`, { type: "image/png" })
+        
+        // Determine which slot to use
+        const targetSlot = imageUpload.getFirstAvailableSlot() || 1
+        
+        imageUpload.handleImageUpload(file, targetSlot)
+        
+        // Track which slot this mention is using
+        setMentionSlots(prev => ({ ...prev, [filename]: targetSlot }))
+      } catch (error) {
+        console.error("Failed to load gallery image:", error)
+      }
     }
     
     // Focus textarea and place cursor after the @filename + space
@@ -329,7 +392,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
         setCursorPosition(newCursorPos)
       }
     }, 0)
-  }, [prompt, imageUpload])
+  }, [prompt, imageUpload, showToast, convex])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Let mention autocomplete handle arrow keys and enter when visible
@@ -350,9 +413,10 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
   const artStyleSuggestions = predefinedArtStyles.slice(0, 4)
 
   // Resolve @mentions in prompt and load referenced images
+  // Supports @filename, @folder/filename, and @folder (loads all folder images)
   const handleGenerateWithMentions = useCallback(async () => {
-    // Find all @filename mentions in the prompt (word boundary after @)
-    const mentionRegex = /@([a-zA-Z0-9_-]+)/g
+    // Find all @mentions in the prompt - supports folder/filename format
+    const mentionRegex = /@([a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)?)/g
     const matches = [...prompt.matchAll(mentionRegex)]
     
     if (matches.length === 0) {
@@ -365,38 +429,65 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     const resolvedImages: { filename: string; imageUrl: string }[] = []
 
     for (const match of matches) {
-      const filename = match[1]
-      const galleryImage = galleryImages?.find((img: any) => img.filename === filename)
+      const mention = match[1]
       
-      if (galleryImage && galleryImage.imageUrl) {
-        resolvedImages.push({
-          filename,
-          imageUrl: galleryImage.imageUrl,
-        })
+      // Check if it's a folder/filename or just filename
+      if (mention.includes("/")) {
+        // folder/filename format - find specific image in folder
+        const galleryImage = galleryImages?.find((img: any) => 
+          img.fullPath === mention || `${img.folderName}/${img.filename}` === mention
+        )
+        if (galleryImage && galleryImage.imageUrl) {
+          resolvedImages.push({
+            filename: mention,
+            imageUrl: galleryImage.imageUrl,
+          })
+        }
+      } else {
+        // Could be a folder name or a root-level filename
+        // First check if it's a root-level image
+        const galleryImage = galleryImages?.find((img: any) => 
+          img.filename === mention && !img.folderId
+        )
+        
+        if (galleryImage && galleryImage.imageUrl) {
+          resolvedImages.push({
+            filename: mention,
+            imageUrl: galleryImage.imageUrl,
+          })
+        } else {
+          // Check if it's a folder - load all images from it
+          const folderImages = galleryImages?.filter((img: any) => 
+            img.folderName === mention
+          ) || []
+          
+          for (const img of folderImages.slice(0, 4)) {
+            if (img.imageUrl) {
+              resolvedImages.push({
+                filename: `${mention}/${img.filename}`,
+                imageUrl: img.imageUrl,
+              })
+            }
+          }
+        }
       }
-      // If not found in gallery, just leave it as text (might be intentional @mention text)
     }
 
-    // Load resolved images into input slots, then generate
+    // Load resolved images into input slots (up to 4), then generate
     if (resolvedImages.length > 0) {
       try {
-        // Load first mention into slot 1 if empty or replace it
-        const firstImage = resolvedImages[0]
-        const response1 = await fetch(firstImage.imageUrl)
-        const blob1 = await response1.blob()
-        const file1 = new File([blob1], `${firstImage.filename}.png`, { type: "image/png" })
-        imageUpload.handleImageUpload(file1, 1)
+        const imagesToLoad = resolvedImages.slice(0, 4)
         
-        // Load second mention into slot 2 if available
-        if (resolvedImages.length > 1) {
-          const secondImage = resolvedImages[1]
-          const response2 = await fetch(secondImage.imageUrl)
-          const blob2 = await response2.blob()
-          const file2 = new File([blob2], `${secondImage.filename}.png`, { type: "image/png" })
-          imageUpload.handleImageUpload(file2, 2)
+        for (let i = 0; i < imagesToLoad.length; i++) {
+          const img = imagesToLoad[i]
+          const slot = (i + 1) as ImageSlot
+          const response = await fetch(img.imageUrl)
+          const blob = await response.blob()
+          const file = new File([blob], `${img.filename}.png`, { type: "image/png" })
+          imageUpload.handleImageUpload(file, slot)
         }
         
-        showToast(`Loaded ${resolvedImages.length} reference image(s) from gallery`, "success")
+        showToast(`Loaded ${imagesToLoad.length} reference image(s) from gallery`, "success")
         
         // Generate after a short delay to allow image loading (keep prompt as-is with @mentions)
         setTimeout(() => {
@@ -412,13 +503,11 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     }
   }, [prompt, galleryImages, imageGeneration, imageUpload, showToast])
 
+  const isGenerating = imageGeneration.isLoading || imageUpload.isConvertingHeic || imageGeneration.generatedImage
+
   return (
     <div
-      className={`select-none flex flex-col transition-all duration-500 ease-out ${
-        imageGeneration.isLoading || imageUpload.isConvertingHeic || imageGeneration.generatedImage 
-          ? "min-h-[60vh]" 
-          : "min-h-[calc(100vh-200px)] justify-center"
-      }`}
+      className="select-none flex flex-col min-h-[calc(100vh-200px)]"
       onDragEnter={dragDrop.handleGlobalDragEnter}
       onDragLeave={dragDrop.handleGlobalDragLeave}
       onDragOver={dragDrop.handleGlobalDragOver}
@@ -427,12 +516,13 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       <Toast toast={toast} />
       <DragOverlay isDragOver={dragDrop.isDragOver} />
 
-      {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col w-full max-w-3xl mx-auto px-0 sm:px-4 transition-all duration-500 ease-out items-center justify-center ${
-        imageGeneration.isLoading || imageUpload.isConvertingHeic || imageGeneration.generatedImage 
-          ? "!justify-start pt-4 sm:pt-8" 
-          : ""
-      }`}>
+      {/* Main Content Area - use padding for smooth centering transition */}
+      <div 
+        className="flex-1 flex flex-col w-full max-w-3xl mx-auto px-0 sm:px-4 items-center transition-[padding] duration-500 ease-out"
+        style={{
+          paddingTop: isGenerating ? '2rem' : 'max(2rem, calc((100vh - 400px) / 2 - 100px))',
+        }}
+      >
         
         {/* Input Container - Scira Style */}
         <div className="w-full transition-all duration-500 ease-out">
@@ -451,84 +541,59 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
             <div 
               className="grid transition-all duration-300 ease-out"
               style={{ 
-                gridTemplateRows: (imageUpload.image1Preview || imageUpload.image2Preview) ? "1fr" : "0fr",
+                gridTemplateRows: (imageUpload.image1Preview || imageUpload.image2Preview || imageUpload.image3Preview || imageUpload.image4Preview) ? "1fr" : "0fr",
               }}
             >
               <div className="overflow-hidden">
                 <div className="p-3 sm:p-4 pb-0">
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    {imageUpload.image1Preview && (
+                  <div className="flex items-start gap-2 sm:gap-3 flex-wrap">
+                    {/* Render image slots 1-4 */}
+                    {([
+                      { slot: 1 as ImageSlot, preview: imageUpload.image1Preview },
+                      { slot: 2 as ImageSlot, preview: imageUpload.image2Preview },
+                      { slot: 3 as ImageSlot, preview: imageUpload.image3Preview },
+                      { slot: 4 as ImageSlot, preview: imageUpload.image4Preview },
+                    ]).map(({ slot, preview }) => preview && (
                       <div 
+                        key={slot}
                         className={`relative group transition-all duration-200 ease-out ${
-                          removingImages[1] 
+                          removingImages[slot] 
                             ? "opacity-0 scale-90" 
                             : "opacity-100 scale-100 animate-in fade-in zoom-in-95"
                         }`}
                       >
                         <img 
-                          src={imageUpload.image1Preview} 
-                          alt="Input 1" 
-                          className="w-[70px] h-[70px] sm:w-[100px] sm:h-[100px] rounded-lg sm:rounded-xl object-cover border border-border/50" 
+                          src={preview} 
+                          alt={`Input ${slot}`} 
+                          className="w-[60px] h-[60px] sm:w-[80px] sm:h-[80px] rounded-lg sm:rounded-xl object-cover border border-border/50" 
                         />
                         {/* Action buttons - always visible on mobile */}
-                        <div className="absolute top-1 right-1 sm:top-2 sm:right-2 flex items-center gap-1">
+                        <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 flex items-center gap-0.5">
                           <button
-                            onClick={() => document.getElementById("image-upload-1")?.click()}
-                            className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                            onClick={() => document.getElementById(`image-upload-${slot}`)?.click()}
+                            className="w-5 h-5 sm:w-6 sm:h-6 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
                             title="Replace image"
                           >
-                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                             </svg>
                           </button>
                           <button
-                            onClick={() => imageUpload.clearImage(1)}
-                            className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                            onClick={() => imageUpload.clearImage(slot)}
+                            className="w-5 h-5 sm:w-6 sm:h-6 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
                             title="Remove image"
                           >
-                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                           </button>
                         </div>
-                      </div>
-                    )}
-                    {imageUpload.image2Preview && (
-                      <div 
-                        className={`relative group transition-all duration-200 ease-out ${
-                          removingImages[2] 
-                            ? "opacity-0 scale-90" 
-                            : "opacity-100 scale-100 animate-in fade-in zoom-in-95"
-                        }`}
-                      >
-                        <img 
-                          src={imageUpload.image2Preview} 
-                          alt="Input 2" 
-                          className="w-[70px] h-[70px] sm:w-[100px] sm:h-[100px] rounded-lg sm:rounded-xl object-cover border border-border/50" 
-                        />
-                        {/* Action buttons - always visible on mobile */}
-                        <div className="absolute top-1 right-1 sm:top-2 sm:right-2 flex items-center gap-1">
-                          <button
-                            onClick={() => document.getElementById("image-upload-2")?.click()}
-                            className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
-                            title="Replace image"
-                          >
-                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => imageUpload.clearImage(2)}
-                            className="w-6 h-6 sm:w-7 sm:h-7 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
-                            title="Remove image"
-                          >
-                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
+                        {/* Slot number indicator */}
+                        <div className="absolute bottom-1 left-1 w-4 h-4 bg-foreground/80 text-background rounded-full flex items-center justify-center text-[10px] font-medium">
+                          {slot}
                         </div>
                       </div>
-                    )}
+                    ))}
                   </div>
                 </div>
               </div>
@@ -536,14 +601,14 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
 
             {/* Textarea with Mention Autocomplete */}
             <div className="p-3 sm:p-4 pb-2 relative">
-              {/* Highlight backdrop - renders text with @mentions highlighted */}
+              {/* Highlight backdrop - renders text with @mentions highlighted (supports @folder/filename) */}
               <div 
                 className="absolute inset-0 p-3 sm:p-4 pb-2 pointer-events-none overflow-hidden whitespace-pre-wrap break-words text-sm sm:text-base text-foreground"
                 style={{ fontSize: "16px", lineHeight: "1.5" }}
                 aria-hidden="true"
               >
-                {prompt.split(/(@[a-zA-Z0-9_-]+)/).map((part, i) => 
-                  part.match(/^@[a-zA-Z0-9_-]+$/) ? (
+                {prompt.split(/(@[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)?)/).map((part, i) => 
+                  part.match(/^@[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)?$/) ? (
                     <span key={i} className="bg-emerald-500/15 text-emerald-600 rounded-sm">{part}</span>
                   ) : (
                     <span key={i}>{part}</span>
@@ -691,7 +756,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
             </div>
           )}
 
-          {/* Hidden file input */}
+          {/* Hidden file inputs for all 4 slots */}
           <input
             id="image-upload-1"
             type="file"
@@ -704,6 +769,20 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
             type="file"
             accept="image/*,.heic,.heif"
             onChange={(e) => handleFileSelect(e, 2)}
+            className="hidden"
+          />
+          <input
+            id="image-upload-3"
+            type="file"
+            accept="image/*,.heic,.heif"
+            onChange={(e) => handleFileSelect(e, 3)}
+            className="hidden"
+          />
+          <input
+            id="image-upload-4"
+            type="file"
+            accept="image/*,.heic,.heif"
+            onChange={(e) => handleFileSelect(e, 4)}
             className="hidden"
           />
         </div>

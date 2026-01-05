@@ -103,6 +103,10 @@ interface UseImageGenerationOptions {
   image1Url: string
   image2: File | null
   image2Url: string
+  image3: File | null
+  image3Url: string
+  image4: File | null
+  image4Url: string
   prompt: string
   aspectRatio: string
   imageSize: string
@@ -121,8 +125,12 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
   const [showAnimation, setShowAnimation] = useState(false)
 
   const generateImage = async () => {
-    const { currentMode, useUrls, image1, image1Url, image2, image2Url, prompt, aspectRatio, imageSize, selectedArtStyle, apiKey, onError, generateUploadUrl } =
-      options
+    const { 
+      currentMode, useUrls, 
+      image1, image1Url, image2, image2Url, 
+      image3, image3Url, image4, image4Url,
+      prompt, aspectRatio, imageSize, selectedArtStyle, apiKey, onError, generateUploadUrl 
+    } = options
 
     if (currentMode === "image-editing" && !useUrls && !image1) return
     if (currentMode === "image-editing" && useUrls && !image1Url) return
@@ -177,12 +185,24 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
           if (image2Url) {
             formData.append("image2Url", image2Url)
           }
+          if (image3Url) {
+            formData.append("image3Url", image3Url)
+          }
+          if (image4Url) {
+            formData.append("image4Url", image4Url)
+          }
         } else {
           if (image1) {
             formData.append("image1", image1)
           }
           if (image2) {
             formData.append("image2", image2)
+          }
+          if (image3) {
+            formData.append("image3", image3)
+          }
+          if (image4) {
+            formData.append("image4", image4)
           }
         }
       }

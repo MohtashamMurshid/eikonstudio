@@ -1,15 +1,19 @@
 import { useState } from "react"
+import type { ImageSlot } from "./use-image-upload"
 
 interface UseDragDropOptions {
   useUrls: boolean
   image1: File | null
   image2: File | null
-  handleImageUpload: (file: File, imageNumber: 1 | 2) => void
+  image3: File | null
+  image4: File | null
+  handleImageUpload: (file: File, imageNumber: ImageSlot) => void
+  getFirstAvailableSlot: () => ImageSlot | null
   onError?: (message: string) => void
 }
 
 export const useDragDrop = (options: UseDragDropOptions) => {
-  const { useUrls, image1, image2, handleImageUpload, onError } = options
+  const { useUrls, handleImageUpload, getFirstAvailableSlot, onError } = options
   const [isDragOver, setIsDragOver] = useState(false)
 
   const handleGlobalDragEnter = (e: React.DragEvent) => {
@@ -36,21 +40,15 @@ export const useDragDrop = (options: UseDragDropOptions) => {
 
     const file = e.dataTransfer.files[0]
     if (file && file.type.startsWith("image/")) {
-      if (!useUrls && !image1) {
-        handleImageUpload(file, 1)
-      } else if (!useUrls && !image2) {
-        handleImageUpload(file, 2)
-      } else if (!useUrls && image1 && !image2) {
-        handleImageUpload(file, 2)
-      } else {
-        handleImageUpload(file, 1)
-      }
+      // Find first available slot (1-4)
+      const slot = getFirstAvailableSlot()
+      handleImageUpload(file, slot || 1)
     } else {
       onError?.("Please drop a valid image file")
     }
   }
 
-  const handleDrop = (e: React.DragEvent, imageNumber: 1 | 2) => {
+  const handleDrop = (e: React.DragEvent, imageNumber: ImageSlot) => {
     e.preventDefault()
     setIsDragOver(false)
     console.log("File dropped for image", imageNumber)

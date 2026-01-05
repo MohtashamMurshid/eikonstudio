@@ -7,19 +7,34 @@ import { api } from "@/convex/_generated/api"
 interface GalleryImageResult {
   _id: string
   filename: string
+  folderId?: string
+  folderName?: string | null
+  fullPath: string
   thumbnailUrl: string | null
   imageUrl: string | null
+}
+
+interface FolderResult {
+  _id: string
+  name: string
+  imageCount: number
+  isFull: boolean
+}
+
+interface SearchResults {
+  images: GalleryImageResult[]
+  folders: FolderResult[]
 }
 
 interface MentionAutocompleteProps {
   inputValue: string
   cursorPosition: number
-  onSelect: (filename: string, startIndex: number, endIndex: number, imageUrl: string) => void
+  onSelect: (filename: string, startIndex: number, endIndex: number, imageData: string | string[], isFolder?: boolean) => void
   onClose: () => void
   textareaRef: React.RefObject<HTMLTextAreaElement>
 }
 
-// Find the @ mention being typed at cursor position
+// Find the @ mention being typed at cursor position (supports folder/filename)
 function findMentionAtCursor(text: string, cursorPos: number): { searchTerm: string; startIndex: number; endIndex: number } | null {
   // Look backwards from cursor to find @
   let startIndex = cursorPos - 1
@@ -30,7 +45,7 @@ function findMentionAtCursor(text: string, cursorPos: number): { searchTerm: str
       return null
     }
     if (char === "@") {
-      // Found @ - now extract the search term
+      // Found @ - now extract the search term (can include / for folder/filename)
       const searchTerm = text.slice(startIndex + 1, cursorPos)
       return {
         searchTerm,
@@ -57,21 +72,27 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
   // Find mention at cursor
   const mention = findMentionAtCursor(inputValue, cursorPosition)
   
-  // Query gallery images - always query when mention exists (even empty search term shows all images)
+  // Query gallery images and folders
   const searchResults = useQuery(
     api.gallery.searchImages,
     mention !== null ? { searchTerm: mention.searchTerm, limit: 6 } : "skip"
-  ) as GalleryImageResult[] | undefined
+  ) as SearchResults | undefined
 
-  const images = searchResults ?? []
+  const images = searchResults?.images ?? []
+  const folders = searchResults?.folders ?? []
+  
+  // Combine folders and images for display
+  const combinedResults: Array<{ type: "folder" | "image"; data: FolderResult | GalleryImageResult }> = [
+    ...folders.map(f => ({ type: "folder" as const, data: f })),
+    ...images.map(i => ({ type: "image" as const, data: i })),
+  ]
+
   const isLoading = mention !== null && searchResults === undefined
-  const showDropdown = mention !== null && (images.length > 0 || isLoading)
+  const showDropdown = mention !== null && (combinedResults.length > 0 || isLoading)
 
   // Calculate dropdown position based on "@" position - positioned ABOVE the @
-  // Using useLayoutEffect to calculate position BEFORE paint to avoid animation glitch
   useLayoutEffect(() => {
     if (!showDropdown || !textareaRef.current || !mention) {
-      // Only reset if position is currently set (avoid infinite loop)
       if (position !== null) {
         setPosition(null)
       }
@@ -81,36 +102,50 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
     const textarea = textareaRef.current
     const textareaRect = textarea.getBoundingClientRect()
     
-    // Get text up to the "@" symbol position
     const textBeforeAt = inputValue.slice(0, mention.startIndex)
     const computedStyle = window.getComputedStyle(textarea)
     
-    // Calculate position of the "@" symbol
     const lines = textBeforeAt.split("\n")
     const lastLine = lines[lines.length - 1]
     
-    // Estimate character width
     const avgCharWidth = 8
     const xOffset = Math.max(0, lastLine.length * avgCharWidth)
     const paddingLeft = parseInt(computedStyle.paddingLeft) || 12
 
-    // Calculate new position
     const newTop = textareaRect.top - 8
     const newLeft = textareaRect.left + paddingLeft + Math.min(xOffset, textarea.clientWidth - 200)
 
-    // Only update if position changed (avoid infinite loop)
     setPosition(prev => {
       if (prev?.top === newTop && prev?.left === newLeft) {
         return prev
       }
       return { top: newTop, left: newLeft }
     })
-  }, [showDropdown, inputValue, mention, textareaRef, images.length, position])
+  }, [showDropdown, inputValue, mention, textareaRef, combinedResults.length, position])
 
   // Reset selection when results change
   useEffect(() => {
     setSelectedIndex(0)
-  }, [images.length, mention?.searchTerm])
+  }, [combinedResults.length, mention?.searchTerm])
+
+  // Handle selection
+  const handleSelect = useCallback((index: number) => {
+    if (!mention) return
+    
+    const item = combinedResults[index]
+    if (!item) return
+
+    if (item.type === "folder") {
+      const folder = item.data as FolderResult
+      // For folder selection, pass isFolder=true so parent can fetch images
+      onSelect(folder.name, mention.startIndex, mention.endIndex, [], true)
+    } else {
+      const image = item.data as GalleryImageResult
+      if (image.imageUrl) {
+        onSelect(image.fullPath, mention.startIndex, mention.endIndex, image.imageUrl, false)
+      }
+    }
+  }, [mention, combinedResults, onSelect])
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -119,25 +154,23 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault()
-        setSelectedIndex((prev) => (prev + 1) % images.length)
+        setSelectedIndex((prev) => (prev + 1) % combinedResults.length)
         break
       case "ArrowUp":
         e.preventDefault()
-        setSelectedIndex((prev) => (prev - 1 + images.length) % images.length)
+        setSelectedIndex((prev) => (prev - 1 + combinedResults.length) % combinedResults.length)
         break
       case "Enter":
       case "Tab":
         e.preventDefault()
-        if (images[selectedIndex] && mention && images[selectedIndex].imageUrl) {
-          onSelect(images[selectedIndex].filename, mention.startIndex, mention.endIndex, images[selectedIndex].imageUrl)
-        }
+        handleSelect(selectedIndex)
         break
       case "Escape":
         e.preventDefault()
         onClose()
         break
     }
-  }, [showDropdown, images, selectedIndex, mention, onSelect, onClose])
+  }, [showDropdown, combinedResults.length, selectedIndex, handleSelect, onClose])
 
   useEffect(() => {
     if (showDropdown) {
@@ -160,11 +193,9 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [showDropdown, onClose])
 
-  // Don't render until we have both showDropdown and a calculated position
   if (!showDropdown || !position) return null
 
-  // Calculate dropdown height for positioning above
-  const dropdownHeight = isLoading ? 44 : Math.min(images.length, 5) * 36 + 8
+  const dropdownHeight = isLoading ? 44 : Math.min(combinedResults.length, 6) * 40 + 8
 
   return (
     <div
@@ -173,8 +204,8 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
       style={{
         top: position.top - dropdownHeight,
         left: position.left,
-        minWidth: "180px",
-        maxWidth: "240px",
+        minWidth: "200px",
+        maxWidth: "280px",
       }}
     >
       {isLoading ? (
@@ -202,33 +233,64 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
           <span className="text-sm">Searching...</span>
         </div>
       ) : (
-        <div className="max-h-[180px] overflow-y-auto">
-          {images.map((image, index) => (
-            <button
-              key={image._id}
-              className={`w-full flex items-center gap-2 px-2 py-1.5 text-left transition-colors ${
-                index === selectedIndex
-                  ? "bg-emerald-50"
-                  : "hover:bg-secondary/50"
-              }`}
-              onClick={() => {
-                if (mention && image.imageUrl) {
-                  onSelect(image.filename, mention.startIndex, mention.endIndex, image.imageUrl)
-                }
-              }}
-              onMouseEnter={() => setSelectedIndex(index)}
-            >
-              <img
-                src={image.thumbnailUrl || ""}
-                alt={image.filename}
-                className="w-7 h-7 rounded object-cover border border-border/50 flex-shrink-0"
-              />
-              <span className="text-sm truncate">@{image.filename}</span>
-            </button>
-          ))}
+        <div className="max-h-[240px] overflow-y-auto">
+          {combinedResults.map((item, index) => {
+            if (item.type === "folder") {
+              const folder = item.data as FolderResult
+              return (
+                <button
+                  key={`folder-${folder._id}`}
+                  className={`w-full flex items-center gap-2 px-2 py-2 text-left transition-colors ${
+                    index === selectedIndex
+                      ? "bg-emerald-50"
+                      : "hover:bg-secondary/50"
+                  }`}
+                  onClick={() => handleSelect(index)}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                >
+                  <div className="w-7 h-7 rounded bg-foreground/10 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium truncate block">@{folder.name}</span>
+                    <span className="text-xs text-foreground/50">
+                      {folder.imageCount} image{folder.imageCount !== 1 ? "s" : ""} • Load all
+                    </span>
+                  </div>
+                </button>
+              )
+            } else {
+              const image = item.data as GalleryImageResult
+              return (
+                <button
+                  key={`image-${image._id}`}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 text-left transition-colors ${
+                    index === selectedIndex
+                      ? "bg-emerald-50"
+                      : "hover:bg-secondary/50"
+                  }`}
+                  onClick={() => handleSelect(index)}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                >
+                  <img
+                    src={image.thumbnailUrl || ""}
+                    alt={image.filename}
+                    className="w-7 h-7 rounded object-cover border border-border/50 flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm truncate block">@{image.fullPath}</span>
+                    {image.folderName && (
+                      <span className="text-xs text-foreground/50">in {image.folderName}</span>
+                    )}
+                  </div>
+                </button>
+              )
+            }
+          })}
         </div>
       )}
     </div>
   )
 })
-

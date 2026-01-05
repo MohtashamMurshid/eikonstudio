@@ -16,8 +16,18 @@ interface GalleryImage {
   filename: string
   imageStorageId: Id<"_storage">
   thumbnailStorageId: Id<"_storage">
+  folderId?: Id<"folders">
+  folderName?: string | null
   imageUrl: string | null
   thumbnailUrl: string | null
+  createdAt: number
+}
+
+interface Folder {
+  _id: Id<"folders">
+  name: string
+  imageCount: number
+  isFull: boolean
   createdAt: number
 }
 
@@ -75,6 +85,7 @@ const GalleryCard = memo(({
   onRename,
   onDelete,
   onViewFull,
+  onMove,
   deletingId,
   renamingId,
 }: {
@@ -82,9 +93,15 @@ const GalleryCard = memo(({
   onRename: (id: Id<"gallery">, currentName: string) => void
   onDelete: (id: Id<"gallery">) => void
   onViewFull: (image: GalleryImage) => void
+  onMove?: (id: Id<"gallery">) => void
   deletingId: Id<"gallery"> | null
   renamingId: Id<"gallery"> | null
 }) => {
+  // Generate the full path for display
+  const displayPath = image.folderName 
+    ? `${image.folderName}/${image.filename}` 
+    : image.filename
+
   return (
     <div
       className="group relative bg-secondary/30 rounded-xl overflow-hidden border border-border hover:border-foreground/20 transition-all cursor-pointer"
@@ -97,6 +114,13 @@ const GalleryCard = memo(({
           alt={image.filename}
           className="aspect-square relative"
         />
+        
+        {/* Folder badge */}
+        {image.folderName && (
+          <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-foreground/80 text-background text-[10px] font-medium rounded">
+            {image.folderName}
+          </div>
+        )}
         
         {/* Overlay on hover */}
         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
@@ -113,6 +137,20 @@ const GalleryCard = memo(({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </button>
+          {onMove && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onMove(image._id)
+              }}
+              className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+              title="Move to folder"
+            >
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+            </button>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -138,11 +176,11 @@ const GalleryCard = memo(({
 
       {/* Info */}
       <div className="p-2">
-        <p className="text-xs font-medium text-foreground truncate" title={`@${image.filename}`}>
-          @{image.filename}
+        <p className="text-xs font-medium text-foreground truncate" title={`@${displayPath}`}>
+          @{displayPath}
         </p>
         <p className="text-[10px] text-foreground/40 mt-0.5">
-          Use in prompt: @{image.filename}
+          Use in prompt: @{displayPath}
         </p>
       </div>
     </div>
@@ -227,10 +265,15 @@ const uploadToStorage = async (
 
 export default function GalleryPage() {
   const images = useQuery(api.gallery.getMyImages, { limit: 100 }) as GalleryImage[] | undefined
+  const folders = useQuery(api.gallery.getMyFolders, {}) as Folder[] | undefined
   const generateUploadUrl = useMutation(api.gallery.generateUploadUrl)
   const saveImage = useMutation(api.gallery.saveImage)
   const renameImage = useMutation(api.gallery.renameImage)
   const deleteImage = useMutation(api.gallery.deleteImage)
+  const createFolder = useMutation(api.gallery.createFolder)
+  const renameFolder = useMutation(api.gallery.renameFolder)
+  const deleteFolder = useMutation(api.gallery.deleteFolder)
+  const moveImageToFolder = useMutation(api.gallery.moveImageToFolder)
   
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null)
   const [deletingId, setDeletingId] = useState<Id<"gallery"> | null>(null)
@@ -239,12 +282,21 @@ export default function GalleryPage() {
   const [uploadProgress, setUploadProgress] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   
+  // Folder state
+  const [selectedFolderId, setSelectedFolderId] = useState<Id<"folders"> | "all" | "root">("all")
+  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false)
+  const [newFolderName, setNewFolderName] = useState("")
+  const [folderError, setFolderError] = useState("")
+  const [showMoveModal, setShowMoveModal] = useState(false)
+  const [imageToMove, setImageToMove] = useState<Id<"gallery"> | null>(null)
+  
   // Upload modal state
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [uploadFilename, setUploadFilename] = useState("")
   const [uploadPreview, setUploadPreview] = useState<string | null>(null)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadError, setUploadError] = useState("")
+  const [uploadFolderId, setUploadFolderId] = useState<Id<"folders"> | undefined>(undefined)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -404,6 +456,7 @@ export default function GalleryPage() {
         filename: uploadFilename.trim(),
         imageStorageId,
         thumbnailStorageId,
+        folderId: uploadFolderId,
       })
       
       // Reset modal state
@@ -456,10 +509,97 @@ export default function GalleryPage() {
     }
   }, [deleteImage])
 
-  // Filter images by search term
-  const filteredImages = images?.filter((img) =>
-    img.filename.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Filter images by search term and folder
+  const filteredImages = images?.filter((img) => {
+    // Filter by search term
+    const matchesSearch = img.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (img.folderName?.toLowerCase().includes(searchTerm.toLowerCase()))
+    
+    // Filter by folder
+    let matchesFolder = true
+    if (selectedFolderId === "root") {
+      matchesFolder = !img.folderId
+    } else if (selectedFolderId !== "all") {
+      matchesFolder = img.folderId === selectedFolderId
+    }
+    
+    return matchesSearch && matchesFolder
+  })
+  
+  // Folder handlers
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) {
+      setFolderError("Please enter a folder name")
+      return
+    }
+    
+    const nameRegex = /^[a-zA-Z0-9_-]+$/
+    if (!nameRegex.test(newFolderName)) {
+      setFolderError("Folder name can only contain letters, numbers, hyphens, and underscores")
+      return
+    }
+    
+    try {
+      await createFolder({ name: newFolderName.trim() })
+      setShowCreateFolderModal(false)
+      setNewFolderName("")
+      setFolderError("")
+    } catch (error: any) {
+      setFolderError(error.message || "Failed to create folder")
+    }
+  }
+  
+  const handleRenameFolder = async (folderId: Id<"folders">, currentName: string) => {
+    const newName = prompt("Enter new folder name:", currentName)
+    if (!newName || newName === currentName) return
+    
+    const nameRegex = /^[a-zA-Z0-9_-]+$/
+    if (!nameRegex.test(newName)) {
+      alert("Folder name can only contain letters, numbers, hyphens, and underscores")
+      return
+    }
+    
+    try {
+      await renameFolder({ folderId, newName })
+    } catch (error: any) {
+      alert(error.message || "Failed to rename folder")
+    }
+  }
+  
+  const handleDeleteFolder = async (folderId: Id<"folders">) => {
+    const folder = folders?.find(f => f._id === folderId)
+    const confirmMsg = folder?.imageCount 
+      ? `This will delete the folder "${folder.name}" and all ${folder.imageCount} image(s) inside. Are you sure?`
+      : `Delete folder "${folder?.name}"?`
+    
+    if (!confirm(confirmMsg)) return
+    
+    try {
+      await deleteFolder({ folderId })
+      if (selectedFolderId === folderId) {
+        setSelectedFolderId("all")
+      }
+    } catch (error: any) {
+      alert(error.message || "Failed to delete folder")
+    }
+  }
+  
+  const handleMoveImage = async (targetFolderId: Id<"folders"> | undefined) => {
+    if (!imageToMove) return
+    
+    try {
+      await moveImageToFolder({ imageId: imageToMove, folderId: targetFolderId })
+      setShowMoveModal(false)
+      setImageToMove(null)
+    } catch (error: any) {
+      alert(error.message || "Failed to move image")
+    }
+  }
+  
+  const openMoveModal = (imageId: Id<"gallery">) => {
+    setImageToMove(imageId)
+    setShowMoveModal(true)
+  }
 
   if (images === undefined) {
     return (
@@ -483,20 +623,17 @@ export default function GalleryPage() {
     >
       <DragOverlay isDragOver={isDragOver} />
       <div className="bg-white rounded-xl sm:rounded-2xl border border-border p-3 sm:p-4 md:p-6 lg:p-8 min-h-[calc(100vh-6rem)] lg:min-h-[calc(100vh-3rem)]">
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-semibold text-foreground">Reference Gallery</h2>
               <p className="text-sm text-foreground/50 mt-1">
-                {images.length} image{images.length !== 1 ? "s" : ""} • Use @filename in prompts to reference images
-              </p>
-              <p className="text-xs text-foreground/40 mt-0.5">
-                Drag & drop or paste images to upload
+                {images?.length || 0} image{images?.length !== 1 ? "s" : ""} • Use @filename or @folder to reference
               </p>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {/* Search */}
               <div className="relative">
                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -504,10 +641,10 @@ export default function GalleryPage() {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search images..."
+                  placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-48 sm:w-64 h-10 pl-9 pr-4 bg-secondary/50 border-0 rounded-lg text-sm text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-36 sm:w-48 h-9 pl-9 pr-3 bg-secondary/50 border-0 rounded-lg text-sm text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
               
@@ -515,7 +652,7 @@ export default function GalleryPage() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="h-10 px-4 flex items-center gap-2 bg-foreground text-background rounded-lg text-sm font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50"
+                className="h-9 px-3 flex items-center gap-2 bg-foreground text-background rounded-lg text-sm font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50"
               >
                 {uploadProgress ? (
                   <>
@@ -530,7 +667,7 @@ export default function GalleryPage() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
                     </svg>
-                    <span className="hidden sm:inline">Upload Image</span>
+                    <span className="hidden sm:inline">Upload</span>
                   </>
                 )}
               </button>
@@ -542,6 +679,115 @@ export default function GalleryPage() {
                 className="hidden"
               />
             </div>
+          </div>
+          
+          {/* Horizontal Folder Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+            {/* All Images Tab */}
+            <button
+              onClick={() => setSelectedFolderId("all")}
+              className={`flex-shrink-0 h-8 px-3 flex items-center gap-1.5 rounded-full text-sm font-medium transition-colors ${
+                selectedFolderId === "all" 
+                  ? "bg-foreground text-background" 
+                  : "bg-secondary/60 text-foreground/70 hover:bg-secondary"
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+              All
+              <span className="text-xs opacity-70">{images?.length || 0}</span>
+            </button>
+            
+            {/* Uncategorized Tab */}
+            <button
+              onClick={() => setSelectedFolderId("root")}
+              className={`flex-shrink-0 h-8 px-3 flex items-center gap-1.5 rounded-full text-sm font-medium transition-colors ${
+                selectedFolderId === "root" 
+                  ? "bg-foreground text-background" 
+                  : "bg-secondary/60 text-foreground/70 hover:bg-secondary"
+              }`}
+            >
+              Loose
+              <span className="text-xs opacity-70">{images?.filter(i => !i.folderId).length || 0}</span>
+            </button>
+            
+            {/* Folder Tabs */}
+            {folders?.map((folder) => (
+              <div key={folder._id} className="group relative flex-shrink-0">
+                <button
+                  onClick={() => setSelectedFolderId(folder._id)}
+                  className={`h-8 pl-3 pr-8 flex items-center gap-1.5 rounded-full text-sm font-medium transition-colors ${
+                    selectedFolderId === folder._id 
+                      ? "bg-foreground text-background" 
+                      : "bg-secondary/60 text-foreground/70 hover:bg-secondary"
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  <span className="truncate max-w-[100px]">{folder.name}</span>
+                  <span className={`text-xs ${folder.isFull ? "text-amber-400" : "opacity-70"}`}>
+                    {folder.imageCount}/4
+                  </span>
+                </button>
+                
+                {/* Folder dropdown menu */}
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const menu = e.currentTarget.nextElementSibling as HTMLElement
+                        menu.classList.toggle("hidden")
+                      }}
+                      className={`p-1 rounded-full ${selectedFolderId === folder._id ? "hover:bg-white/20" : "hover:bg-foreground/10"}`}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    <div className="hidden absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-border py-1 z-10 min-w-[100px]">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRenameFolder(folder._id, folder.name)
+                        }}
+                        className="w-full px-3 py-1.5 text-left text-sm text-foreground/70 hover:bg-secondary flex items-center gap-2"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Rename
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteFolder(folder._id)
+                        }}
+                        className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-red-50 flex items-center gap-2"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {/* Create New Folder Button */}
+            <button
+              onClick={() => setShowCreateFolderModal(true)}
+              className="flex-shrink-0 h-8 px-3 flex items-center gap-1.5 rounded-full text-sm font-medium bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New
+            </button>
           </div>
 
           {uploadError && (
@@ -578,7 +824,7 @@ export default function GalleryPage() {
             </div>
           ) : (
             /* Grid */
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {filteredImages?.map((image) => (
                 <GalleryCard
                   key={image._id}
@@ -586,6 +832,7 @@ export default function GalleryPage() {
                   onRename={handleRename}
                   onDelete={handleDelete}
                   onViewFull={setSelectedImage}
+                  onMove={openMoveModal}
                   deletingId={deletingId}
                   renamingId={renamingId}
                 />
@@ -664,10 +911,37 @@ export default function GalleryPage() {
                   </p>
                 </div>
                 
+                {/* Folder Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Folder (optional)
+                  </label>
+                  <select
+                    value={uploadFolderId || ""}
+                    onChange={(e) => setUploadFolderId(e.target.value ? e.target.value as Id<"folders"> : undefined)}
+                    className="w-full h-10 px-3 bg-secondary/50 border-0 rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">No folder (root)</option>
+                    {folders?.map((folder) => (
+                      <option 
+                        key={folder._id} 
+                        value={folder._id}
+                        disabled={folder.isFull}
+                      >
+                        {folder.name} ({folder.imageCount}/4){folder.isFull ? " - Full" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
                 {/* Preview mention syntax */}
                 <div className="p-3 bg-secondary/30 rounded-lg">
                   <p className="text-xs text-foreground/50 mb-1">Use in prompts:</p>
-                  <code className="text-sm text-emerald-600 font-mono">@{uploadFilename || "filename"}</code>
+                  <code className="text-sm text-emerald-600 font-mono">
+                    @{uploadFolderId && folders?.find(f => f._id === uploadFolderId)?.name 
+                      ? `${folders.find(f => f._id === uploadFolderId)?.name}/${uploadFilename || "filename"}`
+                      : uploadFilename || "filename"}
+                  </code>
                 </div>
                 
                 {uploadError && (
@@ -777,6 +1051,162 @@ export default function GalleryPage() {
                   </svg>
                   Delete
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Folder Modal */}
+        {showCreateFolderModal && (
+          <div 
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            onClick={() => {
+              setShowCreateFolderModal(false)
+              setNewFolderName("")
+              setFolderError("")
+            }}
+          >
+            <div 
+              className="bg-white rounded-2xl max-w-sm w-full overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <h3 className="font-semibold text-foreground">Create Folder</h3>
+                <button
+                  onClick={() => {
+                    setShowCreateFolderModal(false)
+                    setNewFolderName("")
+                    setFolderError("")
+                  }}
+                  className="p-2 hover:bg-secondary rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Folder Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newFolderName}
+                    onChange={(e) => {
+                      setNewFolderName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ""))
+                      setFolderError("")
+                    }}
+                    placeholder="my-folder"
+                    className="w-full h-10 px-3 bg-secondary/50 border-0 rounded-lg text-sm text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    maxLength={30}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleCreateFolder()
+                    }}
+                  />
+                  <p className="text-xs text-foreground/40 mt-1">
+                    Max 4 images per folder. Use @{newFolderName || "folder"} to load all images.
+                  </p>
+                </div>
+                
+                {folderError && (
+                  <p className="text-sm text-red-600">{folderError}</p>
+                )}
+              </div>
+              
+              <div className="flex items-center justify-end gap-2 p-4 border-t border-border">
+                <button
+                  onClick={() => {
+                    setShowCreateFolderModal(false)
+                    setNewFolderName("")
+                    setFolderError("")
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-foreground/70 hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateFolder}
+                  disabled={!newFolderName.trim()}
+                  className="px-4 py-2 bg-foreground text-background rounded-lg text-sm font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50"
+                >
+                  Create Folder
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Move to Folder Modal */}
+        {showMoveModal && imageToMove && (
+          <div 
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            onClick={() => {
+              setShowMoveModal(false)
+              setImageToMove(null)
+            }}
+          >
+            <div 
+              className="bg-white rounded-2xl max-w-sm w-full overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <h3 className="font-semibold text-foreground">Move to Folder</h3>
+                <button
+                  onClick={() => {
+                    setShowMoveModal(false)
+                    setImageToMove(null)
+                  }}
+                  className="p-2 hover:bg-secondary rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="p-4 space-y-2 max-h-[300px] overflow-y-auto">
+                {/* Root option */}
+                <button
+                  onClick={() => handleMoveImage(undefined)}
+                  className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-secondary transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  Uncategorized (root)
+                </button>
+                
+                {folders?.map((folder) => (
+                  <button
+                    key={folder._id}
+                    onClick={() => handleMoveImage(folder._id)}
+                    disabled={folder.isFull}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${
+                      folder.isFull 
+                        ? "opacity-50 cursor-not-allowed" 
+                        : "hover:bg-secondary"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      </svg>
+                      {folder.name}
+                    </span>
+                    <span className={`text-xs ${folder.isFull ? "text-amber-500" : "text-foreground/50"}`}>
+                      {folder.imageCount}/4
+                    </span>
+                  </button>
+                ))}
+                
+                {(!folders || folders.length === 0) && (
+                  <p className="text-sm text-foreground/50 text-center py-4">
+                    No folders yet. Create one first!
+                  </p>
+                )}
               </div>
             </div>
           </div>

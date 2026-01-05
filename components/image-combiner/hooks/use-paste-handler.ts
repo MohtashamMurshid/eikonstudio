@@ -1,18 +1,29 @@
 import { useEffect } from "react"
+import type { ImageSlot } from "./use-image-upload"
 
 interface UsePasteHandlerOptions {
   useUrls: boolean
   image1: File | null
   image2: File | null
+  image3: File | null
+  image4: File | null
   image1Url: string
   image2Url: string
-  handleImageUpload: (file: File, imageNumber: 1 | 2) => void
-  handleUrlChange: (url: string, imageNumber: 1 | 2) => void
+  image3Url: string
+  image4Url: string
+  handleImageUpload: (file: File, imageNumber: ImageSlot) => void
+  handleUrlChange: (url: string, imageNumber: ImageSlot) => void
   setUseUrls: (value: boolean) => void
+  getFirstAvailableSlot: () => ImageSlot | null
 }
 
 export const usePasteHandler = (options: UsePasteHandlerOptions) => {
-  const { useUrls, image1, image2, image1Url, image2Url, handleImageUpload, handleUrlChange, setUseUrls } = options
+  const { 
+    useUrls, image1, image2, image3, image4, 
+    image1Url, image2Url, image3Url, image4Url, 
+    handleImageUpload, handleUrlChange, setUseUrls,
+    getFirstAvailableSlot
+  } = options
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -30,14 +41,9 @@ export const usePasteHandler = (options: UsePasteHandlerOptions) => {
             if (useUrls) {
               setUseUrls(false)
             }
-            // Find first available slot
-            if (!useUrls && !image1) {
-              handleImageUpload(file, 1)
-            } else if (!useUrls && !image2) {
-              handleImageUpload(file, 2)
-            } else {
-              handleImageUpload(file, 1) // Replace first image
-            }
+            // Find first available slot (1-4)
+            const slot = getFirstAvailableSlot()
+            handleImageUpload(file, slot || 1)
           }
           return
         }
@@ -62,11 +68,15 @@ export const usePasteHandler = (options: UsePasteHandlerOptions) => {
               if (!useUrls) {
                 setUseUrls(true)
               }
-              // Find first available URL slot
+              // Find first available URL slot (1-4)
               if (!image1Url) {
                 handleUrlChange(trimmedText, 1)
               } else if (!image2Url) {
                 handleUrlChange(trimmedText, 2)
+              } else if (!image3Url) {
+                handleUrlChange(trimmedText, 3)
+              } else if (!image4Url) {
+                handleUrlChange(trimmedText, 4)
               } else {
                 handleUrlChange(trimmedText, 1) // Replace first URL
               }
@@ -79,6 +89,6 @@ export const usePasteHandler = (options: UsePasteHandlerOptions) => {
 
     document.addEventListener("paste", handlePaste)
     return () => document.removeEventListener("paste", handlePaste)
-  }, [useUrls, image1, image2, image1Url, image2Url, handleImageUpload, handleUrlChange, setUseUrls])
+  }, [useUrls, image1, image2, image3, image4, image1Url, image2Url, image3Url, image4Url, handleImageUpload, handleUrlChange, setUseUrls, getFirstAvailableSlot])
 }
 
