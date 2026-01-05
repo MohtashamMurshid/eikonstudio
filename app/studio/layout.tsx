@@ -74,7 +74,7 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
   }
 
   // Handle tab change via navigation
-  const handleTabChange = (tab: "dashboard" | "studio" | "history" | "gallery") => {
+  const handleTabChange = (tab: "dashboard" | "studio" | "history" | "gallery" | "settings") => {
     switch (tab) {
       case "dashboard":
         router.push("/studio/dashboard")
@@ -87,6 +87,9 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
         break
       case "gallery":
         router.push("/studio/gallery")
+        break
+      case "settings":
+        router.push("/studio/settings")
         break
     }
   }

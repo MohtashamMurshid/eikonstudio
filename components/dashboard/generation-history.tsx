@@ -21,6 +21,8 @@ interface Generation {
   imageSize: string
   artStyle?: string
   createdAt: number
+  estimatedCost?: number
+  model?: string
 }
 
 interface GenerationHistoryProps {
@@ -189,9 +191,16 @@ const GenerationCard = memo(({
         </p>
         <div className="flex items-center justify-between mt-0.5">
           <span className="text-[9px] text-foreground/40">{formattedDate}</span>
-          <span className="text-[9px] px-1 py-0.5 bg-secondary rounded text-foreground/50">
-            {generation.imageSize}
-          </span>
+          <div className="flex items-center gap-1">
+            {generation.estimatedCost !== undefined && (
+              <span className="text-[9px] px-1 py-0.5 bg-emerald-100 rounded text-emerald-700 font-medium">
+                ${generation.estimatedCost.toFixed(4)}
+              </span>
+            )}
+            <span className="text-[9px] px-1 py-0.5 bg-secondary rounded text-foreground/50">
+              {generation.imageSize}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -471,7 +480,7 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
                   <p className="text-sm text-foreground">{selectedImage.prompt}</p>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div className="bg-secondary/30 rounded-xl p-3">
                     <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">Mode</p>
                     <p className="text-sm text-foreground capitalize">{selectedImage.mode.replace("-", " ")}</p>
@@ -487,6 +496,21 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
                   <div className="bg-secondary/30 rounded-xl p-3">
                     <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">Style</p>
                     <p className="text-sm text-foreground">{selectedImage.artStyle || "None"}</p>
+                  </div>
+                  <div className="bg-secondary/30 rounded-xl p-3">
+                    <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">Est. Cost</p>
+                    <p className="text-sm text-emerald-600 font-medium">
+                      {selectedImage.estimatedCost !== undefined 
+                        ? `$${selectedImage.estimatedCost.toFixed(4)}`
+                        : "—"
+                      }
+                    </p>
+                  </div>
+                  <div className="bg-secondary/30 rounded-xl p-3">
+                    <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">Model</p>
+                    <p className="text-sm text-foreground truncate" title={selectedImage.model || "Unknown"}>
+                      {selectedImage.model?.replace("gemini-", "").replace("-preview", "") || "Unknown"}
+                    </p>
                   </div>
                 </div>
 

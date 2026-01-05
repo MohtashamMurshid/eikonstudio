@@ -19,8 +19,7 @@ const mainMenuItems = [
   {
     id: "dashboard",
     label: "Dashboard",
-    href: "#",
-    comingSoon: true,
+    href: "/studio/dashboard",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
@@ -184,31 +183,6 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
             <ul className="space-y-1">
               {mainMenuItems.map((item) => {
                 const isActive = (item.id === "dashboard" || item.id === "studio" || item.id === "history" || item.id === "gallery") && activeTab === item.id
-                const isDisabled = item.href === "#"
-                
-                if (isDisabled || item.comingSoon) {
-                  return (
-                    <li key={item.id}>
-                      <div
-                        title={isCollapsed ? `${item.label} - Coming Soon` : undefined}
-                        className={`
-                          w-full flex items-center ${isCollapsed ? "justify-center" : "gap-3 justify-between"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium
-                          text-foreground/40 cursor-not-allowed
-                        `}
-                      >
-                        <div className={`flex items-center ${isCollapsed ? "" : "gap-3"}`}>
-                          {item.icon}
-                          {!isCollapsed && item.label}
-                        </div>
-                        {!isCollapsed && (
-                          <span className="text-[10px] px-1.5 py-0.5 bg-foreground/10 text-foreground/40 rounded font-medium">
-                            Soon
-                          </span>
-                        )}
-                      </div>
-                    </li>
-                  )
-                }
                 
                 return (
                   <li key={item.id}>
