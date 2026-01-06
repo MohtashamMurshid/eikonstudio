@@ -21,6 +21,20 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       enabled: true,
       requireEmailVerification: false,
     },
+    // Google OAuth provider
+    socialProviders: {
+      google: {
+        clientId: process.env.GOOGLE_CLIENT_ID!,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      },
+    },
+    // Enable account linking for users who sign up with email then use Google (same email)
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ["google", "email-password"],
+      },
+    },
     plugins: [
       // The Convex plugin is required for Convex compatibility
       convex({ authConfig }),
