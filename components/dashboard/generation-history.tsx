@@ -1,11 +1,13 @@
 "use client"
 
-import { useState, useMemo, useCallback, memo, useRef, useEffect } from "react"
+import { useState, useMemo, useCallback, memo } from "react"
+import Image from "next/image"
 import { useQuery } from "convex-helpers/react/cache/hooks"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { LogoLoader } from "@/components/logo-icon"
+import { LazyImage } from "@/components/gallery/lazy-image"
 
 interface Generation {
   _id: Id<"generations">
@@ -28,56 +30,6 @@ interface Generation {
 interface GenerationHistoryProps {
   onUseAsInput?: (imageUrl: string) => void
 }
-
-// Lazy-loaded image component - uses pre-stored thumbnail for fast loading
-const LazyImage = memo(({ src, alt, className }: { src: string; alt: string; className: string }) => {
-  const [isLoaded, setIsLoaded] = useState(false)
-  const [isInView, setIsInView] = useState(false)
-  const imgRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setIsInView(true)
-            observer.disconnect()
-          }
-        })
-      },
-      { rootMargin: "50px" }
-    )
-    
-    if (imgRef.current) {
-      observer.observe(imgRef.current)
-    }
-    
-    return () => {
-      observer.disconnect()
-    }
-  }, [])
-
-  return (
-    <div ref={imgRef} className={className}>
-      {!isInView ? (
-        <div className="w-full h-full bg-secondary/20 animate-pulse" />
-      ) : (
-        <>
-          {!isLoaded && <div className="w-full h-full bg-secondary/20 animate-pulse absolute inset-0" />}
-          <img
-            src={src}
-            alt={alt}
-            className={`w-full h-full object-cover ${isLoaded ? "opacity-100" : "opacity-0"} transition-opacity duration-300`}
-            loading="lazy"
-            onLoad={() => setIsLoaded(true)}
-          />
-        </>
-      )}
-    </div>
-  )
-})
-
-LazyImage.displayName = "LazyImage"
 
 // Memoized generation card component
 const GenerationCard = memo(({
@@ -471,11 +423,24 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
             <div className="flex-1 overflow-auto p-4 space-y-4">
               {/* Image */}
               <div className="flex justify-center">
-                <img
-                  src={selectedImage.imageUrl || ""}
-                  alt={selectedImage.prompt}
-                  className="max-w-full max-h-[50vh] object-contain rounded-xl"
-                />
+                <div className="relative w-full max-h-[50vh] aspect-video">
+                  {selectedImage.imageUrl?.startsWith("data:") ? (
+                    <img
+                      src={selectedImage.imageUrl}
+                      alt={selectedImage.prompt}
+                      className="w-full h-full object-contain rounded-xl"
+                    />
+                  ) : (
+                    <Image
+                      src={selectedImage.imageUrl || ""}
+                      alt={selectedImage.prompt}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      className="object-contain rounded-xl"
+                      priority
+                    />
+                  )}
+                </div>
               </div>
 
               {/* Details */}

@@ -1,51 +1,78 @@
 "use client"
 
-import { useState, useRef, useEffect, memo } from "react"
+import { useState, memo } from "react"
+import Image from "next/image"
 
-export const LazyImage = memo(({ src, alt, className }: { src: string; alt: string; className: string }) => {
+interface LazyImageProps {
+  src: string
+  alt: string
+  className?: string
+  fill?: boolean
+  sizes?: string
+  priority?: boolean
+}
+
+export const LazyImage = memo(({ 
+  src, 
+  alt, 
+  className = "",
+  fill = true,
+  sizes = "(max-width: 768px) 50vw, 25vw",
+  priority = false
+}: LazyImageProps) => {
   const [isLoaded, setIsLoaded] = useState(false)
-  const [isInView, setIsInView] = useState(false)
-  const imgRef = useRef<HTMLDivElement>(null)
+  const [hasError, setHasError] = useState(false)
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setIsInView(true)
-            observer.disconnect()
-          }
-        })
-      },
-      { rootMargin: "50px" }
+  // Check if src is a base64 data URL (can't be optimized by next/image)
+  const isDataUrl = src?.startsWith("data:")
+
+  // For data URLs, use native img tag
+  if (isDataUrl) {
+    return (
+      <div className={`relative ${className}`}>
+        {!isLoaded && (
+          <div className="absolute inset-0 bg-secondary/20 animate-pulse" />
+        )}
+        <img
+          src={src}
+          alt={alt}
+          className={`w-full h-full object-cover transition-opacity duration-300 ${
+            isLoaded ? "opacity-100" : "opacity-0"
+          }`}
+          loading="lazy"
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+        />
+      </div>
     )
-    
-    if (imgRef.current) {
-      observer.observe(imgRef.current)
-    }
-    
-    return () => observer.disconnect()
-  }, [])
+  }
 
+  // For remote URLs, use next/image for optimization
   return (
-    <div ref={imgRef} className={className}>
-      {!isInView ? (
-        <div className="w-full h-full bg-secondary/20 animate-pulse" />
+    <div className={`relative ${className}`}>
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 bg-secondary/20 animate-pulse z-10" />
+      )}
+      {hasError ? (
+        <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center">
+          <span className="text-xs text-muted-foreground">Failed to load</span>
+        </div>
       ) : (
-        <>
-          {!isLoaded && <div className="w-full h-full bg-secondary/20 animate-pulse absolute inset-0" />}
-          <img
-            src={src}
-            alt={alt}
-            className={`w-full h-full object-cover ${isLoaded ? "opacity-100" : "opacity-0"} transition-opacity duration-300`}
-            loading="lazy"
-            onLoad={() => setIsLoaded(true)}
-          />
-        </>
+        <Image
+          src={src}
+          alt={alt}
+          fill={fill}
+          sizes={sizes}
+          priority={priority}
+          className={`object-cover transition-opacity duration-300 ${
+            isLoaded ? "opacity-100" : "opacity-0"
+          }`}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+        />
       )}
     </div>
   )
 })
 
 LazyImage.displayName = "LazyImage"
-

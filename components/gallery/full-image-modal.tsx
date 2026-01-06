@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { GalleryImage } from "./types"
 
@@ -50,11 +51,24 @@ export function FullImageModal({
 
         <div className="flex-1 overflow-auto p-4 space-y-4">
           <div className="flex justify-center">
-            <img
-              src={image.imageUrl || ""}
-              alt={image.filename}
-              className="max-w-full max-h-[50vh] object-contain rounded-xl"
-            />
+            <div className="relative w-full max-h-[50vh] aspect-video">
+              {image.imageUrl?.startsWith("data:") ? (
+                <img
+                  src={image.imageUrl}
+                  alt={image.filename}
+                  className="w-full h-full object-contain rounded-xl"
+                />
+              ) : (
+                <Image
+                  src={image.imageUrl || ""}
+                  alt={image.filename}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-contain rounded-xl"
+                  priority
+                />
+              )}
+            </div>
           </div>
 
           <div className="bg-secondary/30 rounded-xl p-4">

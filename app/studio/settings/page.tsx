@@ -6,6 +6,7 @@ import { useQuery } from "convex-helpers/react/cache/hooks"
 import { useMutation, useAction } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
+import Image from "next/image"
 
 type SettingsSection = "profile" | "api-keys" | "account"
 
@@ -226,11 +227,15 @@ export default function SettingsPage() {
                   {/* Profile Card */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl border border-border">
                     {displayImage ? (
-                      <img
-                        src={displayImage}
-                        alt={displayName}
-                        className="w-12 h-12 rounded-xl object-cover border border-white shadow-sm"
-                      />
+                      <div className="relative w-12 h-12">
+                        <Image
+                          src={displayImage}
+                          alt={displayName}
+                          fill
+                          sizes="48px"
+                          className="rounded-xl object-cover border border-white shadow-sm"
+                        />
+                      </div>
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-base font-semibold text-white shadow-sm">
                         {getInitials(displayName)}

@@ -1,5 +1,4 @@
-"use client";
-
+import type { Metadata } from "next"
 import { LandingHeader } from "@/components/landing/header";
 import { Hero } from "@/components/landing/hero";
 import { FeatureShowcase } from "@/components/landing/feature-showcase";
@@ -9,6 +8,15 @@ import { DetailedFeatures } from "@/components/landing/detailed-features";
 import { Pricing } from "@/components/landing/pricing";
 import { LandingFooter } from "@/components/landing/footer";
 import { StripedDivider } from "@/components/landing/striped-divider";
+
+export const metadata: Metadata = {
+  title: "Eikon Studio - AI Image Generation Platform",
+  description: "Eikon combines, transforms, and generates images with AI — built for designers, creators, and developers who demand precision.",
+  openGraph: {
+    title: "Eikon Studio - AI Image Generation Platform",
+    description: "The image studio for creative AI. Generate, transform, and combine images with precision.",
+  },
+}
 
 export default function LandingPage() {
   return (
