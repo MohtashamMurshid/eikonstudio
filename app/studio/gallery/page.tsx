@@ -76,6 +76,10 @@ export default function GalleryPage() {
   
   // Move image error state
   const [moveError, setMoveError] = useState("")
+  const [isMovingImage, setIsMovingImage] = useState(false)
+  
+  // Create folder loading state
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false)
   
   // Upload hook
   const uploadHook = useGalleryUpload(currentFolderId)
@@ -151,6 +155,7 @@ export default function GalleryPage() {
       return
     }
     
+    setIsCreatingFolder(true)
     try {
       await createFolder({ name: newFolderName.trim() })
       setShowCreateFolderModal(false)
@@ -158,6 +163,8 @@ export default function GalleryPage() {
       setFolderError("")
     } catch (error: any) {
       setFolderError(error.message || "Failed to create folder")
+    } finally {
+      setIsCreatingFolder(false)
     }
   }
   
@@ -255,12 +262,15 @@ export default function GalleryPage() {
     if (!imageToMove) return
     
     setMoveError("")
+    setIsMovingImage(true)
     try {
       await moveImageToFolder({ imageId: imageToMove, folderId: targetFolderId })
       setShowMoveModal(false)
       setImageToMove(null)
     } catch (error: any) {
       setMoveError(error.message || "Failed to move image")
+    } finally {
+      setIsMovingImage(false)
     }
   }
   
@@ -327,6 +337,7 @@ export default function GalleryPage() {
               onMove={openMoveModal}
               deletingId={operationsHook.deletingId}
               renamingId={operationsHook.renamingId}
+              movingId={imageToMove}
               showFolderBadge={false}
               emptyState={{
                 searchTerm: searchTerm || undefined,
@@ -401,6 +412,7 @@ export default function GalleryPage() {
                           onMove={openMoveModal}
                           deletingId={operationsHook.deletingId}
                           renamingId={operationsHook.renamingId}
+                          movingId={imageToMove}
                           showFolderBadge={false}
                           emptyState={{
                             searchTerm: searchTerm || undefined,
@@ -459,10 +471,13 @@ export default function GalleryPage() {
           isOpen={showCreateFolderModal}
           folderName={newFolderName}
           error={folderError}
+          isLoading={isCreatingFolder}
           onClose={() => {
-            setShowCreateFolderModal(false)
-            setNewFolderName("")
-            setFolderError("")
+            if (!isCreatingFolder) {
+              setShowCreateFolderModal(false)
+              setNewFolderName("")
+              setFolderError("")
+            }
           }}
           onFolderNameChange={setNewFolderName}
           onConfirm={handleCreateFolder}
@@ -471,10 +486,14 @@ export default function GalleryPage() {
         <MoveFolderModal
           isOpen={showMoveModal}
           folders={folders}
+          isLoading={isMovingImage}
+          error={moveError}
           onClose={() => {
-            setShowMoveModal(false)
-            setImageToMove(null)
-            setMoveError("")
+            if (!isMovingImage) {
+              setShowMoveModal(false)
+              setImageToMove(null)
+              setMoveError("")
+            }
           }}
           onMove={handleMoveImage}
         />

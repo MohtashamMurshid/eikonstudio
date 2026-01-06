@@ -13,6 +13,7 @@ interface ImageGridProps {
   onMove?: (id: Id<"gallery">) => void
   deletingId: Id<"gallery"> | null
   renamingId: Id<"gallery"> | null
+  movingId?: Id<"gallery"> | null
   showFolderBadge?: boolean
   emptyState?: {
     searchTerm?: string
@@ -30,6 +31,7 @@ export const ImageGrid = memo(({
   onMove,
   deletingId,
   renamingId,
+  movingId,
   showFolderBadge = false,
   emptyState,
 }: ImageGridProps) => {
@@ -82,6 +84,7 @@ export const ImageGrid = memo(({
           onMove={onMove}
           deletingId={deletingId}
           renamingId={renamingId}
+          movingId={movingId}
           showFolderBadge={showFolderBadge}
         />
       ))}
