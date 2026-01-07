@@ -8,14 +8,28 @@ import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
 import { LogoIcon } from "@/components/logo-icon"
 
+// Define valid tab types in one place
+type SidebarTab = "dashboard" | "studio" | "history" | "gallery" | "settings" | "video" | "video-history"
+
+const VALID_TABS: SidebarTab[] = ["dashboard", "studio", "history", "gallery", "settings", "video", "video-history"]
+
+const isValidTab = (id: string): id is SidebarTab => VALID_TABS.includes(id as SidebarTab)
+
+interface MenuItem {
+  id: SidebarTab
+  label: string
+  href: string
+  icon: React.ReactNode
+}
+
 interface SidebarProps {
-  activeTab?: "dashboard" | "studio" | "history" | "gallery" | "settings"
-  onTabChange?: (tab: "dashboard" | "studio" | "history" | "gallery" | "settings") => void
+  activeTab?: SidebarTab
+  onTabChange?: (tab: SidebarTab) => void
   isCollapsed?: boolean
   onCollapsedChange?: (collapsed: boolean) => void
 }
 
-const mainMenuItems = [
+const mainMenuItems: MenuItem[] = [
   {
     id: "dashboard",
     label: "Dashboard",
@@ -33,6 +47,26 @@ const mainMenuItems = [
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
+      </svg>
+    ),
+  },
+  {
+    id: "video",
+    label: "Video",
+    href: "/studio/create-video",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+      </svg>
+    ),
+  },
+  {
+    id: "video-history",
+    label: "Video History",
+    href: "/studio/video-history",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-2.625 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0118 18.375M20.625 4.5H3.375m17.25 0c.621 0 1.125.504 1.125 1.125M20.625 4.5h-1.5C18.504 4.5 18 5.004 18 5.625m3.75 0v1.5c0 .621-.504 1.125-1.125 1.125M3.375 4.5c-.621 0-1.125.504-1.125 1.125M3.375 4.5h1.5C5.496 4.5 6 5.004 6 5.625m-2.625 0v1.5c0 .621.504 1.125 1.125 1.125m0 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m1.5-3.75C5.496 8.25 6 7.746 6 7.125v-1.5M4.875 8.25C5.496 8.25 6 8.754 6 9.375v1.5m0-5.25v5.25m0-5.25C6 5.004 6.504 4.5 7.125 4.5h9.75c.621 0 1.125.504 1.125 1.125m1.125 2.625h1.5m-1.5 0A1.125 1.125 0 0118 7.125v-1.5m1.125 2.625c-.621 0-1.125.504-1.125 1.125v1.5m2.625-2.625c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125M18 5.625v5.25M7.125 12h9.75m-9.75 0A1.125 1.125 0 016 10.875M7.125 12C6.504 12 6 12.504 6 13.125m0-2.25C6 11.496 5.496 12 4.875 12M18 10.875c0 .621-.504 1.125-1.125 1.125M18 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m-12 5.25v-5.25m0 5.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125m-12 0v-1.5c0-.621-.504-1.125-1.125-1.125M18 18.375v-5.25m0 5.25v-1.5c0-.621.504-1.125 1.125-1.125M18 13.125v1.5c0 .621.504 1.125 1.125 1.125M18 13.125c0-.621.504-1.125 1.125-1.125M6 13.125v1.5c0 .621-.504 1.125-1.125 1.125M6 13.125C6 12.504 5.496 12 4.875 12m-1.5 0h1.5m14.25 0h1.5" />
       </svg>
     ),
   },
@@ -110,12 +144,15 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
   const displayImage = user?.image || session?.user?.image
   
   // Determine active tab from pathname or prop
-  const getActiveTab = (): "dashboard" | "studio" | "history" | "gallery" | "settings" => {
+  const getActiveTab = (): SidebarTab => {
     if (propActiveTab) return propActiveTab
-    if (pathname?.includes("/dashboard")) return "dashboard"
-    if (pathname?.includes("/history")) return "history"
-    if (pathname?.includes("/gallery")) return "gallery"
-    if (pathname?.includes("/settings")) return "settings"
+    if (pathname === "/studio/dashboard") return "dashboard"
+    if (pathname === "/studio/video-history") return "video-history"
+    if (pathname === "/studio/create-video") return "video"
+    if (pathname === "/studio/history") return "history"
+    if (pathname === "/studio/gallery") return "gallery"
+    if (pathname === "/studio/settings") return "settings"
+    if (pathname === "/studio/create") return "studio"
     return "studio"
   }
   const activeTab = getActiveTab()
@@ -132,8 +169,8 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
   }
 
   const handleItemClick = (id: string) => {
-    if (onTabChange && (id === "dashboard" || id === "studio" || id === "history" || id === "gallery" || id === "settings")) {
-      onTabChange(id as "dashboard" | "studio" | "history" | "gallery" | "settings")
+    if (onTabChange && isValidTab(id)) {
+      onTabChange(id)
     }
     // Close mobile sidebar after navigation
     setIsMobileOpen(false)
@@ -182,7 +219,7 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
             {!isCollapsed && <p className="px-3 mb-2 text-xs font-medium text-foreground/40 uppercase tracking-wider">Main Menu</p>}
             <ul className="space-y-1">
               {mainMenuItems.map((item) => {
-                const isActive = (item.id === "dashboard" || item.id === "studio" || item.id === "history" || item.id === "gallery") && activeTab === item.id
+                const isActive = activeTab === item.id
                 
                 return (
                   <li key={item.id}>

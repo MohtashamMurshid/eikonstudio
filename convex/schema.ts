@@ -48,5 +48,28 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"]),
+
+  // Video generations
+  videoGenerations: defineTable({
+    userId: v.string(),
+    prompt: v.string(),
+    videoStorageId: v.id("_storage"), // Full MP4 video in Convex storage
+    thumbnailStorageId: v.id("_storage"), // Poster frame (first frame) in Convex storage
+    mode: v.union(
+      v.literal("text-to-video"),
+      v.literal("image-to-video"),
+      v.literal("frame-to-video") // First & last frame mode
+    ),
+    aspectRatio: v.string(), // "16:9" or "9:16"
+    resolution: v.string(), // "720p" or "1080p"
+    duration: v.optional(v.number()), // Video duration in seconds (typically 8)
+    referenceImageStorageIds: v.optional(v.array(v.id("_storage"))), // Up to 3 reference images
+    createdAt: v.number(),
+    estimatedCost: v.optional(v.number()), // Cost in USD
+    model: v.optional(v.string()), // Model name used for generation (e.g., "veo-3.1-generate-preview")
+    hasAudio: v.optional(v.boolean()), // Whether the video has audio
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_created", ["userId", "createdAt"]),
 });
 

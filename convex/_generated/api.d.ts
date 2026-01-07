@@ -13,6 +13,7 @@ import type * as auth from "../auth.js";
 import type * as gallery from "../gallery.js";
 import type * as generations from "../generations.js";
 import type * as http from "../http.js";
+import type * as videoGenerations from "../videoGenerations.js";
 
 import type {
   ApiFromModules,
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   gallery: typeof gallery;
   generations: typeof generations;
   http: typeof http;
+  videoGenerations: typeof videoGenerations;
 }>;
 
 /**

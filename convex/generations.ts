@@ -141,6 +141,7 @@ export const deleteGeneration = mutation({
 // ============================================
 
 // Get usage statistics for the current user
+// Uses indexed queries with time-range filters to avoid full table scans
 export const getUsageStats = query({
   args: {},
   handler: async (ctx) => {
@@ -156,51 +157,90 @@ export const getUsageStats = query({
       };
     }
 
-    const allGenerations = await ctx.db
-      .query("generations")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
-
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
 
-    let totalCost = 0;
-    let thisMonthGenerations = 0;
+    // Query only this month's generations using the compound index
+    const thisMonthGenerations = await ctx.db
+      .query("generations")
+      .withIndex("by_user_created", (q) => 
+        q.eq("userId", user._id).gte("createdAt", thisMonthStart)
+      )
+      .collect();
+
+    // Query only last month's generations using the compound index
+    const lastMonthGenerations = await ctx.db
+      .query("generations")
+      .withIndex("by_user_created", (q) => 
+        q.eq("userId", user._id)
+          .gte("createdAt", lastMonthStart)
+          .lt("createdAt", thisMonthStart)
+      )
+      .collect();
+
+    // Query older generations (before last month) for totals
+    // This is still needed for total count and cost, but we minimize data processed
+    const olderGenerations = await ctx.db
+      .query("generations")
+      .withIndex("by_user_created", (q) => 
+        q.eq("userId", user._id).lt("createdAt", lastMonthStart)
+      )
+      .collect();
+
+    // Calculate this month stats
     let thisMonthCost = 0;
-    let lastMonthGenerations = 0;
-    let lastMonthCost = 0;
-    let textToImage = 0;
-    let imageEditing = 0;
-
-    for (const gen of allGenerations) {
-      const cost = gen.estimatedCost ?? calculateCost(gen.imageSize, gen.mode);
-      totalCost += cost;
-
+    let thisMonthTextToImage = 0;
+    let thisMonthImageEditing = 0;
+    for (const gen of thisMonthGenerations) {
+      thisMonthCost += gen.estimatedCost ?? calculateCost(gen.imageSize, gen.mode);
       if (gen.mode === "text-to-image") {
-        textToImage++;
+        thisMonthTextToImage++;
       } else {
-        imageEditing++;
-      }
-
-      if (gen.createdAt >= thisMonthStart) {
-        thisMonthGenerations++;
-        thisMonthCost += cost;
-      } else if (gen.createdAt >= lastMonthStart && gen.createdAt < thisMonthStart) {
-        lastMonthGenerations++;
-        lastMonthCost += cost;
+        thisMonthImageEditing++;
       }
     }
 
+    // Calculate last month stats
+    let lastMonthCost = 0;
+    let lastMonthTextToImage = 0;
+    let lastMonthImageEditing = 0;
+    for (const gen of lastMonthGenerations) {
+      lastMonthCost += gen.estimatedCost ?? calculateCost(gen.imageSize, gen.mode);
+      if (gen.mode === "text-to-image") {
+        lastMonthTextToImage++;
+      } else {
+        lastMonthImageEditing++;
+      }
+    }
+
+    // Calculate older stats for totals
+    let olderCost = 0;
+    let olderTextToImage = 0;
+    let olderImageEditing = 0;
+    for (const gen of olderGenerations) {
+      olderCost += gen.estimatedCost ?? calculateCost(gen.imageSize, gen.mode);
+      if (gen.mode === "text-to-image") {
+        olderTextToImage++;
+      } else {
+        olderImageEditing++;
+      }
+    }
+
+    const totalGenerations = thisMonthGenerations.length + lastMonthGenerations.length + olderGenerations.length;
+    const totalCost = thisMonthCost + lastMonthCost + olderCost;
+    const textToImage = thisMonthTextToImage + lastMonthTextToImage + olderTextToImage;
+    const imageEditing = thisMonthImageEditing + lastMonthImageEditing + olderImageEditing;
+
     return {
-      totalGenerations: allGenerations.length,
+      totalGenerations,
       totalCost: Math.round(totalCost * 10000) / 10000,
       thisMonth: {
-        generations: thisMonthGenerations,
+        generations: thisMonthGenerations.length,
         cost: Math.round(thisMonthCost * 10000) / 10000,
       },
       lastMonth: {
-        generations: lastMonthGenerations,
+        generations: lastMonthGenerations.length,
         cost: Math.round(lastMonthCost * 10000) / 10000,
       },
       textToImage,
