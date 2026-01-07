@@ -7,6 +7,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { LogoLoader } from "@/components/logo-icon"
 import { api } from "@/convex/_generated/api"
+import { type StudioTab, TAB_ROUTES, getTabFromPathname } from "@/types/studio"
 
 // Context for sharing state between studio routes
 interface StudioContextType {
@@ -41,12 +42,7 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
   const storedApiKey = useQuery(api.apiKeys.getApiKey, isAuthenticated ? {} : "skip")
 
   // Determine active tab from pathname
-  const getActiveTab = (): "dashboard" | "studio" | "history" | "gallery" => {
-    if (pathname?.includes("/dashboard")) return "dashboard"
-    if (pathname?.includes("/history")) return "history"
-    if (pathname?.includes("/gallery")) return "gallery"
-    return "studio" // default for /studio/create or /studio
-  }
+  const activeTab = getTabFromPathname(pathname)
 
   // Sync API key from secure storage when it loads
   useEffect(() => {
@@ -74,24 +70,8 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
   }
 
   // Handle tab change via navigation
-  const handleTabChange = (tab: "dashboard" | "studio" | "history" | "gallery" | "settings") => {
-    switch (tab) {
-      case "dashboard":
-        router.push("/studio/dashboard")
-        break
-      case "studio":
-        router.push("/studio/create")
-        break
-      case "history":
-        router.push("/studio/history")
-        break
-      case "gallery":
-        router.push("/studio/gallery")
-        break
-      case "settings":
-        router.push("/studio/settings")
-        break
-    }
+  const handleTabChange = (tab: StudioTab) => {
+    router.push(TAB_ROUTES[tab])
   }
 
   useEffect(() => {
@@ -134,7 +114,7 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
       <div className="flex h-screen bg-[#f5f5f5]">
         {/* Sidebar */}
         <Sidebar
-          activeTab={getActiveTab()}
+          activeTab={activeTab}
           onTabChange={handleTabChange}
           isCollapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}

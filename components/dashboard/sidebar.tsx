@@ -7,24 +7,18 @@ import { authClient } from "@/lib/auth-client"
 import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
 import { LogoIcon } from "@/components/logo-icon"
-
-// Define valid tab types in one place
-type SidebarTab = "dashboard" | "studio" | "history" | "gallery" | "settings" | "video" | "video-history"
-
-const VALID_TABS: SidebarTab[] = ["dashboard", "studio", "history", "gallery", "settings", "video", "video-history"]
-
-const isValidTab = (id: string): id is SidebarTab => VALID_TABS.includes(id as SidebarTab)
+import { type StudioTab, isValidStudioTab, getTabFromPathname } from "@/types/studio"
 
 interface MenuItem {
-  id: SidebarTab
+  id: StudioTab
   label: string
   href: string
   icon: React.ReactNode
 }
 
 interface SidebarProps {
-  activeTab?: SidebarTab
-  onTabChange?: (tab: SidebarTab) => void
+  activeTab?: StudioTab
+  onTabChange?: (tab: StudioTab) => void
   isCollapsed?: boolean
   onCollapsedChange?: (collapsed: boolean) => void
 }
@@ -144,18 +138,7 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
   const displayImage = user?.image || session?.user?.image
   
   // Determine active tab from pathname or prop
-  const getActiveTab = (): SidebarTab => {
-    if (propActiveTab) return propActiveTab
-    if (pathname === "/studio/dashboard") return "dashboard"
-    if (pathname === "/studio/video-history") return "video-history"
-    if (pathname === "/studio/create-video") return "video"
-    if (pathname === "/studio/history") return "history"
-    if (pathname === "/studio/gallery") return "gallery"
-    if (pathname === "/studio/settings") return "settings"
-    if (pathname === "/studio/create") return "studio"
-    return "studio"
-  }
-  const activeTab = getActiveTab()
+  const activeTab = propActiveTab ?? getTabFromPathname(pathname)
 
 
   const getInitials = (name: string | null | undefined) => {
@@ -169,7 +152,7 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
   }
 
   const handleItemClick = (id: string) => {
-    if (onTabChange && isValidTab(id)) {
+    if (onTabChange && isValidStudioTab(id)) {
       onTabChange(id)
     }
     // Close mobile sidebar after navigation
