@@ -14,8 +14,8 @@ interface Generation {
   _creationTime: number
   userId: string
   prompt: string
-  imageStorageId: Id<"_storage">
-  thumbnailStorageId: Id<"_storage">
+  imageStorageId?: Id<"_storage">
+  thumbnailStorageId?: Id<"_storage">
   imageUrl: string | null
   thumbnailUrl: string | null
   mode: "text-to-image" | "image-editing"
@@ -25,13 +25,180 @@ interface Generation {
   createdAt: number
   estimatedCost?: number
   model?: string
+  status: "pending" | "generating" | "completed" | "failed"
+  errorMessage?: string
 }
 
 interface GenerationHistoryProps {
   onUseAsInput?: (imageUrl: string) => void
 }
 
-// Memoized generation card component
+// Loading card component for pending/generating states
+const LoadingGenerationCard = memo(({
+  generation,
+  formattedDate,
+  onDelete,
+  deletingId,
+}: {
+  generation: Generation
+  formattedDate: string
+  onDelete: (id: Id<"generations">) => void
+  deletingId: Id<"generations"> | null
+}) => {
+  const isPending = generation.status === "pending"
+  const isGenerating = generation.status === "generating"
+  
+  return (
+    <div className="group relative bg-secondary/30 rounded-lg overflow-hidden border border-border">
+      {/* Loading animation */}
+      <div className="aspect-square relative bg-gradient-to-br from-secondary/50 to-secondary/30 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          {/* Animated spinner */}
+          <div className="relative">
+            <svg className="w-8 h-8 animate-spin text-foreground/30" viewBox="0 0 24 24">
+              <circle 
+                className="opacity-25" 
+                cx="12" 
+                cy="12" 
+                r="10" 
+                stroke="currentColor" 
+                strokeWidth="3"
+                fill="none"
+              />
+              <path 
+                className="opacity-75" 
+                fill="currentColor" 
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+          </div>
+          <span className="text-[10px] text-foreground/50 font-medium">
+            {isPending ? "Queued..." : isGenerating ? "Generating..." : "Processing..."}
+          </span>
+        </div>
+        
+        {/* Shimmer effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse" />
+        
+        {/* Delete button on hover */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(generation._id)
+            }}
+            disabled={deletingId === generation._id}
+            className="p-2 bg-red-500/80 hover:bg-red-500 rounded-lg transition-colors disabled:opacity-50"
+            title="Cancel generation"
+          >
+            {deletingId === generation._id ? (
+              <svg className="w-4 h-4 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="p-1.5">
+        <p className="text-[10px] text-foreground/70 truncate" title={generation.prompt}>
+          {generation.prompt}
+        </p>
+        <div className="flex items-center justify-between mt-0.5">
+          <span className="text-[9px] text-foreground/40">{formattedDate}</span>
+          <span className="text-[9px] px-1 py-0.5 bg-amber-100 rounded text-amber-700 font-medium">
+            {isPending ? "Queued" : "Generating"}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+LoadingGenerationCard.displayName = "LoadingGenerationCard"
+
+// Failed card component
+const FailedGenerationCard = memo(({
+  generation,
+  formattedDate,
+  onDelete,
+  onRetry,
+  deletingId,
+}: {
+  generation: Generation
+  formattedDate: string
+  onDelete: (id: Id<"generations">) => void
+  onRetry?: (generation: Generation) => void
+  deletingId: Id<"generations"> | null
+}) => {
+  return (
+    <div className="group relative bg-secondary/30 rounded-lg overflow-hidden border border-red-200">
+      {/* Error state */}
+      <div className="aspect-square relative bg-gradient-to-br from-red-50 to-red-100/50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2 p-2">
+          <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span className="text-[10px] text-red-600 font-medium text-center">
+            Generation failed
+          </span>
+          {generation.errorMessage && (
+            <span className="text-[9px] text-red-500/80 text-center line-clamp-2" title={generation.errorMessage}>
+              {generation.errorMessage}
+            </span>
+          )}
+        </div>
+        
+        {/* Actions on hover */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(generation._id)
+            }}
+            disabled={deletingId === generation._id}
+            className="p-2 bg-red-500/80 hover:bg-red-500 rounded-lg transition-colors disabled:opacity-50"
+            title="Delete"
+          >
+            {deletingId === generation._id ? (
+              <svg className="w-4 h-4 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="p-1.5">
+        <p className="text-[10px] text-foreground/70 truncate" title={generation.prompt}>
+          {generation.prompt}
+        </p>
+        <div className="flex items-center justify-between mt-0.5">
+          <span className="text-[9px] text-foreground/40">{formattedDate}</span>
+          <span className="text-[9px] px-1 py-0.5 bg-red-100 rounded text-red-600 font-medium">
+            Failed
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+FailedGenerationCard.displayName = "FailedGenerationCard"
+
+// Memoized generation card component for completed generations
 const GenerationCard = memo(({
   generation,
   formattedDate,
@@ -359,6 +526,11 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
         </nav>
         <p className="text-sm text-foreground/50 mt-1">
           {generations.length} generation{generations.length !== 1 ? "s" : ""}
+          {generations.some(g => g.status === "pending" || g.status === "generating") && (
+            <span className="ml-2 text-amber-600">
+              ({generations.filter(g => g.status === "pending" || g.status === "generating").length} in progress)
+            </span>
+          )}
         </p>
       </div>
 
@@ -377,27 +549,58 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
             
             {/* Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-              {group.generations.map((generation) => (
-                <GenerationCard
-                  key={generation._id}
-                  generation={generation}
-                  formattedDate={formattedDates.get(generation._id) || formatDate(generation.createdAt)}
-                  onSelect={() => setSelectedImage(generation)}
-                  onUseAsInput={onUseAsInput}
-                  onCopyPrompt={handleCopyPrompt}
-                  onDownload={handleDownload}
-                  onDelete={handleDelete}
-                  deletingId={deletingId}
-                  copiedPromptId={copiedPromptId}
-                />
-              ))}
+              {group.generations.map((generation) => {
+                const formattedDate = formattedDates.get(generation._id) || formatDate(generation.createdAt)
+                
+                // Render loading card for pending/generating
+                if (generation.status === "pending" || generation.status === "generating") {
+                  return (
+                    <LoadingGenerationCard
+                      key={generation._id}
+                      generation={generation}
+                      formattedDate={formattedDate}
+                      onDelete={handleDelete}
+                      deletingId={deletingId}
+                    />
+                  )
+                }
+                
+                // Render failed card
+                if (generation.status === "failed") {
+                  return (
+                    <FailedGenerationCard
+                      key={generation._id}
+                      generation={generation}
+                      formattedDate={formattedDate}
+                      onDelete={handleDelete}
+                      deletingId={deletingId}
+                    />
+                  )
+                }
+                
+                // Render completed card
+                return (
+                  <GenerationCard
+                    key={generation._id}
+                    generation={generation}
+                    formattedDate={formattedDate}
+                    onSelect={() => setSelectedImage(generation)}
+                    onUseAsInput={onUseAsInput}
+                    onCopyPrompt={handleCopyPrompt}
+                    onDownload={handleDownload}
+                    onDelete={handleDelete}
+                    deletingId={deletingId}
+                    copiedPromptId={copiedPromptId}
+                  />
+                )
+              })}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Modal for selected image */}
-      {selectedImage && (
+      {/* Modal for selected image (only for completed generations) */}
+      {selectedImage && selectedImage.status === "completed" && selectedImage.imageUrl && (
         <div 
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
           onClick={handleCloseModal}

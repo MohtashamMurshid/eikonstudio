@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { authComponent } from "./auth";
 
 // Cost calculation constants (mirrored from lib/cost-calculator.ts for server-side use)
@@ -30,7 +31,123 @@ export const generateUploadUrl = mutation({
   },
 });
 
+// ============================================
+// Background Generation System
+// ============================================
+
+// Start a new generation - creates a pending record and schedules the background action
+export const startGeneration = mutation({
+  args: {
+    prompt: v.string(),
+    mode: v.union(v.literal("text-to-image"), v.literal("image-editing")),
+    aspectRatio: v.string(),
+    imageSize: v.string(),
+    artStyle: v.optional(v.string()),
+    apiKey: v.optional(v.string()),
+    // Reference image storage IDs for image-editing mode
+    referenceImageIds: v.optional(v.array(v.id("_storage"))),
+  },
+  handler: async (ctx, args) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) {
+      throw new Error("Must be authenticated to start generation");
+    }
+
+    // Create a pending generation record
+    const generationId = await ctx.db.insert("generations", {
+      userId: user._id,
+      prompt: args.prompt,
+      mode: args.mode,
+      aspectRatio: args.aspectRatio,
+      imageSize: args.imageSize,
+      artStyle: args.artStyle,
+      createdAt: Date.now(),
+      status: "pending",
+      referenceImageIds: args.referenceImageIds,
+    });
+
+    // Get URLs for reference images if in image-editing mode
+    let referenceImageUrls: string[] | undefined;
+    if (args.mode === "image-editing" && args.referenceImageIds && args.referenceImageIds.length > 0) {
+      referenceImageUrls = [];
+      for (const storageId of args.referenceImageIds) {
+        const url = await ctx.storage.getUrl(storageId);
+        if (url) {
+          referenceImageUrls.push(url);
+        }
+      }
+    }
+
+    // Schedule the background action to run immediately
+    await ctx.scheduler.runAfter(0, internal.imageGeneration.generateImageBackground, {
+      generationId,
+      prompt: args.prompt,
+      mode: args.mode,
+      aspectRatio: args.aspectRatio,
+      imageSize: args.imageSize,
+      artStyle: args.artStyle,
+      apiKey: args.apiKey,
+      referenceImageUrls,
+    });
+
+    return generationId;
+  },
+});
+
+// Internal mutation to update generation status
+export const updateGenerationStatus = internalMutation({
+  args: {
+    generationId: v.id("generations"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("generating"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.generationId, {
+      status: args.status,
+    });
+  },
+});
+
+// Internal mutation to complete a generation with image data
+export const completeGeneration = internalMutation({
+  args: {
+    generationId: v.id("generations"),
+    imageStorageId: v.id("_storage"),
+    thumbnailStorageId: v.id("_storage"),
+    estimatedCost: v.number(),
+    model: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.generationId, {
+      status: "completed",
+      imageStorageId: args.imageStorageId,
+      thumbnailStorageId: args.thumbnailStorageId,
+      estimatedCost: args.estimatedCost,
+      model: args.model,
+    });
+  },
+});
+
+// Internal mutation to mark a generation as failed
+export const failGeneration = internalMutation({
+  args: {
+    generationId: v.id("generations"),
+    errorMessage: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.generationId, {
+      status: "failed",
+      errorMessage: args.errorMessage,
+    });
+  },
+});
+
 // Save a new generation for the current user (with storage IDs)
+// This is kept for backward compatibility but new code should use startGeneration
 export const saveGeneration = mutation({
   args: {
     prompt: v.string(),
@@ -64,6 +181,7 @@ export const saveGeneration = mutation({
       createdAt: Date.now(),
       estimatedCost,
       model: args.model ?? "gemini-3-pro-image-preview",
+      status: "completed", // Legacy saves are already completed
     });
 
     return generationId;
@@ -89,15 +207,26 @@ export const getMyGenerations = query({
       .order("desc")
       .take(limit);
 
-    // Get URLs for each generation's images
+    // Get URLs for each generation's images (if they exist)
     const generationsWithUrls = await Promise.all(
       generations.map(async (gen) => {
-        const imageUrl = await ctx.storage.getUrl(gen.imageStorageId);
-        const thumbnailUrl = await ctx.storage.getUrl(gen.thumbnailStorageId);
+        // Only get URLs if the storage IDs exist (completed generations)
+        let imageUrl: string | null = null;
+        let thumbnailUrl: string | null = null;
+        
+        if (gen.imageStorageId) {
+          imageUrl = await ctx.storage.getUrl(gen.imageStorageId);
+        }
+        if (gen.thumbnailStorageId) {
+          thumbnailUrl = await ctx.storage.getUrl(gen.thumbnailStorageId);
+        }
+        
         return {
           ...gen,
           imageUrl,
           thumbnailUrl,
+          // Ensure status exists for backward compatibility
+          status: gen.status ?? "completed",
         };
       })
     );
@@ -126,9 +255,23 @@ export const deleteGeneration = mutation({
       throw new Error("Cannot delete another user's generation");
     }
 
-    // Delete the files from storage
-    await ctx.storage.delete(generation.imageStorageId);
-    await ctx.storage.delete(generation.thumbnailStorageId);
+    // Delete the files from storage (if they exist)
+    if (generation.imageStorageId) {
+      await ctx.storage.delete(generation.imageStorageId);
+    }
+    if (generation.thumbnailStorageId) {
+      await ctx.storage.delete(generation.thumbnailStorageId);
+    }
+    // Delete reference images if they exist
+    if (generation.referenceImageIds) {
+      for (const refId of generation.referenceImageIds) {
+        try {
+          await ctx.storage.delete(refId);
+        } catch (e) {
+          // Ignore errors deleting reference images (they might be shared)
+        }
+      }
+    }
 
     // Delete the database record
     await ctx.db.delete(args.generationId);
@@ -161,15 +304,16 @@ export const getUsageStats = query({
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
 
-    // Query only this month's generations using the compound index
+    // Query only this month's completed generations using the compound index
     const thisMonthGenerations = await ctx.db
       .query("generations")
       .withIndex("by_user_created", (q) => 
         q.eq("userId", user._id).gte("createdAt", thisMonthStart)
       )
+      .filter((q) => q.eq(q.field("status"), "completed"))
       .collect();
 
-    // Query only last month's generations using the compound index
+    // Query only last month's completed generations using the compound index
     const lastMonthGenerations = await ctx.db
       .query("generations")
       .withIndex("by_user_created", (q) => 
@@ -177,15 +321,17 @@ export const getUsageStats = query({
           .gte("createdAt", lastMonthStart)
           .lt("createdAt", thisMonthStart)
       )
+      .filter((q) => q.eq(q.field("status"), "completed"))
       .collect();
 
-    // Query older generations (before last month) for totals
+    // Query older completed generations (before last month) for totals
     // This is still needed for total count and cost, but we minimize data processed
     const olderGenerations = await ctx.db
       .query("generations")
       .withIndex("by_user_created", (q) => 
         q.eq("userId", user._id).lt("createdAt", lastMonthStart)
       )
+      .filter((q) => q.eq(q.field("status"), "completed"))
       .collect();
 
     // Calculate this month stats
@@ -267,7 +413,12 @@ export const getDailyUsage = query({
     const generations = await ctx.db
       .query("generations")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .filter((q) => q.gte(q.field("createdAt"), startTime))
+      .filter((q) => 
+        q.and(
+          q.gte(q.field("createdAt"), startTime),
+          q.eq(q.field("status"), "completed")
+        )
+      )
       .collect();
 
     // Group by date
@@ -325,7 +476,12 @@ export const getUsageTrends = query({
     const generations = await ctx.db
       .query("generations")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .filter((q) => q.gte(q.field("createdAt"), twoMonthsAgoStart))
+      .filter((q) => 
+        q.and(
+          q.gte(q.field("createdAt"), twoMonthsAgoStart),
+          q.eq(q.field("status"), "completed")
+        )
+      )
       .collect();
 
     let thisMonthCount = 0;
@@ -360,7 +516,7 @@ export const getUsageTrends = query({
   },
 });
 
-// Backfill costs for existing generations that don't have cost data
+// Backfill costs and status for existing generations that don't have the data
 export const backfillCosts = mutation({
   args: {},
   handler: async (ctx) => {
@@ -372,17 +528,31 @@ export const backfillCosts = mutation({
     const generations = await ctx.db
       .query("generations")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .filter((q) => q.eq(q.field("estimatedCost"), undefined))
       .collect();
 
     let updated = 0;
     for (const gen of generations) {
-      const estimatedCost = calculateCost(gen.imageSize, gen.mode);
-      await ctx.db.patch(gen._id, {
-        estimatedCost,
-        model: gen.model ?? "gemini-3-pro-image-preview",
-      });
-      updated++;
+      const updates: Record<string, any> = {};
+      
+      // Backfill cost if missing
+      if (gen.estimatedCost === undefined) {
+        updates.estimatedCost = calculateCost(gen.imageSize, gen.mode);
+      }
+      
+      // Backfill model if missing
+      if (!gen.model) {
+        updates.model = "gemini-3-pro-image-preview";
+      }
+      
+      // Backfill status if missing (legacy records are completed)
+      if (!gen.status) {
+        updates.status = "completed";
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        await ctx.db.patch(gen._id, updates);
+        updated++;
+      }
     }
 
     return { success: true, updated };

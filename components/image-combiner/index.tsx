@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useMutation } from "convex/react"
 import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 import type { ImageCombinerProps } from "./types"
 import { useToast } from "./hooks/use-toast"
 import { useImageUpload, type ImageSlot } from "./hooks/use-image-upload"
@@ -34,13 +35,14 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
   const [aspectRatio, setAspectRatio] = useState<string>("square")
   const [imageSize, setImageSize] = useState<string>("2K")
   const [selectedArtStyle, setSelectedArtStyle] = useState<string>("")
+  const [activeGenerationId, setActiveGenerationId] = useState<Id<"generations"> | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const { toast, showToast } = useToast()
   
-  // Convex mutations for saving generations
+  // Convex mutations for background generation
   const generateUploadUrl = useMutation(api.generations.generateUploadUrl)
-  const saveGeneration = useMutation(api.generations.saveGeneration)
+  const startGenerationMutation = useMutation(api.generations.startGeneration)
   
   // Gallery mutations
   const galleryGenerateUploadUrl = useMutation(api.gallery.generateUploadUrl)
@@ -48,12 +50,29 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
   
   // For resolving @mentions - we need gallery images
   const galleryImages = useQuery(api.gallery.getMyImages, { limit: 100 })
+  
+  // Query to watch for generation completion (real-time updates)
+  const generations = useQuery(api.generations.getMyGenerations, { limit: 5 })
+  
+  // Find the active generation from the list
+  const activeGeneration = useMemo(() => {
+    if (!activeGenerationId || !generations) return null
+    return generations.find(g => g._id === activeGenerationId) || null
+  }, [activeGenerationId, generations])
 
   const imageUpload = useImageUpload({
     onError: (message) => showToast(message, "error"),
   })
 
   const currentMode = imageUpload.hasImages ? "image-editing" : "text-to-image"
+
+  // Callback to get generation status (for polling)
+  const getGeneration = useMemo(() => {
+    return (genId: Id<"generations">) => {
+      if (!generations) return null
+      return generations.find(g => g._id === genId) || null
+    }
+  }, [generations])
 
   const imageGeneration = useImageGeneration({
     apiKey,
@@ -73,10 +92,15 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     selectedArtStyle,
     onError: (message) => showToast(message, "error"),
     generateUploadUrl,
-    onSaveGeneration: async (params) => {
-      await saveGeneration(params)
+    startGeneration: async (params) => {
+      const genId = await startGenerationMutation(params)
+      setActiveGenerationId(genId)
+      return genId
     },
-    onSaveError: (message) => showToast(message, "warning"),
+    getGeneration,
+    onGenerationStarted: () => {
+      showToast("Generation started - you can safely navigate away", "success")
+    },
   })
 
   // Image actions hook
@@ -135,6 +159,24 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     getFirstAvailableSlot: imageUpload.getFirstAvailableSlot,
     onError: (message) => showToast(message, "error"),
   })
+
+  // Watch for active generation completion via real-time subscription
+  useEffect(() => {
+    if (!activeGeneration || !activeGenerationId) return
+    
+    if (activeGeneration.status === "completed" && activeGeneration.imageUrl) {
+      // Generation completed - update the UI
+      imageGeneration.setGeneratedImage({
+        url: activeGeneration.imageUrl,
+        prompt: activeGeneration.prompt,
+      })
+      setActiveGenerationId(null)
+    } else if (activeGeneration.status === "failed") {
+      // Generation failed
+      showToast(`Generation failed: ${activeGeneration.errorMessage || "Unknown error"}`, "error")
+      setActiveGenerationId(null)
+    }
+  }, [activeGeneration, activeGenerationId])
 
   // Handle pending input image from history
   useEffect(() => {

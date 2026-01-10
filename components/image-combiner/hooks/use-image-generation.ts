@@ -1,99 +1,9 @@
-import { useState } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import type { GeneratedImage } from "../types"
 import type { Id } from "@/convex/_generated/dataModel"
 
-interface SaveGenerationParams {
-  prompt: string
-  imageStorageId: Id<"_storage">
-  thumbnailStorageId: Id<"_storage">
-  mode: "text-to-image" | "image-editing"
-  aspectRatio: string
-  imageSize: string
-  artStyle?: string
-}
-
-/**
- * Convert data URL to Blob
- * @param dataUrl - The data URL to convert
- * @returns The blob
- */
-const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
-  const response = await fetch(dataUrl)
-  return await response.blob()
-}
-
-/**
- * Generate compressed thumbnail from image URL/data and return as Blob
- * @param src - The image URL/data
- * @param size - The size of the thumbnail
- * @returns The thumbnail blob
- */
-const generateThumbnailBlob = async (src: string, size = 250): Promise<Blob> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.crossOrigin = "anonymous"
-    
-    img.onload = () => {
-      const canvas = document.createElement("canvas")
-      const ctx = canvas.getContext("2d")
-      
-      if (!ctx) {
-        reject(new Error("Could not get canvas context"))
-        return
-      }
-      
-      // Calculate dimensions to maintain aspect ratio
-      let width = size
-      let height = size
-      
-      if (img.width > img.height) {
-        height = (img.height / img.width) * size
-      } else {
-        width = (img.width / img.height) * size
-      }
-      
-      canvas.width = size
-      canvas.height = size
-      
-      // Center the image
-      const x = (size - width) / 2
-      const y = (size - height) / 2
-      
-      // Fill with white background
-      ctx.fillStyle = "#f5f5f5"
-      ctx.fillRect(0, 0, size, size)
-      
-      ctx.imageSmoothingEnabled = true
-      ctx.imageSmoothingQuality = "medium"
-      
-      ctx.drawImage(img, x, y, width, height)
-      
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            resolve(blob)
-          } else {
-            reject(new Error("Could not create blob"))
-          }
-        },
-        "image/jpeg",
-        0.7
-      )
-    }
-    
-    img.onerror = () => {
-      reject(new Error("Could not load image"))
-    }
-    
-    img.src = src
-  })
-}
-
 /**
  * Upload blob to Convex storage
- * @param blob - The blob to upload
- * @param generateUploadUrl - The function to generate a upload URL for the image
- * @returns The storage ID
  */
 const uploadToStorage = async (
   blob: Blob,
@@ -107,6 +17,31 @@ const uploadToStorage = async (
   })
   const { storageId } = await response.json()
   return storageId
+}
+
+/**
+ * Convert File to Blob for upload
+ */
+const fileToBlob = async (file: File): Promise<Blob> => {
+  return new Blob([await file.arrayBuffer()], { type: file.type })
+}
+
+interface StartGenerationParams {
+  prompt: string
+  mode: "text-to-image" | "image-editing"
+  aspectRatio: string
+  imageSize: string
+  artStyle?: string
+  apiKey?: string
+  referenceImageIds?: Id<"_storage">[]
+}
+
+interface GenerationRecord {
+  _id: Id<"generations">
+  status: "pending" | "generating" | "completed" | "failed"
+  imageUrl?: string | null
+  thumbnailUrl?: string | null
+  errorMessage?: string
 }
 
 interface UseImageGenerationOptions {
@@ -127,14 +62,14 @@ interface UseImageGenerationOptions {
   selectedArtStyle: string
   onError?: (message: string) => void
   generateUploadUrl: () => Promise<string>
-  onSaveGeneration?: (params: SaveGenerationParams) => Promise<void>
-  onSaveError?: (message: string) => void
+  startGeneration: (params: StartGenerationParams) => Promise<Id<"generations">>
+  getGeneration?: (generationId: Id<"generations">) => GenerationRecord | null | undefined
+  onGenerationStarted?: () => void
 }
 
 /**
- * Hook for generating images
- * @param options - The options for the hook
- * @returns The generated image
+ * Hook for generating images using background Convex actions
+ * Generation continues server-side even if the user navigates away
  */
 export const useImageGeneration = (options: UseImageGenerationOptions) => {
   const [generatedImage, setGeneratedImage] = useState<GeneratedImage | null>(null)
@@ -143,13 +78,78 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [showAnimation, setShowAnimation] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [generationId, setGenerationId] = useState<Id<"generations"> | null>(null)
+  
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+      }
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+      }
+    }
+  }, [])
+
+  // Poll for generation completion when we have a generationId
+  const pollForCompletion = useCallback(async (genId: Id<"generations">) => {
+    if (!options.getGeneration) return
+    
+    pollingIntervalRef.current = setInterval(() => {
+      const generation = options.getGeneration!(genId)
+      
+      if (!generation) return
+      
+      if (generation.status === "completed" && generation.imageUrl) {
+        // Generation completed successfully
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current)
+        }
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current)
+        }
+        
+        setProgress(100)
+        setGeneratedImage({
+          url: generation.imageUrl,
+          prompt: options.prompt,
+        })
+        setImageLoaded(true)
+        setIsLoading(false)
+        setShowAnimation(false)
+        setIsSaving(false)
+        setProgress(0)
+        setGenerationId(null)
+      } else if (generation.status === "failed") {
+        // Generation failed
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current)
+        }
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current)
+        }
+        
+        setProgress(0)
+        setShowAnimation(false)
+        setIsLoading(false)
+        setIsSaving(false)
+        setGenerationId(null)
+        options.onError?.(`Generation failed: ${generation.errorMessage || "Unknown error"}`)
+      }
+    }, 1000) // Poll every second
+  }, [options])
 
   const generateImage = async () => {
     const { 
       currentMode, useUrls, 
       image1, image1Url, image2, image2Url, 
       image3, image3Url, image4, image4Url,
-      prompt, aspectRatio, imageSize, selectedArtStyle, apiKey, onError, generateUploadUrl 
+      prompt, aspectRatio, imageSize, selectedArtStyle, apiKey, 
+      onError, generateUploadUrl, startGeneration 
     } = options
 
     if (currentMode === "image-editing" && !useUrls && !image1) return
@@ -161,8 +161,10 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
     setImageLoaded(false)
     setProgress(0)
     setShowAnimation(true)
+    setIsSaving(true)
 
-    const progressInterval = setInterval(() => {
+    // Start progress animation
+    progressIntervalRef.current = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 96) {
           return Math.min(prev + 0.1, 98)
@@ -181,120 +183,96 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
     }, 100)
 
     try {
-      // Append art style to prompt if selected
-      let finalPrompt = prompt
-      if (selectedArtStyle) {
-        const styleText = selectedArtStyle.toLowerCase().includes("style")
-          ? selectedArtStyle
-          : `${selectedArtStyle} style`
-        finalPrompt = `${prompt}, in ${styleText}`
-      }
-
-      const formData = new FormData()
-      formData.append("mode", currentMode)
-      formData.append("prompt", finalPrompt)
-      formData.append("aspectRatio", aspectRatio)
-      formData.append("imageSize", imageSize)
-      if (apiKey) {
-        formData.append("apiKey", apiKey)
-      }
-
+      // Upload reference images first if in image-editing mode
+      let referenceImageIds: Id<"_storage">[] | undefined
+      
       if (currentMode === "image-editing") {
+        referenceImageIds = []
+        
+        // Collect all images that need to be uploaded
+        const imagesToUpload: { file?: File; url?: string }[] = []
+        
         if (useUrls) {
-          formData.append("image1Url", image1Url)
-          if (image2Url) {
-            formData.append("image2Url", image2Url)
-          }
-          if (image3Url) {
-            formData.append("image3Url", image3Url)
-          }
-          if (image4Url) {
-            formData.append("image4Url", image4Url)
-          }
+          if (image1Url) imagesToUpload.push({ url: image1Url })
+          if (image2Url) imagesToUpload.push({ url: image2Url })
+          if (image3Url) imagesToUpload.push({ url: image3Url })
+          if (image4Url) imagesToUpload.push({ url: image4Url })
         } else {
-          if (image1) {
-            formData.append("image1", image1)
+          if (image1) imagesToUpload.push({ file: image1 })
+          if (image2) imagesToUpload.push({ file: image2 })
+          if (image3) imagesToUpload.push({ file: image3 })
+          if (image4) imagesToUpload.push({ file: image4 })
+        }
+
+        // Upload each image to Convex storage
+        for (const img of imagesToUpload) {
+          try {
+            let blob: Blob
+            if (img.file) {
+              blob = await fileToBlob(img.file)
+            } else if (img.url) {
+              // Fetch URL and convert to blob
+              const response = await fetch(img.url)
+              blob = await response.blob()
+            } else {
+              continue
+            }
+            
+            const storageId = await uploadToStorage(blob, generateUploadUrl)
+            referenceImageIds.push(storageId)
+          } catch (uploadError) {
+            console.error("Error uploading reference image:", uploadError)
+            // Continue with other images
           }
-          if (image2) {
-            formData.append("image2", image2)
-          }
-          if (image3) {
-            formData.append("image3", image3)
-          }
-          if (image4) {
-            formData.append("image4", image4)
-          }
+        }
+
+        if (referenceImageIds.length === 0) {
+          throw new Error("Failed to upload reference images")
         }
       }
 
-      const response = await fetch("/api/generate-image", {
-        method: "POST",
-        body: formData,
+      // Start the background generation
+      const genId = await startGeneration({
+        prompt,
+        mode: currentMode,
+        aspectRatio,
+        imageSize,
+        artStyle: selectedArtStyle || undefined,
+        apiKey: apiKey || undefined,
+        referenceImageIds,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
-        throw new Error(`${errorData.error}${errorData.details ? `: ${errorData.details}` : ""}`)
-      }
+      setGenerationId(genId)
+      options.onGenerationStarted?.()
 
-      const data = await response.json()
-      clearInterval(progressInterval)
-
-      setProgress(100)
-      
-      // Set the generated image immediately and stop loading
-      setGeneratedImage(data)
-      setImageLoaded(true)
-      setIsLoading(false)
-      setShowAnimation(false)
-      setProgress(0)
-
-      // Save generation to Convex storage - properly track the async operation
-      if (options.onSaveGeneration) {
-        setIsSaving(true)
-        
-        try {
-          // Convert image data URL to blob
-          const imageBlob = await dataUrlToBlob(data.url)
-          
-          // Generate thumbnail blob
-          const thumbnailBlob = await generateThumbnailBlob(data.url, 250)
-          
-          // Upload both to Convex storage
-          const [imageStorageId, thumbnailStorageId] = await Promise.all([
-            uploadToStorage(imageBlob, generateUploadUrl),
-            uploadToStorage(thumbnailBlob, generateUploadUrl),
-          ])
-          
-          // Save the generation with storage IDs
-          await options.onSaveGeneration!({
-            prompt: finalPrompt,
-            imageStorageId,
-            thumbnailStorageId,
-            mode: currentMode,
-            aspectRatio,
-            imageSize,
-            artStyle: selectedArtStyle || undefined,
-          })
-          
-          setIsSaving(false)
-        } catch (saveError) {
-          console.error("Error saving generation to storage:", saveError)
-          setIsSaving(false)
-          options.onSaveError?.(
-            "Failed to save to history. Please download the image manually."
-          )
+      // Start polling for completion if getGeneration is provided
+      if (options.getGeneration) {
+        pollForCompletion(genId)
+      } else {
+        // If no getGeneration callback, just show success message and stop
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current)
         }
+        setProgress(100)
+        setTimeout(() => {
+          setIsLoading(false)
+          setShowAnimation(false)
+          setIsSaving(false)
+          setProgress(0)
+        }, 1000)
       }
     } catch (error) {
-      clearInterval(progressInterval)
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+      }
       setProgress(0)
       setShowAnimation(false)
-      console.error("Error generating image:", error)
+      setIsLoading(false)
+      setIsSaving(false)
+      console.error("Error starting generation:", error)
 
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
-      onError?.(`Error generating image: ${errorMessage}`)
-      setIsLoading(false)
+      onError?.(`Error starting generation: ${errorMessage}`)
     }
   }
 
@@ -305,6 +283,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
     imageLoaded,
     showAnimation,
     isSaving,
+    generationId,
     generateImage,
     setGeneratedImage,
   }

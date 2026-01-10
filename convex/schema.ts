@@ -5,8 +5,8 @@ export default defineSchema({
   generations: defineTable({
     userId: v.string(),
     prompt: v.string(),
-    imageStorageId: v.id("_storage"), // Full image in Convex storage
-    thumbnailStorageId: v.id("_storage"), // Thumbnail in Convex storage
+    imageStorageId: v.optional(v.id("_storage")), // Full image in Convex storage (optional until completed)
+    thumbnailStorageId: v.optional(v.id("_storage")), // Thumbnail in Convex storage (optional until completed)
     mode: v.union(v.literal("text-to-image"), v.literal("image-editing")),
     aspectRatio: v.string(),
     imageSize: v.string(),
@@ -15,9 +15,20 @@ export default defineSchema({
     // Analytics fields (added for dashboard)
     estimatedCost: v.optional(v.number()), // Cost in USD
     model: v.optional(v.string()), // Model name used for generation
+    // Background generation status (optional for backward compatibility with existing records)
+    status: v.optional(v.union(
+      v.literal("pending"),
+      v.literal("generating"),
+      v.literal("completed"),
+      v.literal("failed")
+    )),
+    errorMessage: v.optional(v.string()), // Error message if generation failed
+    // Reference images for image-editing mode (stored as base64 data URLs or storage IDs)
+    referenceImageIds: v.optional(v.array(v.id("_storage"))),
   })
     .index("by_user", ["userId"])
-    .index("by_user_created", ["userId", "createdAt"]),
+    .index("by_user_created", ["userId", "createdAt"])
+    .index("by_user_status", ["userId", "status"]),
 
   folders: defineTable({
     userId: v.string(),
