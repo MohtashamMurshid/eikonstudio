@@ -7,8 +7,23 @@ import { useMutation, useAction } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 import Image from "next/image"
+import type { Id } from "@/convex/_generated/dataModel"
 
-type SettingsSection = "profile" | "api-keys" | "account"
+// Predefined skills - imported from constants for display
+const predefinedSkills = [
+  { name: "technical", description: "Technical diagram style" },
+  { name: "infographic", description: "Infographic visualization" },
+  { name: "anime", description: "Japanese anime style" },
+  { name: "portrait", description: "Professional portrait" },
+  { name: "cinematic", description: "Movie-like composition" },
+  { name: "minimal", description: "Clean minimalist design" },
+  { name: "watercolor", description: "Watercolor painting style" },
+  { name: "3d", description: "3D rendered look" },
+  { name: "pixel", description: "Pixel art style" },
+  { name: "sketch", description: "Hand-drawn sketch" },
+]
+
+type SettingsSection = "profile" | "api-keys" | "skills" | "account"
 
 const navigationItems = [
   {
@@ -28,6 +43,16 @@ const navigationItems = [
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+      </svg>
+    ),
+  },
+  {
+    id: "skills" as const,
+    label: "Skills",
+    description: "Manage prompt modifiers",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
       </svg>
     ),
   },
@@ -67,6 +92,21 @@ export default function SettingsPage() {
   const saveApiKeyMutation = useMutation(api.apiKeys.saveApiKey)
   const deleteApiKeyMutation = useMutation(api.apiKeys.deleteApiKey)
   const testApiKeyAction = useAction(api.apiKeys.testApiKey)
+
+  // Skills management
+  const customSkills = useQuery(api.skills.getMySkills, {})
+  const createSkillMutation = useMutation(api.skills.createSkill)
+  const updateSkillMutation = useMutation(api.skills.updateSkill)
+  const deleteSkillMutation = useMutation(api.skills.deleteSkill)
+  
+  const [newSkillName, setNewSkillName] = useState("")
+  const [newSkillDescription, setNewSkillDescription] = useState("")
+  const [newSkillPrompt, setNewSkillPrompt] = useState("")
+  const [isCreatingSkill, setIsCreatingSkill] = useState(false)
+  const [skillError, setSkillError] = useState<string | null>(null)
+  const [skillSuccess, setSkillSuccess] = useState<string | null>(null)
+  const [editingSkill, setEditingSkill] = useState<{ id: Id<"skills">; name: string; description: string; promptText: string } | null>(null)
+  const [deletingSkillId, setDeletingSkillId] = useState<Id<"skills"> | null>(null)
 
   // Initialize pending key from stored key
   useEffect(() => {
@@ -151,6 +191,72 @@ export default function SettingsPage() {
 
   const hasStoredKey = !!storedApiKey?.apiKey
   const hasChanges = pendingApiKey !== (storedApiKey?.apiKey || "")
+
+  // Skill handlers
+  const handleCreateSkill = async () => {
+    if (!newSkillName.trim() || !newSkillDescription.trim() || !newSkillPrompt.trim()) {
+      setSkillError("All fields are required")
+      return
+    }
+
+    setIsCreatingSkill(true)
+    setSkillError(null)
+    setSkillSuccess(null)
+
+    try {
+      await createSkillMutation({
+        name: newSkillName,
+        description: newSkillDescription,
+        promptText: newSkillPrompt,
+      })
+      setNewSkillName("")
+      setNewSkillDescription("")
+      setNewSkillPrompt("")
+      setSkillSuccess("Skill created successfully!")
+      setTimeout(() => setSkillSuccess(null), 3000)
+    } catch (error) {
+      setSkillError(error instanceof Error ? error.message : "Failed to create skill")
+    } finally {
+      setIsCreatingSkill(false)
+    }
+  }
+
+  const handleUpdateSkill = async () => {
+    if (!editingSkill) return
+
+    setSkillError(null)
+    setSkillSuccess(null)
+
+    try {
+      await updateSkillMutation({
+        skillId: editingSkill.id,
+        name: editingSkill.name,
+        description: editingSkill.description,
+        promptText: editingSkill.promptText,
+      })
+      setEditingSkill(null)
+      setSkillSuccess("Skill updated successfully!")
+      setTimeout(() => setSkillSuccess(null), 3000)
+    } catch (error) {
+      setSkillError(error instanceof Error ? error.message : "Failed to update skill")
+    }
+  }
+
+  const handleDeleteSkill = async (skillId: Id<"skills">) => {
+    setDeletingSkillId(skillId)
+    setSkillError(null)
+    setSkillSuccess(null)
+
+    try {
+      await deleteSkillMutation({ skillId })
+      setSkillSuccess("Skill deleted successfully!")
+      setTimeout(() => setSkillSuccess(null), 3000)
+    } catch (error) {
+      setSkillError(error instanceof Error ? error.message : "Failed to delete skill")
+    } finally {
+      setDeletingSkillId(null)
+    }
+  }
 
   return (
     <div className="min-h-full p-2 md:p-3 lg:p-4">
@@ -462,6 +568,234 @@ export default function SettingsPage() {
                   <p className="text-[10px] text-foreground/50 pt-2 border-t border-border">
                     Your API key is encrypted using AES encryption before being stored. We never have access to your plaintext key.
                   </p>
+                </div>
+              )}
+
+              {/* Skills Section */}
+              {activeSection === "skills" && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-base font-semibold text-foreground">Skills</h2>
+                    <p className="text-xs text-foreground/60 mt-0.5">Manage prompt modifiers for image generation</p>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2.5">
+                    <div className="flex gap-2">
+                      <div className="w-6 h-6 rounded-md bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-xs text-indigo-800 font-semibold">Slash Commands</p>
+                        <p className="text-[10px] text-indigo-700 leading-relaxed mt-0.5">
+                          Type <code className="bg-indigo-100 px-1 rounded">/skillname</code> in your prompt to apply a skill. Skills append additional prompt text to enhance your generations.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Success/Error Messages */}
+                  {skillSuccess && (
+                    <div className="rounded-lg p-2.5 bg-emerald-50 border border-emerald-200">
+                      <div className="flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-xs font-medium text-emerald-700">{skillSuccess}</span>
+                      </div>
+                    </div>
+                  )}
+                  {skillError && (
+                    <div className="rounded-lg p-2.5 bg-red-50 border border-red-200">
+                      <div className="flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                        </svg>
+                        <span className="text-xs font-medium text-red-700">{skillError}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Create Custom Skill */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-foreground">Create Custom Skill</h3>
+                    <div className="p-3 bg-gray-50 rounded-lg border border-border space-y-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <label className="block text-xs font-medium text-foreground/70">Skill Name</label>
+                          <input
+                            type="text"
+                            value={newSkillName}
+                            onChange={(e) => setNewSkillName(e.target.value)}
+                            placeholder="e.g., mylogo"
+                            className="w-full px-2.5 py-2 bg-white border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs"
+                          />
+                          <p className="text-[10px] text-foreground/50">Lowercase, no spaces</p>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-xs font-medium text-foreground/70">Description</label>
+                          <input
+                            type="text"
+                            value={newSkillDescription}
+                            onChange={(e) => setNewSkillDescription(e.target.value)}
+                            placeholder="e.g., My brand logo style"
+                            className="w-full px-2.5 py-2 bg-white border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-xs font-medium text-foreground/70">Prompt Text</label>
+                        <textarea
+                          value={newSkillPrompt}
+                          onChange={(e) => setNewSkillPrompt(e.target.value)}
+                          placeholder="e.g., modern minimalist logo, clean vector style, professional branding..."
+                          rows={3}
+                          className="w-full px-2.5 py-2 bg-white border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs resize-none"
+                        />
+                        <p className="text-[10px] text-foreground/50">This text will be appended to your prompt when using this skill</p>
+                      </div>
+                      <button
+                        onClick={handleCreateSkill}
+                        disabled={isCreatingSkill || !newSkillName.trim() || !newSkillDescription.trim() || !newSkillPrompt.trim()}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isCreatingSkill ? (
+                          <>
+                            <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            Create Skill
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Custom Skills List */}
+                  {customSkills && customSkills.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-foreground">Your Custom Skills</h3>
+                      <div className="space-y-2">
+                        {customSkills.map((skill) => (
+                          <div key={skill._id} className="p-2.5 bg-violet-50 rounded-lg border border-violet-200">
+                            {editingSkill?.id === skill._id ? (
+                              <div className="space-y-2">
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  <input
+                                    type="text"
+                                    value={editingSkill.name}
+                                    onChange={(e) => setEditingSkill({ ...editingSkill, name: e.target.value })}
+                                    className="px-2 py-1.5 bg-white border border-border text-foreground rounded text-xs"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={editingSkill.description}
+                                    onChange={(e) => setEditingSkill({ ...editingSkill, description: e.target.value })}
+                                    className="px-2 py-1.5 bg-white border border-border text-foreground rounded text-xs"
+                                  />
+                                </div>
+                                <textarea
+                                  value={editingSkill.promptText}
+                                  onChange={(e) => setEditingSkill({ ...editingSkill, promptText: e.target.value })}
+                                  rows={2}
+                                  className="w-full px-2 py-1.5 bg-white border border-border text-foreground rounded text-xs resize-none"
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={handleUpdateSkill}
+                                    className="px-2 py-1 bg-violet-500 hover:bg-violet-600 text-white rounded text-xs font-medium"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingSkill(null)}
+                                    className="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-foreground rounded text-xs font-medium"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-start gap-2">
+                                <div className="w-6 h-6 rounded bg-violet-100 flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-3.5 h-3.5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                                  </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-violet-700">/{skill.name}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-violet-100 text-violet-600 rounded">custom</span>
+                                  </div>
+                                  <p className="text-[10px] text-foreground/60 mt-0.5">{skill.description}</p>
+                                  <p className="text-[10px] text-foreground/40 mt-1 line-clamp-2">{skill.promptText}</p>
+                                </div>
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => setEditingSkill({ id: skill._id, name: skill.name, description: skill.description, promptText: skill.promptText })}
+                                    className="p-1 text-foreground/50 hover:text-foreground transition-colors"
+                                    title="Edit"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteSkill(skill._id)}
+                                    disabled={deletingSkillId === skill._id}
+                                    className="p-1 text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                                    title="Delete"
+                                  >
+                                    {deletingSkillId === skill._id ? (
+                                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Predefined Skills Reference */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-foreground">Built-in Skills</h3>
+                    <p className="text-[10px] text-foreground/50">These skills are available by default and cannot be modified.</p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {predefinedSkills.map((skill) => (
+                        <div key={skill.name} className="p-2 bg-gray-50 rounded-lg border border-border">
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                              <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-xs font-medium text-indigo-600">/{skill.name}</span>
+                              <p className="text-[10px] text-foreground/50 truncate">{skill.description}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 

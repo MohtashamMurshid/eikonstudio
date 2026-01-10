@@ -60,6 +60,17 @@ export default defineSchema({
   })
     .index("by_user", ["userId"]),
 
+  // User custom skills for /skillname slash commands
+  skills: defineTable({
+    userId: v.string(),
+    name: v.string(), // Skill name (lowercase, no spaces)
+    description: v.string(), // Short description
+    promptText: v.string(), // The prompt text to append
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_name", ["userId", "name"]),
+
   // Video generations
   videoGenerations: defineTable({
     userId: v.string(),

@@ -88,6 +88,7 @@ export const startGeneration = mutation({
       artStyle: args.artStyle,
       apiKey: args.apiKey,
       referenceImageUrls,
+      userId: user._id, // Pass userId for looking up custom skills
     });
 
     return generationId;

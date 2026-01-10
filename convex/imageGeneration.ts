@@ -37,6 +37,30 @@ function getAspectRatioString(ratio: string): string {
   }
 }
 
+// Predefined skills - must match the client-side constants for consistency
+// These are checked first before querying user's custom skills
+const PREDEFINED_SKILLS: Record<string, string> = {
+  technical: "technical diagram, precise line work, labeled components, engineering schematic style, clean white background, professional technical illustration, blueprint aesthetic, detailed annotations, isometric or orthographic projection",
+  infographic: "infographic design, data visualization, clean modern layout, bold typography, icon-based illustrations, color-coded sections, statistical charts, visual hierarchy, professional presentation style, flat design elements",
+  anime: "anime art style, vibrant colors, detailed line work, expressive eyes, dynamic poses, cel shading, Japanese animation aesthetic, clean outlines, dramatic lighting",
+  portrait: "professional portrait photography, soft studio lighting, shallow depth of field, catchlights in eyes, neutral background, high-end fashion photography style, sharp focus on subject",
+  cinematic: "cinematic composition, dramatic lighting, anamorphic lens flare, film grain, movie still quality, 35mm film aesthetic, wide aspect ratio, depth and atmosphere",
+  minimal: "minimalist design, clean lines, simple composition, negative space, limited color palette, geometric shapes, modern aesthetic, uncluttered layout",
+  watercolor: "watercolor painting, soft edges, wet-on-wet technique, transparent washes, paper texture visible, organic color blending, artistic imperfections, traditional media aesthetic",
+  "3d": "3D render, octane render quality, volumetric lighting, subsurface scattering, high polygon count, realistic materials, studio lighting setup, professional 3D visualization",
+  pixel: "pixel art, 16-bit style, limited color palette, crisp edges, retro gaming aesthetic, dithering techniques, nostalgic video game art, sprite-like quality",
+  sketch: "pencil sketch, hand-drawn illustration, crosshatching, graphite texture, artistic linework, rough edges, traditional drawing style, sketchbook aesthetic",
+};
+
+/**
+ * Parse /skillnames from a prompt and return the skill names
+ */
+function parseSkillsFromPrompt(prompt: string): string[] {
+  const skillPattern = /\/([a-zA-Z0-9-]+)/g;
+  const matches = [...prompt.matchAll(skillPattern)];
+  return matches.map((m) => m[1].toLowerCase());
+}
+
 /**
  * Generate a thumbnail from image buffer using jimp
  */
@@ -66,6 +90,8 @@ export const generateImageBackground = internalAction({
     apiKey: v.optional(v.string()),
     // Reference image URLs for image-editing mode (from Convex storage)
     referenceImageUrls: v.optional(v.array(v.string())),
+    // User ID for looking up custom skills
+    userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const {
@@ -77,6 +103,7 @@ export const generateImageBackground = internalAction({
       artStyle,
       apiKey,
       referenceImageUrls,
+      userId,
     } = args;
 
     try {
@@ -99,13 +126,42 @@ export const generateImageBackground = internalAction({
 
       const aspectRatioString = getAspectRatioString(aspectRatio);
 
-      // Build the final prompt with art style if provided
+      // Build the final prompt
       let finalPrompt = prompt;
+
+      // Parse and append skill prompts
+      const skillNames = parseSkillsFromPrompt(prompt);
+      if (skillNames.length > 0) {
+        const skillPrompts: string[] = [];
+
+        for (const skillName of skillNames) {
+          // First check predefined skills
+          if (PREDEFINED_SKILLS[skillName]) {
+            skillPrompts.push(PREDEFINED_SKILLS[skillName]);
+          } else if (userId) {
+            // Check user's custom skills in the database
+            const customSkill = await ctx.runQuery(internal.skills.getSkillByNameInternal, {
+              userId,
+              name: skillName,
+            });
+            if (customSkill) {
+              skillPrompts.push(customSkill.promptText);
+            }
+          }
+        }
+
+        // Append all skill prompts to the final prompt
+        if (skillPrompts.length > 0) {
+          finalPrompt = `${finalPrompt}, ${skillPrompts.join(", ")}`;
+        }
+      }
+
+      // Add art style if provided
       if (artStyle) {
         const styleText = artStyle.toLowerCase().includes("style")
           ? artStyle
           : `${artStyle} style`;
-        finalPrompt = `${prompt}, in ${styleText}`;
+        finalPrompt = `${finalPrompt}, in ${styleText}`;
       }
 
       let resultBase64: string | null = null;

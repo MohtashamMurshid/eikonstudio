@@ -14,6 +14,7 @@ import { useDragDrop } from "./hooks/use-drag-drop"
 import { useImageActions } from "./hooks/use-image-actions"
 import { useGalleryOperations } from "./hooks/use-gallery-operations"
 import { useMentionHandler } from "./hooks/use-mention-handler"
+import { useSkillHandler } from "./hooks/use-skill-handler"
 import { Toast } from "./components/toast"
 import { DragOverlay } from "./components/drag-overlay"
 import { FullscreenModal } from "./components/fullscreen-modal"
@@ -130,6 +131,13 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     imageUpload,
     onError: (message) => showToast(message, "error"),
     onSuccess: (message) => showToast(message, "success"),
+    textareaRef,
+  })
+
+  // Skill handler hook
+  const skillHandler = useSkillHandler({
+    prompt,
+    setPrompt,
     textareaRef,
   })
 
@@ -260,6 +268,12 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       // The MentionAutocomplete component will handle these
       return
     }
+
+    // Let skill autocomplete handle arrow keys and enter when visible
+    if (skillHandler.showSkillDropdown && ["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) {
+      // The SkillAutocomplete component will handle these
+      return
+    }
     
     // Shift+Enter for new line (default behavior, don't prevent)
     // Enter without shift to submit
@@ -320,17 +334,27 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
               onRemove={(slot) => imageUpload.clearImage(slot)}
             />
 
-            {/* Prompt Input with Mentions */}
+            {/* Prompt Input with Mentions and Skills */}
             <PromptInputWithMentions
               prompt={prompt}
               cursorPosition={mentionHandler.cursorPosition}
               showMentionDropdown={mentionHandler.showMentionDropdown}
+              showSkillDropdown={skillHandler.showSkillDropdown}
               textareaRef={textareaRef}
-              onPromptChange={mentionHandler.handlePromptChange}
-                onKeyDown={handleKeyDown}
-              onCursorChange={mentionHandler.setCursorPosition}
+              onPromptChange={(e) => {
+                // Handle both mention and skill triggers
+                mentionHandler.handlePromptChange(e)
+                skillHandler.handlePromptChangeForSkills(e.target.value, e.target.selectionStart || 0)
+              }}
+              onKeyDown={handleKeyDown}
+              onCursorChange={(pos) => {
+                mentionHandler.setCursorPosition(pos)
+                skillHandler.setSkillCursorPosition(pos)
+              }}
               onMentionSelect={mentionHandler.handleMentionSelect}
               onCloseMentionDropdown={() => mentionHandler.setShowMentionDropdown(false)}
+              onSkillSelect={skillHandler.handleSkillSelect}
+              onCloseSkillDropdown={() => skillHandler.setShowSkillDropdown(false)}
             />
 
             {/* Controls Bar */}

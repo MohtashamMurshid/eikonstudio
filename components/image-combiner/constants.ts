@@ -114,3 +114,64 @@ export const predefinedArtStyles = [
   "Technical Blueprint",
 ]
 
+// Predefined skills for /skillname slash commands
+// These are stored client-side for instant loading
+export interface Skill {
+  name: string
+  description: string
+  promptText: string
+}
+
+export const predefinedSkills: Skill[] = [
+  {
+    name: "technical",
+    description: "Technical diagram style",
+    promptText: "technical diagram, precise line work, labeled components, engineering schematic style, clean white background, professional technical illustration, blueprint aesthetic, detailed annotations, isometric or orthographic projection",
+  },
+  {
+    name: "infographic",
+    description: "Infographic visualization",
+    promptText: "infographic design, data visualization, clean modern layout, bold typography, icon-based illustrations, color-coded sections, statistical charts, visual hierarchy, professional presentation style, flat design elements",
+  },
+  {
+    name: "anime",
+    description: "Japanese anime style",
+    promptText: "anime art style, vibrant colors, detailed line work, expressive eyes, dynamic poses, cel shading, Japanese animation aesthetic, clean outlines, dramatic lighting",
+  },
+  {
+    name: "portrait",
+    description: "Professional portrait",
+    promptText: "professional portrait photography, soft studio lighting, shallow depth of field, catchlights in eyes, neutral background, high-end fashion photography style, sharp focus on subject",
+  },
+  {
+    name: "cinematic",
+    description: "Movie-like composition",
+    promptText: "cinematic composition, dramatic lighting, anamorphic lens flare, film grain, movie still quality, 35mm film aesthetic, wide aspect ratio, depth and atmosphere",
+  },
+  {
+    name: "minimal",
+    description: "Clean minimalist design",
+    promptText: "minimalist design, clean lines, simple composition, negative space, limited color palette, geometric shapes, modern aesthetic, uncluttered layout",
+  },
+  {
+    name: "watercolor",
+    description: "Watercolor painting style",
+    promptText: "watercolor painting, soft edges, wet-on-wet technique, transparent washes, paper texture visible, organic color blending, artistic imperfections, traditional media aesthetic",
+  },
+  {
+    name: "3d",
+    description: "3D rendered look",
+    promptText: "3D render, octane render quality, volumetric lighting, subsurface scattering, high polygon count, realistic materials, studio lighting setup, professional 3D visualization",
+  },
+  {
+    name: "pixel",
+    description: "Pixel art style",
+    promptText: "pixel art, 16-bit style, limited color palette, crisp edges, retro gaming aesthetic, dithering techniques, nostalgic video game art, sprite-like quality",
+  },
+  {
+    name: "sketch",
+    description: "Hand-drawn sketch",
+    promptText: "pencil sketch, hand-drawn illustration, crosshatching, graphite texture, artistic linework, rough edges, traditional drawing style, sketchbook aesthetic",
+  },
+]
+

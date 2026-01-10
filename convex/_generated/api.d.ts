@@ -14,6 +14,7 @@ import type * as gallery from "../gallery.js";
 import type * as generations from "../generations.js";
 import type * as http from "../http.js";
 import type * as imageGeneration from "../imageGeneration.js";
+import type * as skills from "../skills.js";
 import type * as videoGenerations from "../videoGenerations.js";
 
 import type {
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   generations: typeof generations;
   http: typeof http;
   imageGeneration: typeof imageGeneration;
+  skills: typeof skills;
   videoGenerations: typeof videoGenerations;
 }>;
 
