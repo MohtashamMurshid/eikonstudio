@@ -276,6 +276,51 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
     }
   }
 
+  // Method to stop loading and show completed state
+  const handleGenerationComplete = useCallback((imageUrl: string, prompt: string) => {
+    // Clear any running intervals
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
+    }
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+    
+    setProgress(100)
+    setGeneratedImage({
+      url: imageUrl,
+      prompt: prompt,
+    })
+    setImageLoaded(true)
+    setIsLoading(false)
+    setShowAnimation(false)
+    setIsSaving(false)
+    setProgress(0)
+    setGenerationId(null)
+  }, [])
+
+  // Method to handle generation failure
+  const handleGenerationFailed = useCallback((errorMessage?: string) => {
+    // Clear any running intervals
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
+    }
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+    
+    setProgress(0)
+    setShowAnimation(false)
+    setIsLoading(false)
+    setIsSaving(false)
+    setGenerationId(null)
+    options.onError?.(`Generation failed: ${errorMessage || "Unknown error"}`)
+  }, [options])
+
   return {
     generatedImage,
     isLoading,
@@ -286,5 +331,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
     generationId,
     generateImage,
     setGeneratedImage,
+    handleGenerationComplete,
+    handleGenerationFailed,
   }
 }

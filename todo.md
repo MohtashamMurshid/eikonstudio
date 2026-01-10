@@ -1,5 +1,4 @@
-1. Skills (/infographic)
+1. Let Skills have images added too
 
 2. fix video frame to frame
 
-3. image gen should be optimistic,

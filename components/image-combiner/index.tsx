@@ -173,18 +173,15 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     if (!activeGeneration || !activeGenerationId) return
     
     if (activeGeneration.status === "completed" && activeGeneration.imageUrl) {
-      // Generation completed - update the UI
-      imageGeneration.setGeneratedImage({
-        url: activeGeneration.imageUrl,
-        prompt: activeGeneration.prompt,
-      })
+      // Generation completed - update the UI and stop loading
+      imageGeneration.handleGenerationComplete(activeGeneration.imageUrl, activeGeneration.prompt)
       setActiveGenerationId(null)
     } else if (activeGeneration.status === "failed") {
-      // Generation failed
-      showToast(`Generation failed: ${activeGeneration.errorMessage || "Unknown error"}`, "error")
+      // Generation failed - stop loading and show error
+      imageGeneration.handleGenerationFailed(activeGeneration.errorMessage)
       setActiveGenerationId(null)
     }
-  }, [activeGeneration, activeGenerationId])
+  }, [activeGeneration, activeGenerationId, imageGeneration.handleGenerationComplete, imageGeneration.handleGenerationFailed])
 
   // Handle pending input image from history
   useEffect(() => {
