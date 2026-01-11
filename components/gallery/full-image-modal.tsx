@@ -29,7 +29,7 @@ export function FullImageModal({
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-card rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-border">
@@ -74,7 +74,7 @@ export function FullImageModal({
           <div className="bg-secondary/30 rounded-xl p-4">
             <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-2">Usage</p>
             <div className="flex items-center gap-2 flex-wrap">
-              <code className="px-3 py-1.5 bg-white rounded-lg text-sm font-mono text-emerald-600 border border-border">
+              <code className="px-3 py-1.5 bg-card rounded-lg text-sm font-mono text-emerald-600 dark:text-emerald-400 border border-border">
                 @{image.folderName 
                   ? `${image.folderName}/${image.filename}` 
                   : image.filename}

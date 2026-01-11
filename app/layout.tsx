@@ -5,6 +5,7 @@ import { Suspense } from "react"
 import "./globals.css"
 import { ConvexClientProvider } from "./ConvexClientProvider"
 import { ClientProviders } from "@/components/client-providers"
+import { ThemeProvider } from "@/components/theme-provider"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -50,12 +51,19 @@ export default function RootLayout({
   // Don't block on auth token - let client-side handle authentication
   // This allows the page to render immediately while auth loads in background
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="font-mono antialiased">
-        <ConvexClientProvider initialToken={null}>
-          <Suspense fallback={null}>{children}</Suspense>
-          <ClientProviders />
-        </ConvexClientProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <ConvexClientProvider initialToken={null}>
+            <Suspense fallback={null}>{children}</Suspense>
+            <ClientProviders />
+          </ConvexClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

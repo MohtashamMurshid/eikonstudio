@@ -80,14 +80,14 @@ export function StatsCards({ userName }: StatsCardsProps) {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Images Generated */}
-        <div className="bg-white rounded-2xl border border-border p-6 hover:shadow-lg transition-shadow">
+        <div className="bg-card rounded-2xl border border-border p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">
                 Images Generated
               </p>
               {isLoading ? (
-                <div className="h-9 w-24 bg-gray-100 rounded animate-pulse" />
+                <div className="h-9 w-24 bg-secondary rounded animate-pulse" />
               ) : (
                 <p className="text-3xl font-semibold text-foreground tracking-tight">
                   {usageStats.totalGenerations.toLocaleString()}
@@ -98,7 +98,7 @@ export function StatsCards({ userName }: StatsCardsProps) {
           </div>
           <div className="mt-4 flex items-center gap-2">
             {isLoading ? (
-              <div className="h-5 w-32 bg-gray-100 rounded animate-pulse" />
+              <div className="h-5 w-32 bg-secondary rounded animate-pulse" />
             ) : (
               <>
                 <div className={`w-5 h-5 rounded-full ${usageTrends.generationsTrend >= 0 ? "bg-emerald-100" : "bg-red-100"} flex items-center justify-center`}>
@@ -122,14 +122,14 @@ export function StatsCards({ userName }: StatsCardsProps) {
         </div>
 
         {/* This Month */}
-        <div className="bg-white rounded-2xl border border-border p-6 hover:shadow-lg transition-shadow">
+        <div className="bg-card rounded-2xl border border-border p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">
                 This Month
               </p>
               {isLoading ? (
-                <div className="h-9 w-24 bg-gray-100 rounded animate-pulse" />
+                <div className="h-9 w-24 bg-secondary rounded animate-pulse" />
               ) : (
                 <p className="text-3xl font-semibold text-foreground tracking-tight">
                   {usageStats.thisMonth.generations.toLocaleString()}
@@ -146,7 +146,7 @@ export function StatsCards({ userName }: StatsCardsProps) {
           </div>
           <div className="mt-4 flex items-center gap-2">
             {isLoading ? (
-              <div className="h-5 w-32 bg-gray-100 rounded animate-pulse" />
+              <div className="h-5 w-32 bg-secondary rounded animate-pulse" />
             ) : (
               <>
                 <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
@@ -163,14 +163,14 @@ export function StatsCards({ userName }: StatsCardsProps) {
         </div>
 
         {/* Estimated Cost */}
-        <div className="bg-white rounded-2xl border border-border p-6 hover:shadow-lg transition-shadow">
+        <div className="bg-card rounded-2xl border border-border p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">
                 Estimated Cost
               </p>
               {isLoading ? (
-                <div className="h-9 w-24 bg-gray-100 rounded animate-pulse" />
+                <div className="h-9 w-24 bg-secondary rounded animate-pulse" />
               ) : (
                 <p className="text-3xl font-semibold text-foreground tracking-tight">
                   {formatCost(usageStats.totalCost)}
@@ -182,7 +182,7 @@ export function StatsCards({ userName }: StatsCardsProps) {
           </div>
           <div className="mt-4 flex items-center gap-2">
             {isLoading ? (
-              <div className="h-5 w-32 bg-gray-100 rounded animate-pulse" />
+              <div className="h-5 w-32 bg-secondary rounded animate-pulse" />
             ) : (
               <>
                 <div className={`w-5 h-5 rounded-full ${usageTrends.costTrend >= 0 ? "bg-amber-100" : "bg-emerald-100"} flex items-center justify-center`}>

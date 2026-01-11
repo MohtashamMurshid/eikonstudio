@@ -606,7 +606,7 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
           onClick={handleCloseModal}
         >
           <div 
-            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            className="bg-card rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}

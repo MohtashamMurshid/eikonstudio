@@ -5,8 +5,8 @@ export function FeaturesGrid() {
         Built for precision
       </h2>
       <div className="grid md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-border hover:shadow-lg transition-all">
-          <div className="w-12 h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center mb-4">
+        <div className="bg-card p-6 rounded-2xl border border-border hover:shadow-lg transition-all">
+          <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center mb-4">
             <svg
               className="w-6 h-6 text-foreground/70"
               fill="none"
@@ -28,8 +28,8 @@ export function FeaturesGrid() {
           </p>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-border hover:shadow-lg transition-all">
-          <div className="w-12 h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center mb-4">
+        <div className="bg-card p-6 rounded-2xl border border-border hover:shadow-lg transition-all">
+          <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center mb-4">
             <svg
               className="w-6 h-6 text-foreground/70"
               fill="none"
@@ -51,8 +51,8 @@ export function FeaturesGrid() {
           </p>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-border hover:shadow-lg transition-all">
-          <div className="w-12 h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center mb-4">
+        <div className="bg-card p-6 rounded-2xl border border-border hover:shadow-lg transition-all">
+          <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center mb-4">
             <svg
               className="w-6 h-6 text-foreground/70"
               fill="none"

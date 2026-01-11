@@ -14,7 +14,7 @@ export default function StudioPage() {
 
   // Show loading while redirecting
   return (
-    <div className="h-screen bg-[#f5f5f5] flex items-center justify-center select-none">
+    <div className="h-screen bg-background flex items-center justify-center select-none">
       <LogoLoader size="lg" text="Loading Studio" />
     </div>
   )

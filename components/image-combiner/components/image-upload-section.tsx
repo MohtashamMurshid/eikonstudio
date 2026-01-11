@@ -31,12 +31,12 @@ export function ImageUploadSection({
       <div>
         <div className="flex items-center justify-between mb-3 select-none">
           <label className="text-sm font-medium text-foreground/70">Reference Images</label>
-          <div className="inline-flex bg-gray-100 border border-border rounded-lg overflow-hidden">
+          <div className="inline-flex bg-secondary border border-border rounded-lg overflow-hidden">
             <button
               onClick={() => onUseUrlsChange(false)}
               className={cn(
                 "px-3 py-1.5 text-xs font-medium transition-all",
-                !useUrls ? "bg-white text-foreground shadow-sm" : "text-foreground/60 hover:text-foreground",
+                !useUrls ? "bg-card text-foreground shadow-sm" : "text-foreground/60 hover:text-foreground",
               )}
             >
               Files
@@ -45,7 +45,7 @@ export function ImageUploadSection({
               onClick={() => onUseUrlsChange(true)}
               className={cn(
                 "px-3 py-1.5 text-xs font-medium transition-all",
-                useUrls ? "bg-white text-foreground shadow-sm" : "text-foreground/60 hover:text-foreground",
+                useUrls ? "bg-card text-foreground shadow-sm" : "text-foreground/60 hover:text-foreground",
               )}
             >
               URLs

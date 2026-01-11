@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useTheme } from "next-themes"
 import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
 import {
@@ -19,7 +20,7 @@ type TimeRange = "weekly" | "monthly"
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; dataKey: string; color: string }>; label?: string }) {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-border rounded-lg shadow-lg p-3">
+      <div className="bg-card border border-border rounded-lg shadow-lg p-3">
         <p className="font-medium text-foreground mb-2">{label}</p>
         {payload.map((entry, index) => (
           <div key={index} className="flex items-center gap-2 text-sm">
@@ -43,6 +44,17 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 
 export function GenerationChart() {
   const [timeRange, setTimeRange] = useState<TimeRange>("monthly")
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
+
+  // Theme-aware colors
+  const chartColors = {
+    grid: isDark ? "#333333" : "#e5e5e5",
+    tick: isDark ? "#999999" : "#666666",
+    barPrimary: isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.8)",
+    barSecondary: isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)",
+    cursor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+  }
 
   // Fetch real data
   const dailyUsage = useQuery(api.generations.getDailyUsage, { 
@@ -89,14 +101,14 @@ export function GenerationChart() {
   const isLoading = !dailyUsage
 
   return (
-    <div className="bg-white rounded-2xl border border-border p-6">
+    <div className="bg-card rounded-2xl border border-border p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-medium text-foreground/50 uppercase tracking-wider">
             Generation Trend
           </h3>
-          <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center cursor-help" title="Track your image generation activity over time">
+          <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center cursor-help" title="Track your image generation activity over time">
             <svg className="w-3 h-3 text-foreground/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -104,14 +116,14 @@ export function GenerationChart() {
         </div>
 
         {/* Time Range Toggle */}
-        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+        <div className="flex items-center gap-1 bg-secondary p-1 rounded-lg">
           {(["weekly", "monthly"] as const).map((range) => (
             <button
               key={range}
               onClick={() => setTimeRange(range)}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                 timeRange === range
-                  ? "bg-white text-foreground shadow-sm"
+                  ? "bg-card text-foreground shadow-sm"
                   : "text-foreground/60 hover:text-foreground"
               }`}
             >
@@ -126,7 +138,7 @@ export function GenerationChart() {
         <div>
           <span className="text-sm text-foreground/50">Total: </span>
           {isLoading ? (
-            <span className="inline-block h-7 w-16 bg-gray-100 rounded animate-pulse" />
+            <span className="inline-block h-7 w-16 bg-secondary rounded animate-pulse" />
           ) : (
             <span className="text-2xl font-semibold text-foreground">
               {totalGenerations.toLocaleString()}
@@ -176,34 +188,34 @@ export function GenerationChart() {
               <CartesianGrid 
                 strokeDasharray="3 3" 
                 vertical={false} 
-                stroke="#e5e5e5"
+                stroke={chartColors.grid}
               />
               <XAxis 
                 dataKey="name" 
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "#666", fontSize: 12 }}
+                tick={{ fill: chartColors.tick, fontSize: 12 }}
                 dy={10}
               />
               <YAxis 
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "#666", fontSize: 12 }}
+                tick={{ fill: chartColors.tick, fontSize: 12 }}
                 tickFormatter={(value) => {
                   if (value >= 1000) return `${(value / 1000).toFixed(0)}k`
                   return value
                 }}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: chartColors.cursor }} />
               <Bar 
                 dataKey="textToImage" 
-                fill="rgba(0,0,0,0.2)" 
+                fill={chartColors.barSecondary}
                 radius={[2, 2, 0, 0]}
                 maxBarSize={40}
               />
               <Bar 
                 dataKey="imageEditing" 
-                fill="rgba(0,0,0,0.8)" 
+                fill={chartColors.barPrimary}
                 radius={[2, 2, 0, 0]}
                 maxBarSize={40}
               />

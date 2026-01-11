@@ -166,7 +166,7 @@ print(data["url"])  # Base64 image data URL`,
   // Loading state
   if (isLoading) {
     return (
-      <div className="h-screen bg-[#f5f5f5] flex items-center justify-center select-none">
+      <div className="h-screen bg-background flex items-center justify-center select-none">
         <LogoLoader size="lg" text="Loading" />
       </div>
     )
@@ -175,16 +175,16 @@ print(data["url"])  # Base64 image data URL`,
   // Redirect state
   if (!isAuthenticated) {
     return (
-      <div className="h-screen bg-[#f5f5f5] flex items-center justify-center select-none">
+      <div className="h-screen bg-background flex items-center justify-center select-none">
         <LogoLoader size="lg" text="Redirecting" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa]">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-white">
+      <header className="border-b border-border bg-card">
         <div className="max-w-4xl mx-auto px-6 py-6">
           <Link
             href="/"
@@ -233,7 +233,7 @@ print(data["url"])  # Base64 image data URL`,
             <h2 className="text-2xl font-serif font-normal text-foreground mt-1">Authentication</h2>
           </div>
           
-          <div className="bg-white rounded-2xl border border-border p-8">
+          <div className="bg-card rounded-2xl border border-border p-8">
             <p className="text-foreground/70 leading-relaxed mb-4">
               The API uses Google Gemini for image generation. You&apos;ll need a Gemini API key to make requests.
             </p>
@@ -273,7 +273,7 @@ print(data["url"])  # Base64 image data URL`,
             <h2 className="text-2xl font-serif font-normal text-foreground mt-1">Endpoint Reference</h2>
           </div>
           
-          <div className="bg-white rounded-2xl border border-border overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border overflow-hidden">
             {/* Endpoint Header */}
             <div className="px-8 py-4 bg-gray-50 border-b border-border flex items-center gap-3">
               <span className="px-2 py-1 bg-emerald-500 text-white text-xs font-bold rounded">POST</span>
@@ -374,7 +374,7 @@ print(data["url"])  # Base64 image data URL`,
             <h2 className="text-2xl font-serif font-normal text-foreground mt-1">Response Format</h2>
           </div>
           
-          <div className="bg-white rounded-2xl border border-border overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border overflow-hidden">
             <div className="px-8 py-4 bg-gray-50 border-b border-border">
               <span className="text-sm font-medium text-foreground">Success Response (200)</span>
             </div>
@@ -418,7 +418,7 @@ print(data["url"])  # Base64 image data URL`,
             <h2 className="text-2xl font-serif font-normal text-foreground mt-1">Code Examples</h2>
           </div>
           
-          <div className="bg-white rounded-2xl border border-border overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border overflow-hidden">
             {/* Tabs */}
             <div className="flex border-b border-border">
               {(["curl", "javascript", "python"] as CodeLanguage[]).map((lang) => (
@@ -428,7 +428,7 @@ print(data["url"])  # Base64 image data URL`,
                   className={`px-6 py-3 text-sm font-medium transition-colors ${
                     activeCodeTab === lang
                       ? "bg-gray-50 text-foreground border-b-2 border-emerald-500"
-                      : "text-foreground/60 hover:text-foreground hover:bg-gray-50"
+                      : "text-foreground/60 hover:text-foreground hover:bg-accent"
                   }`}
                 >
                   {lang === "curl" ? "cURL" : lang === "javascript" ? "JavaScript" : "Python"}
@@ -452,7 +452,7 @@ print(data["url"])  # Base64 image data URL`,
             <h2 className="text-2xl font-serif font-normal text-foreground mt-1">Error Handling</h2>
           </div>
           
-          <div className="bg-white rounded-2xl border border-border overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border overflow-hidden">
             <div className="divide-y divide-border">
               {/* 400 */}
               <div className="p-6">
@@ -501,7 +501,7 @@ print(data["url"])  # Base64 image data URL`,
             <p className="text-sm text-foreground/50 mt-2">Test the API directly from your browser</p>
           </div>
           
-          <div className="bg-white rounded-2xl border border-border overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border overflow-hidden">
             <div className="p-8 space-y-6">
               {/* Mode Selector */}
               <div>
@@ -589,7 +589,7 @@ print(data["url"])  # Base64 image data URL`,
                   <select
                     value={playgroundSize}
                     onChange={(e) => setPlaygroundSize(e.target.value as ImageSize)}
-                    className="w-full p-3 border border-border rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    className="w-full p-3 border border-border rounded-xl text-sm bg-card focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                   >
                     <option value="1K">1K</option>
                     <option value="2K">2K</option>
@@ -601,7 +601,7 @@ print(data["url"])  # Base64 image data URL`,
                   <select
                     value={playgroundAspectRatio}
                     onChange={(e) => setPlaygroundAspectRatio(e.target.value as AspectRatio)}
-                    className="w-full p-3 border border-border rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    className="w-full p-3 border border-border rounded-xl text-sm bg-card focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                   >
                     <option value="square">Square (1:1)</option>
                     <option value="portrait">Portrait (9:16)</option>
@@ -693,7 +693,7 @@ print(data["url"])  # Base64 image data URL`,
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border py-8 px-6 bg-white">
+      <footer className="border-t border-border py-8 px-6 bg-card">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Logo size="xs" colorScheme="dark" />
           <p className="text-xs text-foreground/40">

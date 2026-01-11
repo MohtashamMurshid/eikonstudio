@@ -8,6 +8,7 @@ import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
 import { LogoIcon } from "@/components/logo-icon"
 import { type StudioTab, isValidStudioTab, getTabFromPathname } from "@/types/studio"
+import { ThemeToggleWithLabel, ThemeToggleCollapsed } from "@/components/ui/theme-toggle"
 
 interface MenuItem {
   id: StudioTab
@@ -170,14 +171,14 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50
-        ${isCollapsed ? "w-[72px]" : "w-64"} bg-white border-r border-border
+        ${isCollapsed ? "w-[72px]" : "w-64"} bg-card border-r border-border
         flex flex-col
         transition-all duration-300 ease-in-out
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}>
         {/* Logo and Team Selector */}
         <div className="p-4 border-b border-border">
-          <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"} p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors`}>
+          <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"} p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors`}>
             <div className="w-9 h-9 bg-foreground rounded-lg flex items-center justify-center flex-shrink-0">
               <LogoIcon className="w-5 h-5 text-background" />
             </div>
@@ -213,8 +214,8 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
                       className={`
                         w-full flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium transition-colors
                         ${isActive 
-                          ? "bg-emerald-50 text-emerald-700" 
-                          : "text-foreground/70 hover:bg-gray-50 hover:text-foreground"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" 
+                          : "text-foreground/70 hover:bg-accent hover:text-foreground"
                         }
                       `}
                     >
@@ -267,8 +268,8 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
                       className={`
                         w-full flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium transition-colors
                         ${isActive 
-                          ? "bg-emerald-50 text-emerald-700" 
-                          : "text-foreground/70 hover:bg-gray-50 hover:text-foreground"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" 
+                          : "text-foreground/70 hover:bg-accent hover:text-foreground"
                         }
                       `}
                     >
@@ -314,7 +315,7 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
           <Link
             href="/"
             title={isCollapsed ? "Back to Home" : undefined}
-            className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-gray-50 hover:text-foreground transition-colors`}
+            className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-accent hover:text-foreground transition-colors`}
           >
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
@@ -322,11 +323,14 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
             {!isCollapsed && "Back to Home"}
           </Link>
           
+          {/* Theme Toggle */}
+          {isCollapsed ? <ThemeToggleCollapsed /> : <ThemeToggleWithLabel />}
+
           {/* Collapse Toggle Button - Desktop only */}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={`hidden lg:flex w-full items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-gray-50 hover:text-foreground transition-colors`}
+            className={`hidden lg:flex w-full items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-accent hover:text-foreground transition-colors`}
           >
             <svg className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${isCollapsed ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />

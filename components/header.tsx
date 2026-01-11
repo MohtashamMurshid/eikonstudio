@@ -59,7 +59,7 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
   return (
     <header className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-sm border-b border-border">
       {/* Logo */}
-      <Logo asLink href="/" size="xs" colorScheme="dark" />
+      <Logo asLink href="/" size="xs" />
 
       {/* User Menu */}
       <div className="relative" ref={dropdownRef}>
@@ -144,7 +144,7 @@ export function Header({ apiKey, onApiKeyChange }: HeaderProps) {
                     <span className="text-xs px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded">Not set</span>
                   )}
                   <svg
-                    className={`w-4 h-4 text-gray-500 transition-transform ${showApiKeySection ? "rotate-180" : ""}`}
+                    className={`w-4 h-4 text-muted-foreground transition-transform ${showApiKeySection ? "rotate-180" : ""}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"

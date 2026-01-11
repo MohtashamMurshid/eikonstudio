@@ -47,10 +47,10 @@ export function ArtStyleSelector({
     <div className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
         <Select value={selectedArtStyle || "none"} onValueChange={handleArtStyleChange}>
-          <SelectTrigger className="w-full sm:w-auto min-w-[160px] bg-white border-border text-foreground text-sm h-9">
+          <SelectTrigger className="w-full sm:w-auto min-w-[160px] bg-card border-border text-foreground text-sm h-9">
             <SelectValue placeholder="Art Style (optional)" />
           </SelectTrigger>
-          <SelectContent className="bg-white border-border text-foreground max-h-[300px]">
+          <SelectContent className="bg-card border-border text-foreground max-h-[300px]">
             <SelectItem value="none" className="text-sm">
               None
             </SelectItem>
@@ -107,7 +107,7 @@ export function ArtStyleSelector({
               }
             }}
             placeholder="Enter custom art style..."
-            className="flex-1 p-2.5 bg-white border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 rounded-lg select-text transition-colors"
+            className="flex-1 p-2.5 bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 rounded-lg select-text transition-colors"
             autoFocus
           />
           <Button

@@ -260,10 +260,10 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-full p-2 md:p-3 lg:p-4">
-      <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden min-h-[calc(100vh-2rem)]">
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden min-h-[calc(100vh-2rem)]">
         <div className="flex flex-col lg:flex-row min-h-[calc(100vh-2rem)]">
           {/* Sidebar Navigation */}
-          <div className="lg:w-48 xl:w-56 border-b lg:border-b-0 lg:border-r border-border bg-gray-50/50">
+          <div className="lg:w-48 xl:w-56 border-b lg:border-b-0 lg:border-r border-border bg-secondary/50">
             {/* Header */}
             <div className="p-3 border-b border-border">
               <h1 className="text-sm font-semibold text-foreground">Settings</h1>
@@ -280,7 +280,7 @@ export default function SettingsPage() {
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
                       activeSection === item.id
                         ? "bg-emerald-500 text-white"
-                        : "text-foreground/70 hover:bg-gray-100"
+                        : "text-foreground/70 hover:bg-accent"
                     }`}
                   >
                     <span className="w-3.5 h-3.5 [&>svg]:w-3.5 [&>svg]:h-3.5">{item.icon}</span>
@@ -300,7 +300,7 @@ export default function SettingsPage() {
                       className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all ${
                         activeSection === item.id
                           ? "bg-emerald-500 text-white shadow-sm"
-                          : "text-foreground/70 hover:bg-gray-100 hover:text-foreground"
+                          : "text-foreground/70 hover:bg-accent hover:text-foreground"
                       }`}
                     >
                       <span className={`w-4 h-4 [&>svg]:w-4 [&>svg]:h-4 ${activeSection === item.id ? "text-white" : "text-foreground/50"}`}>
@@ -331,7 +331,7 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Profile Card */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl border border-border">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 bg-gradient-to-br from-secondary to-accent/50 rounded-xl border border-border">
                     {displayImage ? (
                       <div className="relative w-12 h-12">
                         <Image
@@ -363,15 +363,15 @@ export default function SettingsPage() {
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1">
                         <label className="block text-xs font-medium text-foreground/70">Display Name</label>
-                        <div className="px-2.5 py-2 bg-gray-50 border border-border text-foreground rounded-lg text-xs">
+                        <div className="px-2.5 py-2 bg-secondary border border-border text-foreground rounded-lg text-xs">
                           {displayName}
                         </div>
                       </div>
                       <div className="space-y-1">
                         <label className="block text-xs font-medium text-foreground/70">Email Address</label>
-                        <div className="px-2.5 py-2 bg-gray-50 border border-border text-foreground rounded-lg text-xs flex items-center gap-1.5">
+                        <div className="px-2.5 py-2 bg-secondary border border-border text-foreground rounded-lg text-xs flex items-center gap-1.5">
                           <span className="flex-1 truncate">{displayEmail}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full whitespace-nowrap">Verified</span>
+                          <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-full whitespace-nowrap">Verified</span>
                         </div>
                       </div>
                     </div>
@@ -391,14 +391,14 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-foreground/70">Status:</span>
                     {hasStoredKey ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full font-medium">
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-full font-medium">
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                         </svg>
                         Encrypted & Stored
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 bg-amber-100 text-amber-700 rounded-full font-medium">
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full font-medium">
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                         </svg>
@@ -408,9 +408,9 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Info Box */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2.5">
                     <div className="flex gap-2">
-                      <div className="w-6 h-6 rounded-md bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <div className="w-6 h-6 rounded-md bg-blue-500/20 flex items-center justify-center flex-shrink-0">
                         <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
                         </svg>
@@ -447,7 +447,7 @@ export default function SettingsPage() {
                         setSaveSuccess(false)
                       }}
                       placeholder="Enter your Gemini API key..."
-                      className="w-full px-2.5 py-2 bg-gray-50 border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono text-xs"
+                      className="w-full px-2.5 py-2 bg-card border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono text-xs"
                     />
                     {hasChanges && pendingApiKey && (
                       <p className="text-[10px] text-amber-600 flex items-center gap-1">
@@ -461,7 +461,7 @@ export default function SettingsPage() {
 
                   {/* Test Result */}
                   {testResult && (
-                    <div className={`rounded-lg p-2.5 ${testResult.valid ? "bg-emerald-50 border border-emerald-200" : "bg-red-50 border border-red-200"}`}>
+                    <div className={`rounded-lg p-2.5 ${testResult.valid ? "bg-emerald-500/10 border border-emerald-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
                       <div className="flex items-center gap-1.5">
                         {testResult.valid ? (
                           <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -481,7 +481,7 @@ export default function SettingsPage() {
 
                   {/* Save Success */}
                   {saveSuccess && (
-                    <div className="rounded-lg p-2.5 bg-emerald-50 border border-emerald-200">
+                    <div className="rounded-lg p-2.5 bg-emerald-500/10 border border-emerald-500/20">
                       <div className="flex items-center gap-1.5">
                         <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -498,7 +498,7 @@ export default function SettingsPage() {
                     <button
                       onClick={handleTestKey}
                       disabled={isTesting || !pendingApiKey.trim()}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-foreground rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-accent text-foreground rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isTesting ? (
                         <>
@@ -543,7 +543,7 @@ export default function SettingsPage() {
                       <button
                         onClick={handleDeleteKey}
                         disabled={isDeleting}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isDeleting ? (
                           <>
@@ -580,9 +580,9 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Info Box */}
-                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2.5">
+                  <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-2.5">
                     <div className="flex gap-2">
-                      <div className="w-6 h-6 rounded-md bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                      <div className="w-6 h-6 rounded-md bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
                         <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                         </svg>
@@ -590,7 +590,7 @@ export default function SettingsPage() {
                       <div>
                         <p className="text-xs text-indigo-800 font-semibold">Slash Commands</p>
                         <p className="text-[10px] text-indigo-700 leading-relaxed mt-0.5">
-                          Type <code className="bg-indigo-100 px-1 rounded">/skillname</code> in your prompt to apply a skill. Skills append additional prompt text to enhance your generations.
+                          Type <code className="bg-indigo-500/20 px-1 rounded">/skillname</code> in your prompt to apply a skill. Skills append additional prompt text to enhance your generations.
                         </p>
                       </div>
                     </div>
@@ -598,7 +598,7 @@ export default function SettingsPage() {
 
                   {/* Success/Error Messages */}
                   {skillSuccess && (
-                    <div className="rounded-lg p-2.5 bg-emerald-50 border border-emerald-200">
+                    <div className="rounded-lg p-2.5 bg-emerald-500/10 border border-emerald-500/20">
                       <div className="flex items-center gap-1.5">
                         <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -608,7 +608,7 @@ export default function SettingsPage() {
                     </div>
                   )}
                   {skillError && (
-                    <div className="rounded-lg p-2.5 bg-red-50 border border-red-200">
+                    <div className="rounded-lg p-2.5 bg-red-500/10 border border-red-500/20">
                       <div className="flex items-center gap-1.5">
                         <svg className="w-3.5 h-3.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
@@ -621,7 +621,7 @@ export default function SettingsPage() {
                   {/* Create Custom Skill */}
                   <div className="space-y-3">
                     <h3 className="text-sm font-medium text-foreground">Create Custom Skill</h3>
-                    <div className="p-3 bg-gray-50 rounded-lg border border-border space-y-3">
+                    <div className="p-3 bg-secondary rounded-lg border border-border space-y-3">
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-1">
                           <label className="block text-xs font-medium text-foreground/70">Skill Name</label>
@@ -630,7 +630,7 @@ export default function SettingsPage() {
                             value={newSkillName}
                             onChange={(e) => setNewSkillName(e.target.value)}
                             placeholder="e.g., mylogo"
-                            className="w-full px-2.5 py-2 bg-white border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs"
+                            className="w-full px-2.5 py-2 bg-card border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs"
                           />
                           <p className="text-[10px] text-foreground/50">Lowercase, no spaces</p>
                         </div>
@@ -641,7 +641,7 @@ export default function SettingsPage() {
                             value={newSkillDescription}
                             onChange={(e) => setNewSkillDescription(e.target.value)}
                             placeholder="e.g., My brand logo style"
-                            className="w-full px-2.5 py-2 bg-white border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs"
+                            className="w-full px-2.5 py-2 bg-card border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs"
                           />
                         </div>
                       </div>
@@ -652,7 +652,7 @@ export default function SettingsPage() {
                           onChange={(e) => setNewSkillPrompt(e.target.value)}
                           placeholder="e.g., modern minimalist logo, clean vector style, professional branding..."
                           rows={3}
-                          className="w-full px-2.5 py-2 bg-white border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs resize-none"
+                          className="w-full px-2.5 py-2 bg-card border border-border text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs resize-none"
                         />
                         <p className="text-[10px] text-foreground/50">This text will be appended to your prompt when using this skill</p>
                       </div>
@@ -686,7 +686,7 @@ export default function SettingsPage() {
                       <h3 className="text-sm font-medium text-foreground">Your Custom Skills</h3>
                       <div className="space-y-2">
                         {customSkills.map((skill) => (
-                          <div key={skill._id} className="p-2.5 bg-violet-50 rounded-lg border border-violet-200">
+                          <div key={skill._id} className="p-2.5 bg-violet-500/10 rounded-lg border border-violet-500/20">
                             {editingSkill?.id === skill._id ? (
                               <div className="space-y-2">
                                 <div className="grid gap-2 sm:grid-cols-2">
@@ -694,20 +694,20 @@ export default function SettingsPage() {
                                     type="text"
                                     value={editingSkill.name}
                                     onChange={(e) => setEditingSkill({ ...editingSkill, name: e.target.value })}
-                                    className="px-2 py-1.5 bg-white border border-border text-foreground rounded text-xs"
+                                    className="px-2 py-1.5 bg-card border border-border text-foreground rounded text-xs"
                                   />
                                   <input
                                     type="text"
                                     value={editingSkill.description}
                                     onChange={(e) => setEditingSkill({ ...editingSkill, description: e.target.value })}
-                                    className="px-2 py-1.5 bg-white border border-border text-foreground rounded text-xs"
+                                    className="px-2 py-1.5 bg-card border border-border text-foreground rounded text-xs"
                                   />
                                 </div>
                                 <textarea
                                   value={editingSkill.promptText}
                                   onChange={(e) => setEditingSkill({ ...editingSkill, promptText: e.target.value })}
                                   rows={2}
-                                  className="w-full px-2 py-1.5 bg-white border border-border text-foreground rounded text-xs resize-none"
+                                  className="w-full px-2 py-1.5 bg-card border border-border text-foreground rounded text-xs resize-none"
                                 />
                                 <div className="flex gap-2">
                                   <button
@@ -718,7 +718,7 @@ export default function SettingsPage() {
                                   </button>
                                   <button
                                     onClick={() => setEditingSkill(null)}
-                                    className="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-foreground rounded text-xs font-medium"
+                                    className="px-2 py-1 bg-secondary hover:bg-accent text-foreground rounded text-xs font-medium"
                                   >
                                     Cancel
                                   </button>
@@ -726,7 +726,7 @@ export default function SettingsPage() {
                               </div>
                             ) : (
                               <div className="flex items-start gap-2">
-                                <div className="w-6 h-6 rounded bg-violet-100 flex items-center justify-center flex-shrink-0">
+                                <div className="w-6 h-6 rounded bg-violet-500/20 flex items-center justify-center flex-shrink-0">
                                   <svg className="w-3.5 h-3.5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                                   </svg>
@@ -734,7 +734,7 @@ export default function SettingsPage() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
                                     <span className="text-xs font-semibold text-violet-700">/{skill.name}</span>
-                                    <span className="text-[10px] px-1.5 py-0.5 bg-violet-100 text-violet-600 rounded">custom</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-violet-500/20 text-violet-600 dark:text-violet-400 rounded">custom</span>
                                   </div>
                                   <p className="text-[10px] text-foreground/60 mt-0.5">{skill.description}</p>
                                   <p className="text-[10px] text-foreground/40 mt-1 line-clamp-2">{skill.promptText}</p>
@@ -780,9 +780,9 @@ export default function SettingsPage() {
                     <p className="text-[10px] text-foreground/50">These skills are available by default and cannot be modified.</p>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {predefinedSkills.map((skill) => (
-                        <div key={skill.name} className="p-2 bg-gray-50 rounded-lg border border-border">
+                        <div key={skill.name} className="p-2 bg-secondary rounded-lg border border-border">
                           <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 rounded bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                            <div className="w-5 h-5 rounded bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
                               <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                               </svg>
@@ -810,9 +810,9 @@ export default function SettingsPage() {
                   {/* Session Info */}
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-foreground">Current Session</h3>
-                    <div className="p-2.5 bg-gray-50 rounded-lg border border-border">
+                    <div className="p-2.5 bg-secondary rounded-lg border border-border">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                           <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                           </svg>
@@ -821,7 +821,7 @@ export default function SettingsPage() {
                           <p className="text-xs font-medium text-foreground">Active Session</p>
                           <p className="text-[10px] text-foreground/60">Signed in as {displayEmail}</p>
                         </div>
-                        <div className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-medium">
+                        <div className="px-2 py-0.5 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] font-medium">
                           Active
                         </div>
                       </div>
@@ -831,11 +831,11 @@ export default function SettingsPage() {
                   {/* Danger Zone */}
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-foreground">Sign Out</h3>
-                    <div className="p-2.5 bg-red-50 rounded-lg border border-red-200">
+                    <div className="p-2.5 bg-red-500/10 rounded-lg border border-red-500/20">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
                         <div className="flex-1">
-                          <p className="text-xs font-medium text-red-800">Sign out of your account</p>
-                          <p className="text-[10px] text-red-600/80 mt-0.5">
+                          <p className="text-xs font-medium text-red-600 dark:text-red-400">Sign out of your account</p>
+                          <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-0.5">
                             You&apos;ll need to sign in again to access your studio and settings.
                           </p>
                         </div>

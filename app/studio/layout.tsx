@@ -84,7 +84,7 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="h-screen bg-[#f5f5f5] flex items-center justify-center select-none">
+      <div className="h-screen bg-background flex items-center justify-center select-none">
         <LogoLoader size="lg" text="Initializing" />
       </div>
     )
@@ -93,7 +93,7 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
   // Show nothing while redirecting (if not authenticated)
   if (!isAuthenticated) {
     return (
-      <div className="h-screen bg-[#f5f5f5] flex items-center justify-center select-none">
+      <div className="h-screen bg-background flex items-center justify-center select-none">
         <LogoLoader size="lg" text="Redirecting" />
       </div>
     )
@@ -111,7 +111,7 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
         setSidebarCollapsed,
       }}
     >
-      <div className="flex h-screen bg-[#f5f5f5]">
+      <div className="flex h-screen bg-background">
         {/* Sidebar */}
         <Sidebar
           activeTab={activeTab}

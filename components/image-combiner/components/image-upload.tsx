@@ -29,7 +29,7 @@ export function ImageUpload({
           value={url}
           onChange={(e) => onUrlChange(e.target.value, imageNumber)}
           placeholder={imageNumber === 1 ? "First image URL" : "Second image URL (optional)"}
-          className="w-full p-3 pr-8 bg-white border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 placeholder:text-foreground/40 select-text transition-colors"
+          className="w-full p-3 pr-8 bg-card border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 placeholder:text-foreground/40 select-text transition-colors"
         />
         {url && (
           <button
@@ -49,7 +49,7 @@ export function ImageUpload({
   return (
     <div
       className={cn(
-        "w-full h-[80px] sm:h-[100px] lg:w-[160px] lg:h-[130px] lg:flex-shrink-0 border-2 border-dashed border-border rounded-xl flex items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/50 transition-all bg-white relative group",
+        "w-full h-[80px] sm:h-[100px] lg:w-[160px] lg:h-[130px] lg:flex-shrink-0 border-2 border-dashed border-border rounded-xl flex items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-500/10 transition-all bg-card relative group",
         preview && "border-solid border-emerald-500 bg-emerald-50/30",
       )}
       onDrop={(e) => onDrop(e, imageNumber)}

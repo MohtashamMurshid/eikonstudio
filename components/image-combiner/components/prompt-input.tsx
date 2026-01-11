@@ -25,7 +25,7 @@ export function PromptInput({ prompt, onPromptChange, currentMode, onKeyDown }: 
           onClick={getRandomPrompt}
           variant="outline"
           size="sm"
-          className="h-8 px-3 text-xs bg-white border-border text-foreground hover:bg-gray-50"
+          className="h-8 px-3 text-xs bg-card border-border text-foreground hover:bg-accent"
         >
           <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <polyline points="16,3 21,3 21,8" />
@@ -45,7 +45,7 @@ export function PromptInput({ prompt, onPromptChange, currentMode, onKeyDown }: 
         placeholder={
           currentMode === "text-to-image" ? "Describe the image you want to generate..." : "Describe how to edit the image..."
         }
-        className="w-full h-28 md:h-32 p-4 bg-white border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-foreground text-sm placeholder:text-foreground/40 select-text transition-colors"
+        className="w-full h-28 md:h-32 p-4 bg-card border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-foreground text-sm placeholder:text-foreground/40 select-text transition-colors"
         style={{
           fontSize: "16px", // Prevents zoom on iOS Safari
           WebkitUserSelect: "text",

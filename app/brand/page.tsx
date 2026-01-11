@@ -44,9 +44,9 @@ export default function BrandPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa]">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-white">
+      <header className="border-b border-border bg-card">
         <div className="max-w-4xl mx-auto px-6 py-6">
           <Link
             href="/"
@@ -81,7 +81,7 @@ export default function BrandPage() {
           
           <div className="space-y-4">
             {/* Light background */}
-            <div className="bg-white rounded-2xl border border-border p-16 flex items-center justify-center">
+            <div className="bg-card rounded-2xl border border-border p-16 flex items-center justify-center">
               <Logo size="lg" colorScheme="dark" />
             </div>
             
@@ -101,7 +101,7 @@ export default function BrandPage() {
           
           <div className="space-y-4">
             {/* Light background */}
-            <div className="bg-white rounded-2xl border border-border p-16 flex items-center justify-center">
+            <div className="bg-card rounded-2xl border border-border p-16 flex items-center justify-center">
               <Logo size="lg" colorScheme="dark" tagline="The image studio for creative AI" />
             </div>
             
@@ -121,19 +121,19 @@ export default function BrandPage() {
           
           <div className="grid md:grid-cols-3 gap-4">
             {/* Icon only */}
-            <div className="bg-white rounded-2xl border border-border p-12 flex flex-col items-center justify-center">
+            <div className="bg-card rounded-2xl border border-border p-12 flex flex-col items-center justify-center">
               <LogoIconOnly size="lg" colorScheme="dark" />
               <span className="text-xs text-foreground/40 mt-4">Icon only</span>
             </div>
             
             {/* Stacked */}
-            <div className="bg-white rounded-2xl border border-border p-12 flex flex-col items-center justify-center">
+            <div className="bg-card rounded-2xl border border-border p-12 flex flex-col items-center justify-center">
               <LogoStacked size="md" colorScheme="dark" />
               <span className="text-xs text-foreground/40 mt-4">Stacked</span>
             </div>
             
             {/* Horizontal (default) */}
-            <div className="bg-white rounded-2xl border border-border p-12 flex flex-col items-center justify-center">
+            <div className="bg-card rounded-2xl border border-border p-12 flex flex-col items-center justify-center">
               <Logo size="md" colorScheme="dark" />
               <span className="text-xs text-foreground/40 mt-4">Horizontal</span>
             </div>
@@ -147,7 +147,7 @@ export default function BrandPage() {
             <h2 className="text-2xl font-serif font-normal text-foreground mt-1">Icon sizes</h2>
           </div>
           
-          <div className="bg-white rounded-2xl border border-border p-12">
+          <div className="bg-card rounded-2xl border border-border p-12">
             <div className="flex items-end justify-center gap-8">
               <div className="flex flex-col items-center">
                 <div className="size-6 bg-foreground rounded-md flex items-center justify-center">
@@ -194,19 +194,19 @@ export default function BrandPage() {
           <p className="text-sm text-foreground/60 mb-4">Indeterminate loaders</p>
           <div className="grid md:grid-cols-3 gap-4 mb-8">
             {/* Small loader */}
-            <div className="bg-white rounded-2xl border border-border p-12 flex flex-col items-center justify-center min-h-[200px]">
+            <div className="bg-card rounded-2xl border border-border p-12 flex flex-col items-center justify-center min-h-[200px]">
               <LogoLoader size="sm" />
               <span className="text-xs text-foreground/40 mt-6">Small</span>
             </div>
             
             {/* Medium loader */}
-            <div className="bg-white rounded-2xl border border-border p-12 flex flex-col items-center justify-center min-h-[200px]">
+            <div className="bg-card rounded-2xl border border-border p-12 flex flex-col items-center justify-center min-h-[200px]">
               <LogoLoader size="md" />
               <span className="text-xs text-foreground/40 mt-6">Medium</span>
             </div>
             
             {/* Large loader with text */}
-            <div className="bg-white rounded-2xl border border-border p-12 flex flex-col items-center justify-center min-h-[200px]">
+            <div className="bg-card rounded-2xl border border-border p-12 flex flex-col items-center justify-center min-h-[200px]">
               <LogoLoader size="lg" text="Loading" />
             </div>
           </div>
@@ -216,7 +216,7 @@ export default function BrandPage() {
           <div className="grid md:grid-cols-2 gap-4 mb-8">
             {/* Animated progress */}
             <div 
-              className="bg-white rounded-2xl border border-border p-12 flex flex-col items-center justify-center min-h-[240px] cursor-pointer hover:bg-gray-50 transition-colors"
+              className="bg-card rounded-2xl border border-border p-12 flex flex-col items-center justify-center min-h-[240px] cursor-pointer hover:bg-accent transition-colors"
               onClick={() => setIsProgressRunning(!isProgressRunning)}
             >
               <LogoLoaderWithProgress 
@@ -230,7 +230,7 @@ export default function BrandPage() {
             </div>
             
             {/* Static progress examples */}
-            <div className="bg-white rounded-2xl border border-border p-8 flex flex-col justify-center gap-6">
+            <div className="bg-card rounded-2xl border border-border p-8 flex flex-col justify-center gap-6">
               <LogoLoaderWithProgress size="sm" progress={25} text="Starting" />
               <LogoLoaderWithProgress size="sm" progress={50} text="Halfway" />
               <LogoLoaderWithProgress size="sm" progress={75} text="Almost done" />
@@ -240,7 +240,7 @@ export default function BrandPage() {
 
           {/* Skeleton loader */}
           <p className="text-sm text-foreground/60 mb-4">Skeleton loader</p>
-          <div className="bg-white rounded-2xl border border-border p-8">
+          <div className="bg-card rounded-2xl border border-border p-8">
             <div className="flex items-center gap-8">
               <LogoSkeleton />
               <div className="flex-1">
@@ -261,7 +261,7 @@ export default function BrandPage() {
           
           <div className="grid md:grid-cols-3 gap-4">
             {/* Foreground */}
-            <div className="bg-white rounded-2xl border border-border overflow-hidden">
+            <div className="bg-card rounded-2xl border border-border overflow-hidden">
               <div className="h-24 bg-foreground" />
               <div className="p-4">
                 <p className="font-medium text-foreground">Foreground</p>
@@ -270,7 +270,7 @@ export default function BrandPage() {
             </div>
             
             {/* Emerald */}
-            <div className="bg-white rounded-2xl border border-border overflow-hidden">
+            <div className="bg-card rounded-2xl border border-border overflow-hidden">
               <div className="h-24 bg-emerald-500" />
               <div className="p-4">
                 <p className="font-medium text-foreground">Emerald</p>
@@ -279,8 +279,8 @@ export default function BrandPage() {
             </div>
             
             {/* Background */}
-            <div className="bg-white rounded-2xl border border-border overflow-hidden">
-              <div className="h-24 bg-[#f5f5f5] border-b border-border" />
+            <div className="bg-card rounded-2xl border border-border overflow-hidden">
+              <div className="h-24 bg-background border-b border-border" />
               <div className="p-4">
                 <p className="font-medium text-foreground">Background</p>
                 <p className="text-xs text-foreground/50 font-mono mt-1">#f5f5f5</p>
@@ -298,7 +298,7 @@ export default function BrandPage() {
           
           <div className="grid md:grid-cols-2 gap-4">
             {/* Primary font */}
-            <div className="bg-white rounded-2xl border border-border p-8">
+            <div className="bg-card rounded-2xl border border-border p-8">
               <span className="text-5xl font-sans font-semibold text-foreground">Aa</span>
               <div className="mt-4">
                 <p className="font-medium text-foreground">Inter</p>
@@ -307,7 +307,7 @@ export default function BrandPage() {
             </div>
             
             {/* Mono font */}
-            <div className="bg-white rounded-2xl border border-border p-8">
+            <div className="bg-card rounded-2xl border border-border p-8">
               <span className="text-5xl font-mono font-semibold text-foreground">Aa</span>
               <div className="mt-4">
                 <p className="font-medium text-foreground">JetBrains Mono</p>
@@ -324,7 +324,7 @@ export default function BrandPage() {
             <h2 className="text-2xl font-serif font-normal text-foreground mt-1">Download assets</h2>
           </div>
           
-          <div className="bg-white rounded-2xl border border-border p-8">
+          <div className="bg-card rounded-2xl border border-border p-8">
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={handleDownloadSvg}
@@ -339,7 +339,7 @@ export default function BrandPage() {
               <a
                 href="/logo.png"
                 download="eikon-logo.png"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-border text-foreground rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-card border border-border text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -361,7 +361,7 @@ export default function BrandPage() {
             <h2 className="text-2xl font-serif font-normal text-foreground mt-1">Usage guidelines</h2>
           </div>
           
-          <div className="bg-white rounded-2xl border border-border p-8">
+          <div className="bg-card rounded-2xl border border-border p-8">
             <div className="grid md:grid-cols-2 gap-8">
               <div>
                 <h3 className="font-medium text-foreground mb-3 flex items-center gap-2">
@@ -397,7 +397,7 @@ export default function BrandPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border py-8 px-6 bg-white">
+      <footer className="border-t border-border py-8 px-6 bg-card">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Logo size="xs" colorScheme="dark" />
           <p className="text-xs text-foreground/40">

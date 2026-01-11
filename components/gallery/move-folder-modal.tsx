@@ -43,7 +43,7 @@ export function MoveFolderModal({
       onClick={handleClose}
     >
       <div 
-        className="bg-white rounded-2xl max-w-sm w-full overflow-hidden"
+        className="bg-card rounded-2xl max-w-sm w-full overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-border">

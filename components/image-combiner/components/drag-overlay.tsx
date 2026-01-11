@@ -7,7 +7,7 @@ export function DragOverlay({ isDragOver }: DragOverlayProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-emerald-500/10 backdrop-blur-sm flex items-center justify-center select-none pointer-events-none">
-      <div className="bg-white border-2 border-dashed border-emerald-500 rounded-2xl p-12 text-center shadow-xl">
+      <div className="bg-card border-2 border-dashed border-emerald-500 rounded-2xl p-12 text-center shadow-xl">
         <div className="w-16 h-16 mx-auto mb-4 bg-emerald-100 rounded-full flex items-center justify-center">
           <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path

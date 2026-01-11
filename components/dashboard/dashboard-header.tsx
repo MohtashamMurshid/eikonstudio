@@ -59,7 +59,7 @@ export function DashboardHeader({ activeTab, apiKey, onApiKeyChange }: Dashboard
   const breadcrumbLabel = activeTab === "dashboard" ? "Overview" : "Studio"
 
   return (
-    <header className="sticky top-0 z-30 bg-[#f5f5f5] border-b border-border px-6 py-4">
+    <header className="sticky top-0 z-30 bg-background border-b border-border px-6 py-4">
       <div className="flex items-center justify-between">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm">
@@ -88,7 +88,7 @@ export function DashboardHeader({ activeTab, apiKey, onApiKeyChange }: Dashboard
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 pl-10 pr-4 py-2 bg-white border border-border rounded-lg text-sm text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
+              className="w-64 pl-10 pr-4 py-2 bg-card border border-border rounded-lg text-sm text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
             />
           </div>
 
@@ -99,7 +99,7 @@ export function DashboardHeader({ activeTab, apiKey, onApiKeyChange }: Dashboard
                 setIsDropdownOpen(!isDropdownOpen)
                 if (isDropdownOpen) setShowApiKeySection(false)
               }}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white transition-colors"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent transition-colors"
             >
               {displayImage ? (
                 <img
@@ -130,9 +130,9 @@ export function DashboardHeader({ activeTab, apiKey, onApiKeyChange }: Dashboard
 
             {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-white border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute right-0 mt-2 w-72 bg-card border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                 {/* User Info */}
-                <div className="px-4 py-3 border-b border-border bg-gray-50">
+                <div className="px-4 py-3 border-b border-border bg-secondary">
                   <div className="flex items-center gap-3">
                     {displayImage ? (
                       <img
@@ -157,7 +157,7 @@ export function DashboardHeader({ activeTab, apiKey, onApiKeyChange }: Dashboard
                   {/* API Key Section */}
                   <button
                     onClick={() => setShowApiKeySection(!showApiKeySection)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-foreground hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <svg className="w-4 h-4 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,7 +185,7 @@ export function DashboardHeader({ activeTab, apiKey, onApiKeyChange }: Dashboard
 
                   {/* API Key Expanded Section */}
                   {showApiKeySection && (
-                    <div className="px-4 py-3 bg-gray-50 border-y border-border animate-in slide-in-from-top-1 duration-150">
+                    <div className="px-4 py-3 bg-secondary border-y border-border animate-in slide-in-from-top-1 duration-150">
                       <div className="mb-2">
                         <p className="text-xs text-foreground/60 mb-2">
                           Get your free API key from{" "}
@@ -205,7 +205,7 @@ export function DashboardHeader({ activeTab, apiKey, onApiKeyChange }: Dashboard
                           value={apiKey}
                           onChange={(e) => onApiKeyChange(e.target.value)}
                           placeholder="Enter your Gemini API key..."
-                          className="w-full p-2 pr-16 bg-white border border-border text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded font-mono"
+                          className="w-full p-2 pr-16 bg-card border border-border text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded font-mono"
                           onClick={(e) => e.stopPropagation()}
                         />
                         {apiKey && (

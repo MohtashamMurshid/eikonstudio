@@ -14,13 +14,13 @@ export function DetailedFeatures() {
       <div className="grid md:grid-cols-2 gap-12 items-center mb-24">
         {/* Visual */}
         <div className="relative">
-          <div className="bg-white rounded-2xl border border-border p-6 shadow-sm">
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
             {/* Before/After mockup */}
             <div className="flex gap-4">
               <div className="flex-1 space-y-3">
                 <div className="text-xs text-foreground/50 uppercase tracking-wider">Input</div>
-                <div className="aspect-square bg-gradient-to-br from-amber-100 to-orange-100 rounded-xl flex items-center justify-center">
-                  <div className="w-16 h-20 bg-white rounded-lg shadow-md" />
+                <div className="aspect-square bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 rounded-xl flex items-center justify-center">
+                  <div className="w-16 h-20 bg-card rounded-lg shadow-md" />
                 </div>
               </div>
               <div className="flex items-center">
@@ -30,13 +30,13 @@ export function DetailedFeatures() {
               </div>
               <div className="flex-1 space-y-3">
                 <div className="text-xs text-foreground/50 uppercase tracking-wider">Background</div>
-                <div className="aspect-square bg-gradient-to-br from-emerald-100 to-teal-100 rounded-xl" />
+                <div className="aspect-square bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-xl" />
               </div>
             </div>
             <div className="mt-6 pt-6 border-t border-border">
               <div className="text-xs text-foreground/50 uppercase tracking-wider mb-3">Result</div>
-              <div className="aspect-video bg-gradient-to-br from-emerald-100 via-amber-50 to-teal-100 rounded-xl flex items-center justify-center">
-                <div className="w-20 h-24 bg-white rounded-lg shadow-lg" />
+              <div className="aspect-video bg-gradient-to-br from-emerald-100 via-amber-50 to-teal-100 dark:from-emerald-900/30 dark:via-amber-900/20 dark:to-teal-900/30 rounded-xl flex items-center justify-center">
+                <div className="w-20 h-24 bg-card rounded-lg shadow-lg" />
               </div>
             </div>
           </div>
@@ -127,21 +127,21 @@ export function DetailedFeatures() {
 
         {/* Visual */}
         <div className="relative md:order-1">
-          <div className="bg-white rounded-2xl border border-border p-6 shadow-sm">
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
             {/* Style variations grid */}
             <div className="text-xs text-foreground/50 uppercase tracking-wider mb-4">Style Variations</div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="aspect-square bg-gradient-to-br from-rose-100 to-pink-100 rounded-xl flex items-center justify-center">
-                <span className="text-xs text-rose-600/70 font-medium">Watercolor</span>
+              <div className="aspect-square bg-gradient-to-br from-rose-100 to-pink-100 dark:from-rose-900/30 dark:to-pink-900/30 rounded-xl flex items-center justify-center">
+                <span className="text-xs text-rose-600 dark:text-rose-400 font-medium">Watercolor</span>
               </div>
-              <div className="aspect-square bg-gradient-to-br from-amber-100 to-yellow-100 rounded-xl flex items-center justify-center">
-                <span className="text-xs text-amber-600/70 font-medium">Oil Paint</span>
+              <div className="aspect-square bg-gradient-to-br from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-xl flex items-center justify-center">
+                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Oil Paint</span>
               </div>
-              <div className="aspect-square bg-gradient-to-br from-slate-100 to-gray-200 rounded-xl flex items-center justify-center">
-                <span className="text-xs text-slate-600/70 font-medium">Sketch</span>
+              <div className="aspect-square bg-gradient-to-br from-slate-100 to-gray-200 dark:from-slate-800 dark:to-gray-700 rounded-xl flex items-center justify-center">
+                <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Sketch</span>
               </div>
-              <div className="aspect-square bg-gradient-to-br from-violet-100 to-purple-100 rounded-xl flex items-center justify-center">
-                <span className="text-xs text-violet-600/70 font-medium">Digital Art</span>
+              <div className="aspect-square bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/30 rounded-xl flex items-center justify-center">
+                <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">Digital Art</span>
               </div>
             </div>
           </div>

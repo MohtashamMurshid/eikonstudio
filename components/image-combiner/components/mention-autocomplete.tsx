@@ -204,7 +204,7 @@ export const MentionAutocomplete = memo(function MentionAutocomplete({
   return (
     <div
       ref={dropdownRef}
-      className="fixed z-[100] bg-white border border-border rounded-lg shadow-lg overflow-hidden animate-in fade-in duration-100"
+      className="fixed z-[100] bg-card border border-border rounded-lg shadow-lg overflow-hidden animate-in fade-in duration-100"
       style={{
         top: position.top - dropdownHeight,
         left: position.left,

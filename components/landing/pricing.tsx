@@ -12,7 +12,7 @@ export function Pricing() {
 
       <div className="grid md:grid-cols-3 gap-6">
         {/* Free Tier */}
-        <div className="bg-white p-8 rounded-2xl border border-border hover:shadow-lg transition-all">
+        <div className="bg-card p-8 rounded-2xl border border-border hover:shadow-lg transition-all">
           <div className="text-sm font-medium text-foreground/50 uppercase tracking-wider mb-2">Free</div>
           <div className="flex items-baseline gap-1 mb-6">
             <span className="text-4xl font-semibold tracking-tight">$0</span>
@@ -47,14 +47,14 @@ export function Pricing() {
           </ul>
           <Link
             href="/auth"
-            className="block w-full py-3 text-center border border-border rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            className="block w-full py-3 text-center border border-border rounded-lg text-sm font-medium hover:bg-accent transition-colors"
           >
             Get Started Free
           </Link>
         </div>
 
         {/* Pro Tier - Highlighted */}
-        <div className="bg-white p-8 rounded-2xl border-2 border-emerald-500 hover:shadow-xl transition-all relative">
+        <div className="bg-card p-8 rounded-2xl border-2 border-emerald-500 hover:shadow-xl transition-all relative">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-emerald-500 text-white text-xs font-medium rounded-full uppercase tracking-wider">
             Most Popular
           </div>
@@ -111,7 +111,7 @@ export function Pricing() {
         </div>
 
         {/* Enterprise Tier */}
-        <div className="bg-white p-8 rounded-2xl border border-border hover:shadow-lg transition-all">
+        <div className="bg-card p-8 rounded-2xl border border-border hover:shadow-lg transition-all">
           <div className="text-sm font-medium text-foreground/50 uppercase tracking-wider mb-2">Enterprise</div>
           <div className="flex items-baseline gap-1 mb-6">
             <span className="text-4xl font-semibold tracking-tight">Custom</span>
@@ -157,7 +157,7 @@ export function Pricing() {
           </ul>
           <a
             href="mailto:enterprise@eikon.studio"
-            className="block w-full py-3 text-center border border-border rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            className="block w-full py-3 text-center border border-border rounded-lg text-sm font-medium hover:bg-accent transition-colors"
           >
             Contact Sales
           </a>

@@ -36,7 +36,7 @@ export const FolderCard = memo(({
               e.stopPropagation()
               onOpen()
             }}
-            className="p-2.5 bg-white/90 hover:bg-white rounded-xl transition-colors shadow-sm"
+            className="p-2.5 bg-card/90 hover:bg-card rounded-xl transition-colors shadow-sm"
             title="Open folder"
           >
             <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,7 +49,7 @@ export const FolderCard = memo(({
                 e.stopPropagation()
                 setShowMenu(!showMenu)
               }}
-              className="p-2.5 bg-white/90 hover:bg-white rounded-xl transition-colors shadow-sm"
+              className="p-2.5 bg-card/90 hover:bg-card rounded-xl transition-colors shadow-sm"
               title="More options"
             >
               <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,7 +59,7 @@ export const FolderCard = memo(({
             
             {showMenu && (
               <div 
-                className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-border py-1 z-20 min-w-[120px]"
+                className="absolute right-0 top-full mt-1 bg-card rounded-lg shadow-xl border border-border py-1 z-20 min-w-[120px]"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button

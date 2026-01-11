@@ -44,7 +44,7 @@ export function ResultDisplay({
               onClick={onUseAsInput}
               variant="outline"
               size="sm"
-              className="text-xs h-8 px-3 bg-white border-border text-foreground hover:bg-gray-50 flex items-center gap-1.5"
+              className="text-xs h-8 px-3 bg-card border-border text-foreground hover:bg-accent flex items-center gap-1.5"
               title="Use as Input"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,7 +61,7 @@ export function ResultDisplay({
               onClick={onCopy}
               variant="outline"
               size="sm"
-              className="text-xs h-8 px-3 bg-white border-border text-foreground hover:bg-gray-50 flex items-center gap-1.5"
+              className="text-xs h-8 px-3 bg-card border-border text-foreground hover:bg-accent flex items-center gap-1.5"
               title="Copy"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,7 +74,7 @@ export function ResultDisplay({
               onClick={onDownload}
               variant="outline"
               size="sm"
-              className="text-xs h-8 px-3 bg-white border-border text-foreground hover:bg-gray-50 flex items-center gap-1.5"
+              className="text-xs h-8 px-3 bg-card border-border text-foreground hover:bg-accent flex items-center gap-1.5"
               title="Download"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,7 +91,7 @@ export function ResultDisplay({
         )}
       </div>
 
-      <div className="flex items-center justify-center min-h-[280px] md:min-h-[360px] bg-white border border-border rounded-xl">
+      <div className="flex items-center justify-center min-h-[280px] md:min-h-[360px] bg-card border border-border rounded-xl">
         {isLoading ? (
           <ProgressBar progress={progress} />
         ) : isConvertingHeic ? (
@@ -126,7 +126,7 @@ export function ResultDisplay({
                 </svg>
               </button>
             </div>
-            <div className="mt-4 p-3 bg-gray-50 border border-border rounded-lg">
+            <div className="mt-4 p-3 bg-secondary border border-border rounded-lg">
               <p className="text-sm text-foreground/70">
                 <span className="font-semibold text-foreground">Prompt:</span> {generatedImage.prompt}
               </p>
@@ -134,7 +134,7 @@ export function ResultDisplay({
           </div>
         ) : (
           <div className="text-center py-12 select-none">
-            <div className="w-16 h-16 mx-auto mb-4 border-2 border-dashed border-border rounded-xl flex items-center justify-center bg-gray-50">
+            <div className="w-16 h-16 mx-auto mb-4 border-2 border-dashed border-border rounded-xl flex items-center justify-center bg-secondary">
               <svg className="w-8 h-8 text-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                 <circle cx="8.5" cy="8.5" r="1.5" />

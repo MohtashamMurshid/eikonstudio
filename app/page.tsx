@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#f5f5f5] text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <LandingHeader />
 
       {/* Striped border - top */}

@@ -71,15 +71,15 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left Sidebar */}
-      <div className="w-full lg:w-[520px] xl:w-[560px] bg-gradient-to-b from-[#fafaf8] to-[#f0f0ec] flex flex-col min-h-screen relative">
+      <div className="w-full lg:w-[520px] xl:w-[560px] bg-gradient-to-b from-background to-secondary flex flex-col min-h-screen relative">
         {/* Subtle pattern overlay */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='currentColor' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
         }} />
         
         {/* Header */}
         <div className="relative p-8">
-          <Logo variant="dark" size="md" />
+          <Logo size="md" />
         </div>
 
         {/* Main Content */}
@@ -186,7 +186,7 @@ export default function AuthPage() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading || isLoading}
-              className="w-full h-13 bg-white border border-border rounded-xl font-medium text-foreground hover:bg-muted disabled:opacity-50 transition-all flex items-center justify-center gap-3"
+              className="w-full h-13 bg-card border border-border rounded-xl font-medium text-foreground hover:bg-muted disabled:opacity-50 transition-all flex items-center justify-center gap-3"
             >
               {isGoogleLoading ? (
                 <Loader2 className="size-5 animate-spin" />
