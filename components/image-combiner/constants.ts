@@ -193,8 +193,8 @@ The composition features components floating vertically above each other with da
   },
   {
     name: "architecture",
-    description: "Architectural visualization",
-    promptText: "architectural visualization render, photorealistic materials and textures, natural daylight simulation, clean modern aesthetic, professional real estate photography style, precise geometric forms, atmospheric perspective, high dynamic range, interior or exterior showcase",
+    description: "Architectural diagram blueprint",
+    promptText: "architectural technical diagram, blueprint style illustration, cross-section view showing wall construction and structural elements, clean line drawings with annotations, construction detail callouts, material layer visualization, professional CAD-style rendering, labeled components, scale indicators, orthographic projection, technical documentation aesthetic",
   },
 ]
 
