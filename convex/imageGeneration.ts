@@ -49,7 +49,7 @@ The color palette is strictly monochromatic blue based on these hex codes:
 - Guide Lines: Dashed vertical assembly lines and leader lines in subtle blue [#B0C4DE].
 
 The composition features components floating vertically above each other with dashed lines indicating the assembly path. Labels are in a retro, pixelated monospaced computer font, pointing to key components. A date stamp in the corner reads "[ C 1986 ]".`,
-  infographic: "infographic design, data visualization, clean modern layout, bold typography, icon-based illustrations, color-coded sections, statistical charts, visual hierarchy, professional presentation style, flat design elements",
+  infographic: "educational explainer poster in magazine editorial style, large central character or subject illustration, two columns of content on left and right sides, each section has a small rectangular illustration paired with bold header and short description text, clean white background, no icons or flowcharts, realistic or semi-realistic artwork in the small section images, category headers in colored text, title banner at top with bold sans-serif typography, professional layout like a wiki or guidebook page, no boxes or arrows connecting sections",
   anime: "anime art style, vibrant colors, detailed line work, expressive eyes, dynamic poses, cel shading, Japanese animation aesthetic, clean outlines, dramatic lighting",
   portrait: "professional portrait photography, soft studio lighting, shallow depth of field, catchlights in eyes, neutral background, high-end fashion photography style, sharp focus on subject",
   cinematic: "cinematic composition, dramatic lighting, anamorphic lens flare, film grain, movie still quality, 35mm film aesthetic, wide aspect ratio, depth and atmosphere",

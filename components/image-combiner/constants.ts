@@ -138,8 +138,8 @@ The composition features components floating vertically above each other with da
   },
   {
     name: "infographic",
-    description: "Infographic visualization",
-    promptText: "infographic design, data visualization, clean modern layout, bold typography, icon-based illustrations, color-coded sections, statistical charts, visual hierarchy, professional presentation style, flat design elements",
+    description: "Magazine-style explainer poster",
+    promptText: "educational explainer poster in magazine editorial style, large central character or subject illustration, two columns of content on left and right sides, each section has a small rectangular illustration paired with bold header and short description text, clean white background, no icons or flowcharts, realistic or semi-realistic artwork in the small section images, category headers in colored text, title banner at top with bold sans-serif typography, professional layout like a wiki or guidebook page, no boxes or arrows connecting sections",
   },
   {
     name: "anime",
