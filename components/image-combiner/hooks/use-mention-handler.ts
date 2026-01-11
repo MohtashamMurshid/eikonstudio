@@ -15,7 +15,7 @@ interface UseMentionHandlerProps {
   }
   onError: (message: string) => void
   onSuccess: (message: string) => void
-  textareaRef: React.RefObject<HTMLTextAreaElement>
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>
 }
 
 /**

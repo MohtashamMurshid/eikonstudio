@@ -10,7 +10,7 @@ interface SkillAutocompleteProps {
   cursorPosition: number
   onSelect: (skillName: string, startIndex: number, endIndex: number) => void
   onClose: () => void
-  textareaRef: React.RefObject<HTMLTextAreaElement>
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>
 }
 
 // Find the / skill being typed at cursor position

@@ -3,7 +3,7 @@ import { useState, useCallback, useRef } from "react"
 interface UseSkillHandlerProps {
   prompt: string
   setPrompt: (prompt: string) => void
-  textareaRef: React.RefObject<HTMLTextAreaElement>
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>
 }
 
 /**

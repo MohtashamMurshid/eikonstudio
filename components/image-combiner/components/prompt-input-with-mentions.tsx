@@ -7,7 +7,7 @@ interface PromptInputWithMentionsProps {
   cursorPosition: number
   showMentionDropdown: boolean
   showSkillDropdown: boolean
-  textareaRef: React.RefObject<HTMLTextAreaElement>
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>
   onPromptChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
   onCursorChange: (position: number) => void
@@ -99,7 +99,7 @@ export function PromptInputWithMentions({
           cursorPosition={cursorPosition}
           onSelect={onMentionSelect}
           onClose={onCloseMentionDropdown}
-          textareaRef={textareaRef as React.RefObject<HTMLTextAreaElement>}
+          textareaRef={textareaRef}
         />
       )}
 
@@ -110,7 +110,7 @@ export function PromptInputWithMentions({
           cursorPosition={cursorPosition}
           onSelect={onSkillSelect}
           onClose={onCloseSkillDropdown}
-          textareaRef={textareaRef as React.RefObject<HTMLTextAreaElement>}
+          textareaRef={textareaRef}
         />
       )}
     </div>

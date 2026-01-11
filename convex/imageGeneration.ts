@@ -40,7 +40,15 @@ function getAspectRatioString(ratio: string): string {
 // Predefined skills - must match the client-side constants for consistency
 // These are checked first before querying user's custom skills
 const PREDEFINED_SKILLS: Record<string, string> = {
-  technical: "technical diagram, precise line work, labeled components, engineering schematic style, clean white background, professional technical illustration, blueprint aesthetic, detailed annotations, isometric or orthographic projection",
+  technical: `Technical illustration in an isometric exploded view schematic style, retro 1980s digital blueprint aesthetic. The image shows a deconstructed view of the subject.
+
+The color palette is strictly monochromatic blue based on these hex codes:
+- Background: Pale cool white paper texture [#F4F7FF] with a faint, precise dotted grid pattern in subtle blue [#B0C4DE].
+- Primary Outlines, Text Labels, and Arrows: Sharp, vibrant blueprint blue [#2F52E0] with uniform line weight.
+- Fills and Shading: Flat, semi-transparent light blue fill [#7B92F0] used only for specific internal components to differentiate material.
+- Guide Lines: Dashed vertical assembly lines and leader lines in subtle blue [#B0C4DE].
+
+The composition features components floating vertically above each other with dashed lines indicating the assembly path. Labels are in a retro, pixelated monospaced computer font, pointing to key components. A date stamp in the corner reads "[ C 1986 ]".`,
   infographic: "infographic design, data visualization, clean modern layout, bold typography, icon-based illustrations, color-coded sections, statistical charts, visual hierarchy, professional presentation style, flat design elements",
   anime: "anime art style, vibrant colors, detailed line work, expressive eyes, dynamic poses, cel shading, Japanese animation aesthetic, clean outlines, dramatic lighting",
   portrait: "professional portrait photography, soft studio lighting, shallow depth of field, catchlights in eyes, neutral background, high-end fashion photography style, sharp focus on subject",
@@ -50,6 +58,9 @@ const PREDEFINED_SKILLS: Record<string, string> = {
   "3d": "3D render, octane render quality, volumetric lighting, subsurface scattering, high polygon count, realistic materials, studio lighting setup, professional 3D visualization",
   pixel: "pixel art, 16-bit style, limited color palette, crisp edges, retro gaming aesthetic, dithering techniques, nostalgic video game art, sprite-like quality",
   sketch: "pencil sketch, hand-drawn illustration, crosshatching, graphite texture, artistic linework, rough edges, traditional drawing style, sketchbook aesthetic",
+  isometric: "isometric illustration style, clean geometric shapes, 30-degree viewing angle, flat colors with subtle gradients, technical precision, no perspective distortion, grid-aligned composition, vector-like quality, detailed components, modern infographic aesthetic",
+  product: "professional product photography, studio lighting setup, clean white seamless background, perfect reflections on surface, high-end commercial quality, sharp focus throughout, soft diffused shadows, premium brand aesthetic, hero shot composition",
+  architecture: "architectural technical diagram, blueprint style illustration, cross-section view showing wall construction and structural elements, clean line drawings with annotations, construction detail callouts, material layer visualization, professional CAD-style rendering, labeled components, scale indicators, orthographic projection, technical documentation aesthetic",
 };
 
 /**
@@ -126,18 +137,19 @@ export const generateImageBackground = internalAction({
 
       const aspectRatioString = getAspectRatioString(aspectRatio);
 
-      // Build the final prompt
+      // Build the final prompt by replacing /skillnames with their prompt text
       let finalPrompt = prompt;
 
-      // Parse and append skill prompts
+      // Parse skill names from prompt
       const skillNames = parseSkillsFromPrompt(prompt);
       if (skillNames.length > 0) {
-        const skillPrompts: string[] = [];
+        // Build a map of skill name to prompt text
+        const skillPromptMap: Record<string, string> = {};
 
         for (const skillName of skillNames) {
           // First check predefined skills
           if (PREDEFINED_SKILLS[skillName]) {
-            skillPrompts.push(PREDEFINED_SKILLS[skillName]);
+            skillPromptMap[skillName] = PREDEFINED_SKILLS[skillName];
           } else if (userId) {
             // Check user's custom skills in the database
             const customSkill = await ctx.runQuery(internal.skills.getSkillByNameInternal, {
@@ -145,14 +157,16 @@ export const generateImageBackground = internalAction({
               name: skillName,
             });
             if (customSkill) {
-              skillPrompts.push(customSkill.promptText);
+              skillPromptMap[skillName] = customSkill.promptText;
             }
           }
         }
 
-        // Append all skill prompts to the final prompt
-        if (skillPrompts.length > 0) {
-          finalPrompt = `${finalPrompt}, ${skillPrompts.join(", ")}`;
+        // Replace each /skillname with its prompt text in place
+        for (const [skillName, promptText] of Object.entries(skillPromptMap)) {
+          // Create a regex that matches /skillname (case-insensitive)
+          const skillRegex = new RegExp(`\\/${skillName}\\b`, "gi");
+          finalPrompt = finalPrompt.replace(skillRegex, promptText);
         }
       }
 
@@ -163,6 +177,9 @@ export const generateImageBackground = internalAction({
           : `${artStyle} style`;
         finalPrompt = `${finalPrompt}, in ${styleText}`;
       }
+
+      // Log the final prompt with skills expanded
+      console.log("[Image Generation] Final prompt with skills:", finalPrompt);
 
       let resultBase64: string | null = null;
       let resultMimeType = "image/png";

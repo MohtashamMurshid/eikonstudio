@@ -31,7 +31,7 @@ interface MentionAutocompleteProps {
   cursorPosition: number
   onSelect: (filename: string, startIndex: number, endIndex: number, imageData: string | string[], isFolder?: boolean) => void
   onClose: () => void
-  textareaRef: React.RefObject<HTMLTextAreaElement>
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>
 }
 
 // Find the @ mention being typed at cursor position (supports folder/filename)
