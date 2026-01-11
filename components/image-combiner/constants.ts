@@ -126,7 +126,15 @@ export const predefinedSkills: Skill[] = [
   {
     name: "technical",
     description: "Technical diagram style",
-    promptText: "technical diagram, precise line work, labeled components, engineering schematic style, clean white background, professional technical illustration, blueprint aesthetic, detailed annotations, isometric or orthographic projection",
+    promptText: `Technical illustration in an isometric exploded view schematic style, retro 1980s digital blueprint aesthetic. The image shows a deconstructed view of the subject.
+
+The color palette is strictly monochromatic blue based on these hex codes:
+- Background: Pale cool white paper texture [#F4F7FF] with a faint, precise dotted grid pattern in subtle blue [#B0C4DE].
+- Primary Outlines, Text Labels, and Arrows: Sharp, vibrant blueprint blue [#2F52E0] with uniform line weight.
+- Fills and Shading: Flat, semi-transparent light blue fill [#7B92F0] used only for specific internal components to differentiate material.
+- Guide Lines: Dashed vertical assembly lines and leader lines in subtle blue [#B0C4DE].
+
+The composition features components floating vertically above each other with dashed lines indicating the assembly path. Labels are in a retro, pixelated monospaced computer font, pointing to key components. A date stamp in the corner reads "[ C 1986 ]".`,
   },
   {
     name: "infographic",
