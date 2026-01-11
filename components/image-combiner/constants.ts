@@ -181,5 +181,20 @@ The composition features components floating vertically above each other with da
     description: "Hand-drawn sketch",
     promptText: "pencil sketch, hand-drawn illustration, crosshatching, graphite texture, artistic linework, rough edges, traditional drawing style, sketchbook aesthetic",
   },
+  {
+    name: "isometric",
+    description: "Isometric 3D diagram",
+    promptText: "isometric illustration style, clean geometric shapes, 30-degree viewing angle, flat colors with subtle gradients, technical precision, no perspective distortion, grid-aligned composition, vector-like quality, detailed components, modern infographic aesthetic",
+  },
+  {
+    name: "product",
+    description: "Product photography style",
+    promptText: "professional product photography, studio lighting setup, clean white seamless background, perfect reflections on surface, high-end commercial quality, sharp focus throughout, soft diffused shadows, premium brand aesthetic, hero shot composition",
+  },
+  {
+    name: "architecture",
+    description: "Architectural visualization",
+    promptText: "architectural visualization render, photorealistic materials and textures, natural daylight simulation, clean modern aesthetic, professional real estate photography style, precise geometric forms, atmospheric perspective, high dynamic range, interior or exterior showcase",
+  },
 ]
 
