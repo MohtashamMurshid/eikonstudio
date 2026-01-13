@@ -123,30 +123,56 @@ export async function POST(request: NextRequest) {
     let resultUrl: string | null = null;
     let resultDuration: number | undefined;
 
-    // Helper function to convert image data to inline part
-    const toInlinePart = async (urlOrData: string): Promise<any> => {
-      if (urlOrData.startsWith("data:")) {
-        const [meta, base64Data] = urlOrData.split(",", 2);
-        const mime = meta.substring(5, meta.indexOf(";")) || "image/png";
-        return { inlineData: { data: base64Data, mimeType: mime } };
+    // Helper function to extract base64 data and mime type from data URL
+    const parseDataUrl = (dataUrl: string): { base64Data: string; mimeType: string } => {
+      const [meta, base64Data] = dataUrl.split(",", 2);
+      const mimeType = meta.substring(5, meta.indexOf(";")) || "image/png";
+      return { base64Data, mimeType };
+    };
+
+    // Helper function to poll for video generation completion
+    const pollForCompletion = async (operation: any, maxPolls = 60) => {
+      let pollCount = 0;
+      while (!operation.done && pollCount < maxPolls) {
+        console.log(`Video API: Polling attempt ${pollCount + 1}/${maxPolls}...`);
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+        operation = await ai.operations.getVideosOperation({ operation });
+        pollCount++;
       }
-      const resp = await fetch(urlOrData);
-      if (!resp.ok)
-        throw new Error(`Failed to fetch reference image: ${resp.status}`);
-      const buf = Buffer.from(await resp.arrayBuffer());
-      const b64 = buf.toString("base64");
-      return {
-        inlineData: {
-          data: b64,
-          mimeType: resp.headers.get("content-type") || "image/png",
-        },
-      };
+      return operation;
+    };
+
+    // Helper function to extract video from operation response
+    const extractVideoFromOperation = async (operation: any): Promise<{ url: string; duration: number }> => {
+      if (operation.response?.generatedVideos && operation.response.generatedVideos.length > 0) {
+        const generatedVideo = operation.response.generatedVideos[0];
+        const video = generatedVideo.video;
+
+        if (video && video.uri) {
+          const videoUri = decodeURIComponent(video.uri);
+          console.log("Video API: Fetching video from:", videoUri);
+
+          const videoResponse = await fetch(`${videoUri}&key=${apiKeyToUse}`);
+          if (!videoResponse.ok) {
+            throw new Error(`Failed to fetch video: ${videoResponse.status} ${videoResponse.statusText}`);
+          }
+
+          const videoBlob = await videoResponse.blob();
+          const buffer = Buffer.from(await videoBlob.arrayBuffer());
+          const base64Data = buffer.toString("base64");
+          
+          return {
+            url: `data:video/mp4;base64,${base64Data}`,
+            duration: video.duration || 8,
+          };
+        }
+      }
+      throw new Error("No video data found in response");
     };
 
     if (mode === "text-to-video") {
       console.log("Video API: Using text-to-video mode with Veo 3.1");
 
-      // Official Google structure for text-to-video
       let operation = await ai.models.generateVideos({
         model: "veo-3.1-generate-preview",
         prompt: prompt,
@@ -158,248 +184,128 @@ export async function POST(request: NextRequest) {
       });
 
       console.log("Video API: Polling for video generation completion...");
-
-      // Poll the operation status until the video is ready
-      // Veo typically takes 30-120 seconds for 8-second videos
-      let pollCount = 0;
-      const maxPolls = 60; // 10 minutes max (10 seconds per poll)
-
-      while (!operation.done && pollCount < maxPolls) {
-        console.log(`Video API: Polling attempt ${pollCount + 1}/${maxPolls}...`);
-        await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
-
-        operation = await ai.operations.getVideosOperation({
-          operation: operation,
-        });
-
-        pollCount++;
-      }
+      operation = await pollForCompletion(operation);
 
       if (!operation.done) {
         throw new Error("Video generation timed out. Please try again.");
       }
-
       if (operation.error) {
         throw new Error(`Video generation failed: ${JSON.stringify(operation.error)}`);
       }
 
-      // Extract video data from completed operation
-      if (operation.response?.generatedVideos && operation.response.generatedVideos.length > 0) {
-        const generatedVideo = operation.response.generatedVideos[0];
-        const video = generatedVideo.video;
+      const result = await extractVideoFromOperation(operation);
+      resultUrl = result.url;
+      resultDuration = result.duration;
+      console.log("Video API: Successfully fetched and converted video to base64");
 
-        if (video && video.uri) {
-          // Fetch the actual video file using the URI + API key
-          const videoUri = decodeURIComponent(video.uri);
-          console.log("Video API: Fetching video from:", videoUri);
-
-          const videoResponse = await fetch(`${videoUri}&key=${apiKeyToUse}`);
-
-          if (!videoResponse.ok) {
-            throw new Error(`Failed to fetch video: ${videoResponse.status} ${videoResponse.statusText}`);
-          }
-
-          const videoBlob = await videoResponse.blob();
-          const buffer = Buffer.from(await videoBlob.arrayBuffer());
-          const base64Data = buffer.toString("base64");
-          resultUrl = `data:video/mp4;base64,${base64Data}`;
-
-          console.log("Video API: Successfully fetched and converted video to base64");
-        }
-
-        resultDuration = video?.duration || 8;
-      }
-
-      if (!resultUrl) {
-        console.error("Video API: Failed to extract video URL. Operation:", JSON.stringify(operation, null, 2));
-        throw new Error("No video data found in response");
-      }
     } else if (mode === "image-to-video") {
       console.log("Video API: Using image-to-video mode with Veo 3.1");
 
-      // Convert reference images to the official format
-      const referenceImagesPayload: any[] = [];
-
-      for (const img of referenceImages) {
-        if (img) {
-          try {
-            const buffer = await img.arrayBuffer();
-            const base64Data = Buffer.from(buffer).toString("base64");
-
-            referenceImagesPayload.push({
-              image: {
-                imageBytes: base64Data,
-                mimeType: img.type,
-              },
-              referenceType: "ASSET", // or "STYLE" for style transfer
-            });
-          } catch (e) {
-            console.log("Video API: Skipping invalid reference image:", e);
-          }
-        }
-      }
-
-      if (referenceImagesPayload.length === 0) {
+      // For image-to-video, use the first image as the starting frame
+      // and include additional images as reference images
+      if (referenceImages.length === 0) {
         throw new Error("No valid reference images provided");
       }
 
-      // Official Google structure for image-to-video with references
+      // Parse the first image for the starting frame
+      const firstImage = parseDataUrl(referenceImages[0]);
+      console.log("Video API: First image mime type:", firstImage.mimeType);
+
+      // Build reference images payload for additional images (if any)
+      const referenceImagesPayload: any[] = [];
+      for (let i = 1; i < referenceImages.length; i++) {
+        const parsed = parseDataUrl(referenceImages[i]);
+        referenceImagesPayload.push({
+          image: {
+            imageBytes: parsed.base64Data,
+            mimeType: parsed.mimeType,
+          },
+          referenceType: "STYLE",
+        });
+      }
+
+      // Official Google structure for image-to-video
+      // Use `image` parameter for the starting frame
       let operation = await ai.models.generateVideos({
         model: "veo-3.1-generate-preview",
         prompt: prompt,
+        image: {
+          imageBytes: firstImage.base64Data,
+          mimeType: firstImage.mimeType,
+        },
         config: {
           numberOfVideos: 1,
           resolution: resolution,
           aspectRatio: aspectRatio,
-          referenceImages: referenceImagesPayload,
+          ...(referenceImagesPayload.length > 0 && { referenceImages: referenceImagesPayload }),
         },
       });
 
       console.log("Video API: Polling for image-to-video generation completion...");
-
-      let pollCount = 0;
-      const maxPolls = 60;
-
-      while (!operation.done && pollCount < maxPolls) {
-        console.log(`Video API: Polling attempt ${pollCount + 1}/${maxPolls}...`);
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-
-        operation = await ai.operations.getVideosOperation({
-          operation: operation,
-        });
-
-        pollCount++;
-      }
+      operation = await pollForCompletion(operation);
 
       if (!operation.done) {
         throw new Error("Video generation timed out. Please try again.");
       }
-
       if (operation.error) {
         throw new Error(`Video generation failed: ${JSON.stringify(operation.error)}`);
       }
 
-      // Extract and fetch video from operation.response.generatedVideos
-      if (operation.response?.generatedVideos && operation.response.generatedVideos.length > 0) {
-        const generatedVideo = operation.response.generatedVideos[0];
-        const video = generatedVideo.video;
+      const result = await extractVideoFromOperation(operation);
+      resultUrl = result.url;
+      resultDuration = result.duration;
+      console.log("Video API: Successfully fetched and converted image-to-video to base64");
 
-        if (video && video.uri) {
-          const videoUri = decodeURIComponent(video.uri);
-          console.log("Video API: Fetching image-to-video from:", videoUri);
-
-          const videoResponse = await fetch(`${videoUri}&key=${apiKeyToUse}`);
-
-          if (!videoResponse.ok) {
-            throw new Error(`Failed to fetch video: ${videoResponse.status} ${videoResponse.statusText}`);
-          }
-
-          const videoBlob = await videoResponse.blob();
-          const buffer = Buffer.from(await videoBlob.arrayBuffer());
-          const base64Data = buffer.toString("base64");
-          resultUrl = `data:video/mp4;base64,${base64Data}`;
-
-          console.log("Video API: Successfully fetched and converted image-to-video to base64");
-        }
-
-        resultDuration = video?.duration || 8;
-      }
-
-      if (!resultUrl) {
-        console.error("Video API: Failed to extract video URL. Operation:", JSON.stringify(operation, null, 2));
-        throw new Error("No video data found in response");
-      }
     } else if (mode === "frame-to-video") {
       console.log("Video API: Using frame-to-video mode (first & last frames) with Veo 3.1");
 
-      if (!referenceImages[0] || !referenceImages[1]) {
+      if (referenceImages.length < 2) {
         throw new Error("frame-to-video mode requires exactly 2 images (first and last frames)");
       }
 
-      // Convert first frame
-      const firstFrameBuffer = await referenceImages[0].arrayBuffer();
-      const firstFrameBase64 = Buffer.from(firstFrameBuffer).toString("base64");
+      // Parse first and last frame images
+      const firstFrame = parseDataUrl(referenceImages[0]);
+      const lastFrame = parseDataUrl(referenceImages[1]);
 
-      // Convert last frame
-      const lastFrameBuffer = await referenceImages[1].arrayBuffer();
-      const lastFrameBase64 = Buffer.from(lastFrameBuffer).toString("base64");
+      console.log("Video API: First frame mime type:", firstFrame.mimeType);
+      console.log("Video API: Last frame mime type:", lastFrame.mimeType);
 
       // Enhanced prompt for frame interpolation
       const framePrompt = `${prompt}. Create a smooth video transition between the two frames.`;
 
-      // Official Google structure for frame-to-video
+      // Official Google structure for frame-to-video using image + lastFrame
       let operation = await ai.models.generateVideos({
         model: "veo-3.1-generate-preview",
         prompt: framePrompt,
         image: {
-          imageBytes: firstFrameBase64,
-          mimeType: referenceImages[0].type,
+          imageBytes: firstFrame.base64Data,
+          mimeType: firstFrame.mimeType,
         },
         config: {
           numberOfVideos: 1,
           resolution: resolution,
           aspectRatio: aspectRatio,
           lastFrame: {
-            imageBytes: lastFrameBase64,
-            mimeType: referenceImages[1].type,
+            imageBytes: lastFrame.base64Data,
+            mimeType: lastFrame.mimeType,
           },
         },
       });
 
       console.log("Video API: Polling for frame-to-video generation completion...");
-
-      let pollCount = 0;
-      const maxPolls = 60;
-
-      while (!operation.done && pollCount < maxPolls) {
-        console.log(`Video API: Polling attempt ${pollCount + 1}/${maxPolls}...`);
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-
-        operation = await ai.operations.getVideosOperation({
-          operation: operation,
-        });
-
-        pollCount++;
-      }
+      operation = await pollForCompletion(operation);
 
       if (!operation.done) {
         throw new Error("Video generation timed out. Please try again.");
       }
-
       if (operation.error) {
         throw new Error(`Video generation failed: ${JSON.stringify(operation.error)}`);
       }
 
-      // Extract and fetch video from operation.response.generatedVideos
-      if (operation.response?.generatedVideos && operation.response.generatedVideos.length > 0) {
-        const generatedVideo = operation.response.generatedVideos[0];
-        const video = generatedVideo.video;
-
-        if (video && video.uri) {
-          const videoUri = decodeURIComponent(video.uri);
-          console.log("Video API: Fetching frame-to-video from:", videoUri);
-
-          const videoResponse = await fetch(`${videoUri}&key=${apiKeyToUse}`);
-
-          if (!videoResponse.ok) {
-            throw new Error(`Failed to fetch video: ${videoResponse.status} ${videoResponse.statusText}`);
-          }
-
-          const videoBlob = await videoResponse.blob();
-          const buffer = Buffer.from(await videoBlob.arrayBuffer());
-          const base64Data = buffer.toString("base64");
-          resultUrl = `data:video/mp4;base64,${base64Data}`;
-
-          console.log("Video API: Successfully fetched and converted frame-to-video to base64");
-        }
-
-        resultDuration = video?.duration || 8;
-      }
-
-      if (!resultUrl) {
-        console.error("Video API: Failed to extract video URL. Operation:", JSON.stringify(operation, null, 2));
-        throw new Error("No video data found in response");
-      }
+      const result = await extractVideoFromOperation(operation);
+      resultUrl = result.url;
+      resultDuration = result.duration;
+      console.log("Video API: Successfully fetched and converted frame-to-video to base64");
     }
 
     if (!resultUrl) {
