@@ -5,6 +5,7 @@ import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 import { StatsCards } from "@/components/dashboard/stats-cards"
+import { VideoStatsCards } from "@/components/dashboard/video-stats-cards"
 
 // Dynamic import for chart component (uses recharts - heavy dependency)
 const GenerationChart = dynamic(
@@ -35,6 +36,9 @@ export default function DashboardPage() {
 
           {/* Generation Chart */}
           <GenerationChart />
+
+          {/* Video usage */}
+          <VideoStatsCards userName={displayName} />
         </div>
       </div>
     </div>
