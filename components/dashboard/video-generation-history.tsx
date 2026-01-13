@@ -6,6 +6,7 @@ import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { LogoLoader } from "@/components/logo-icon"
+import { VideoPlayer } from "@/components/ui/video-player"
 
 interface VideoGeneration {
   _id: Id<"videoGenerations">
@@ -422,12 +423,12 @@ export function VideoGenerationHistory({ onUseAsReference }: VideoGenerationHist
             <div className="flex-1 overflow-auto p-4 space-y-4">
               {/* Video */}
               <div className="flex justify-center">
-                <video
+                <VideoPlayer
                   src={selectedVideo.videoUrl || ""}
-                  controls
                   autoPlay
                   loop
-                  className="max-w-full max-h-[50vh] rounded-xl"
+                  className="rounded-xl w-full"
+                  maxHeight="50vh"
                 />
               </div>
 

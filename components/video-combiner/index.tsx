@@ -12,7 +12,8 @@ import { useToast } from "./hooks/use-toast";
 import { useVideoUpload } from "./hooks/use-video-upload";
 import { useVideoGeneration } from "./hooks/use-video-generation";
 import { useVideoActions } from "./hooks/use-video-actions";
-import { calculateVideoCost } from "@/lib/video-cost-calculator";
+import { calculateVideoCost } from "@/lib/video-cost-calculator"
+import { VideoPlayer } from "@/components/ui/video-player";
 
 export function VideoCombiner({ apiKey }: VideoCombinerProps) {
   const [prompt, setPrompt] = useState("");
@@ -404,12 +405,12 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
 
                   {/* Video Display */}
                   <div className="relative flex items-center justify-center">
-                    <video
+                    <VideoPlayer
                       src={videoGeneration.generatedVideo.url}
-                      controls
                       autoPlay
                       loop
-                      className="max-w-full max-h-[300px] sm:max-h-[500px] object-contain rounded-lg sm:rounded-xl"
+                      className="rounded-lg sm:rounded-xl w-full"
+                      maxHeight="500px"
                     />
                   </div>
 
