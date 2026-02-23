@@ -7,6 +7,8 @@
     "dev": "next dev",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "start": "next start",
+    "cli:dev": "pnpm --filter @eikon/cli dev",
+    "cli:typecheck": "pnpm --filter @eikon/cli typecheck",
     "build:monorepo": "turbo run build",
     "dev:monorepo": "turbo run dev --parallel",
     "lint:monorepo": "turbo run lint",

@@ -39,7 +39,9 @@ export function printGlobalHelp() {
   console.log("eikon CLI");
   console.log("");
   console.log("Usage:");
-  console.log("  eikon                           Start interactive shell");
+  console.log("  eikon                           Start OpenTUI (fallback to shell)");
+  console.log("  eikon tui                       Start OpenTUI explicitly");
+  console.log("  eikon shell                     Start readline shell");
   console.log("  eikon run <prompt> [flags]      Generate image from text");
   console.log("  eikon edit <prompt> [flags]     Image editing mode");
   console.log("  eikon config <subcommand>       Manage CLI config");

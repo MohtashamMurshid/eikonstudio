@@ -26,10 +26,12 @@ function addFlag(
 }
 
 export function parseArgv(argv: string[]): ParsedArgs {
-  const [commandToken, ...rest] = argv;
+  const [commandToken] = argv;
+  const commandIsFlag = typeof commandToken === "string" && commandToken.startsWith("-");
+  const command = commandToken && !commandIsFlag ? commandToken : null;
+  const rest = command ? argv.slice(1) : argv;
   const positional: string[] = [];
   const flags: Record<string, string | string[] | boolean> = {};
-  const command = commandToken ?? null;
 
   for (let i = 0; i < rest.length; i++) {
     const token = rest[i];

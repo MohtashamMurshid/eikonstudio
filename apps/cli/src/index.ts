@@ -8,6 +8,7 @@ import {
   sessionCommand,
 } from "./commands";
 import { startInteractiveShell } from "./interactive-shell";
+import { startOpenTuiMode } from "./open-tui";
 
 async function main() {
   const parsed = parseArgv(process.argv.slice(2));
@@ -15,6 +16,22 @@ async function main() {
   const showHelp = getFlagBoolean(parsed.flags, "help");
 
   if (!command || command === "interactive") {
+    const launchedTui = await startOpenTuiMode();
+    if (!launchedTui) {
+      await startInteractiveShell();
+    }
+    return;
+  }
+
+  if (command === "tui") {
+    const launchedTui = await startOpenTuiMode();
+    if (!launchedTui) {
+      await startInteractiveShell();
+    }
+    return;
+  }
+
+  if (command === "shell") {
     await startInteractiveShell();
     return;
   }

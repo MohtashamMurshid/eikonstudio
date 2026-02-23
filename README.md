@@ -21,8 +21,8 @@ This repository now uses a Turborepo + pnpm workspace setup.
 ### Workspace layout
 
 - `.` (root): existing Next.js web app (kept in place for Vercel safety)
-- `apps/cli`: Bun-based CLI scaffold (OpenTUI target)
-- `packages/sdk`: shared TypeScript SDK package
+- `apps/cli`: CLI with one-shot commands + interactive modes (OpenTUI + shell fallback)
+- `packages/sdk`: shared TypeScript SDK for API access
 
 ### Useful commands
 
@@ -37,6 +37,19 @@ pnpm dev:monorepo
 pnpm build:monorepo
 pnpm lint:monorepo
 pnpm typecheck:monorepo
+```
+
+### CLI quickstart
+
+```bash
+# Show help
+pnpm --filter @eikon/cli dev -- help
+
+# One-shot generation
+pnpm --filter @eikon/cli dev -- run "A neon samurai in rain" --size 2K --ratio portrait
+
+# Interactive shell
+pnpm --filter @eikon/cli dev -- shell
 ```
 
 ### Vercel safety note
