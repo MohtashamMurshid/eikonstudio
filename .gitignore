@@ -6,9 +6,12 @@
 # next.js
 /.next/
 /out/
+.turbo/
 
 # production
 /build
+apps/cli/dist
+packages/sdk/dist
 
 # debug
 npm-debug.log*

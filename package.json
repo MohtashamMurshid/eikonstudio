@@ -6,7 +6,11 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "start": "next start"
+    "start": "next start",
+    "build:monorepo": "turbo run build",
+    "dev:monorepo": "turbo run dev --parallel",
+    "lint:monorepo": "turbo run lint",
+    "typecheck:monorepo": "turbo run typecheck"
   },
   "dependencies": {
     "@convex-dev/better-auth": "^0.10.9",
@@ -80,6 +84,7 @@
     "eslint-config-next": "16.1.1",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
+    "turbo": "^2.8.10",
     "tw-animate-css": "1.3.3",
     "typescript": "^5.9.3"
   },

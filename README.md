@@ -14,6 +14,36 @@ Your project is live at:
 
 **Domain:** https://nano.mohtasham.dev
 
+## Monorepo (Turborepo) - Phase 1
+
+This repository now uses a Turborepo + pnpm workspace setup.
+
+### Workspace layout
+
+- `.` (root): existing Next.js web app (kept in place for Vercel safety)
+- `apps/cli`: Bun-based CLI scaffold (OpenTUI target)
+- `packages/sdk`: shared TypeScript SDK package
+
+### Useful commands
+
+```bash
+# Existing web app commands (unchanged)
+pnpm dev
+pnpm build
+pnpm lint
+
+# Monorepo orchestration
+pnpm dev:monorepo
+pnpm build:monorepo
+pnpm lint:monorepo
+pnpm typecheck:monorepo
+```
+
+### Vercel safety note
+
+The web app has not been moved yet, so existing Vercel build behavior remains unchanged.
+If/when the web app is later moved to `apps/web`, update the Vercel Root Directory accordingly.
+
 ## Public API
 
 The application provides a public REST API for image generation.
