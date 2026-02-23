@@ -7,14 +7,17 @@
     "eikon": "dist/index.js"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target bun",
-    "dev": "bun run src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
     "lint": "eslint src --ext .ts",
-    "start": "bun run dist/index.js",
+    "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@eikon/sdk": "workspace:*",
     "@opentui/core": "^0.1.81"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
   }
 }
