@@ -98,10 +98,11 @@ export async function generateImage(
   const body = parseJsonSafely(responseText) as GenerateImageErrorBody | GenerateImageResponse | null;
 
   if (!response.ok) {
+    const errorBody = body && typeof body === "object" ? (body as GenerateImageErrorBody) : null;
     throw new EikonApiError(
-      body && typeof body === "object" ? body.error ?? "Request failed" : "Request failed",
+      errorBody?.error ?? "Request failed",
       response.status,
-      body && typeof body === "object" ? body.details ?? "" : responseText
+      errorBody?.details ?? responseText
     );
   }
 
