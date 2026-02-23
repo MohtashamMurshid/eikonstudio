@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Suspense } from "react"
 import "./globals.css"
-import { ConvexClientProvider } from "./ConvexClientProvider"
+import { ConvexClientProvider } from "../components/ConvexClientProvider"
 import { ClientProviders } from "@/components/client-providers"
 import { ThemeProvider } from "@/components/theme-provider"
 
