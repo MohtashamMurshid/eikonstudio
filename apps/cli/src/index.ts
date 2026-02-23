@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { parseArgv } from "./arg-parser";
+import { getFlagBoolean, parseArgv } from "./arg-parser";
 import {
   configCommand,
   editCommand,
@@ -12,13 +12,14 @@ import { startInteractiveShell } from "./interactive-shell";
 async function main() {
   const parsed = parseArgv(process.argv.slice(2));
   const command = parsed.command;
+  const showHelp = getFlagBoolean(parsed.flags, "help");
 
   if (!command || command === "interactive") {
     await startInteractiveShell();
     return;
   }
 
-  if (command === "help" || parsed.flags.help || parsed.flags["help"] === true) {
+  if (command === "help" || showHelp) {
     printGlobalHelp();
     return;
   }

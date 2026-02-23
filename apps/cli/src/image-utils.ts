@@ -53,6 +53,6 @@ export async function saveDataUrlToFile(dataUrl: string, outputPath: string): Pr
     : `${outputPath}.${mimeTypeToExtension(decoded.mimeType)}`;
 
   await mkdir(path.dirname(resolvedExtension), { recursive: true });
-  await writeFile(resolvedExtension, Buffer.from(decoded.bytes));
+  await writeFile(resolvedExtension, decoded.bytes);
   return resolvedExtension;
 }
