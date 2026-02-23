@@ -1,34 +1,48 @@
 #!/usr/bin/env bun
+import { parseArgv } from "./arg-parser";
+import {
+  configCommand,
+  editCommand,
+  printGlobalHelp,
+  runCommand,
+  sessionCommand,
+} from "./commands";
+import { startInteractiveShell } from "./interactive-shell";
 
-type CliArgs = {
-  help: boolean;
-};
+async function main() {
+  const parsed = parseArgv(process.argv.slice(2));
+  const command = parsed.command;
 
-function parseArgs(argv: string[]): CliArgs {
-  return {
-    help: argv.includes("--help") || argv.includes("-h"),
-  };
-}
-
-function printHelp() {
-  console.log("eikon CLI (scaffold)");
-  console.log("");
-  console.log("Usage:");
-  console.log("  bun run src/index.ts [options]");
-  console.log("");
-  console.log("Options:");
-  console.log("  -h, --help   Show help");
-}
-
-function main() {
-  const args = parseArgs(process.argv.slice(2));
-
-  if (args.help) {
-    printHelp();
+  if (!command || command === "interactive") {
+    await startInteractiveShell();
     return;
   }
 
-  console.log("eikon CLI scaffold ready. OpenTUI implementation coming next.");
+  if (command === "help" || parsed.flags.help || parsed.flags["help"] === true) {
+    printGlobalHelp();
+    return;
+  }
+
+  switch (command) {
+    case "run":
+      await runCommand(parsed);
+      break;
+    case "edit":
+      await editCommand(parsed);
+      break;
+    case "config":
+      await configCommand(parsed);
+      break;
+    case "session":
+      await sessionCommand(parsed);
+      break;
+    default:
+      throw new Error(`Unknown command: ${command}. Run "eikon help".`);
+  }
 }
 
-main();
+main().catch((error) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[eikon] ${message}`);
+  process.exitCode = 1;
+});

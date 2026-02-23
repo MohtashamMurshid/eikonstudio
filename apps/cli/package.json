@@ -3,11 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "eikon": "dist/index.js"
+  },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target bun",
     "dev": "bun run src/index.ts",
     "lint": "eslint src --ext .ts",
     "start": "bun run dist/index.js",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@eikon/sdk": "workspace:*"
   }
 }
