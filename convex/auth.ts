@@ -3,6 +3,7 @@ import { convex } from "@convex-dev/better-auth/plugins";
 import { components } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
+import { v } from "convex/values";
 import { betterAuth } from "better-auth/minimal";
 import authConfig from "./auth.config";
 
@@ -43,6 +44,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
 // Using safeGetAuthUser to avoid throwing errors during auth state sync (e.g., on page reload)
 export const getCurrentUser = query({
   args: {},
+  // Better Auth user shape comes from the auth component and may evolve.
+  returns: v.any(),
   handler: async (ctx) => {
     return authComponent.safeGetAuthUser(ctx);
   },

@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query, action } from "./_generated/server";
 import { authComponent } from "./auth";
 import { api } from "./_generated/api";
@@ -66,10 +66,14 @@ export const saveApiKey = mutation({
   args: {
     apiKey: v.string(),
   },
+  returns: v.object({
+    success: v.boolean(),
+    updated: v.boolean(),
+  }),
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new Error("Must be authenticated to save API key");
+      throw new ConvexError("Must be authenticated to save API key");
     }
 
     const iv = generateIV();
@@ -86,7 +90,7 @@ export const saveApiKey = mutation({
 
     if (existing) {
       // Update existing key
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("apiKeys", existing._id, {
         encryptedKey,
         iv,
         updatedAt: now,
@@ -109,6 +113,14 @@ export const saveApiKey = mutation({
 // Get decrypted API key for current user
 export const getApiKey = query({
   args: {},
+  returns: v.union(
+    v.null(),
+    v.object({
+      apiKey: v.string(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }),
+  ),
   handler: async (ctx) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
@@ -138,6 +150,7 @@ export const getApiKey = query({
 // Check if user has an API key stored (without decrypting)
 export const hasApiKey = query({
   args: {},
+  returns: v.boolean(),
   handler: async (ctx) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
@@ -156,10 +169,14 @@ export const hasApiKey = query({
 // Delete API key for current user
 export const deleteApiKey = mutation({
   args: {},
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  }),
   handler: async (ctx) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new Error("Must be authenticated to delete API key");
+      throw new ConvexError("Must be authenticated to delete API key");
     }
 
     const apiKeyRecord = await ctx.db
@@ -168,7 +185,7 @@ export const deleteApiKey = mutation({
       .first();
 
     if (apiKeyRecord) {
-      await ctx.db.delete(apiKeyRecord._id);
+      await ctx.db.delete("apiKeys", apiKeyRecord._id);
       return { success: true };
     }
 
@@ -181,6 +198,10 @@ export const testApiKey = action({
   args: {
     apiKey: v.string(),
   },
+  returns: v.object({
+    valid: v.boolean(),
+    message: v.string(),
+  }),
   handler: async (ctx, args) => {
     try {
       // Make a simple models list request to verify the key works
