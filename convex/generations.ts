@@ -181,7 +181,7 @@ export const saveGeneration = mutation({
       artStyle: args.artStyle,
       createdAt: Date.now(),
       estimatedCost,
-      model: args.model ?? "gemini-3-pro-image-preview",
+      model: args.model ?? "gemini-3.1-flash-image-preview",
       status: "completed", // Legacy saves are already completed
     });
 
@@ -542,7 +542,7 @@ export const backfillCosts = mutation({
       
       // Backfill model if missing
       if (!gen.model) {
-        updates.model = "gemini-3-pro-image-preview";
+        updates.model = "gemini-3.1-flash-image-preview";
       }
       
       // Backfill status if missing (legacy records are completed)

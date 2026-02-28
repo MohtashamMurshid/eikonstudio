@@ -140,10 +140,10 @@ export async function POST(request: NextRequest) {
     let resultUrl: string | null = null
 
     if (mode === "text-to-image") {
-      console.log("API v1: Using text-to-image mode with Gemini 3 Pro Image")
+      console.log("API v1: Using text-to-image mode with Nano Banana 2")
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-pro-image-preview",
+        model: "gemini-3.1-flash-image-preview",
         contents: {
           parts: [
             {
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (!response.candidates || response.candidates.length === 0) {
-        throw new Error("No candidates returned from Gemini 3 Pro Image")
+        throw new Error("No candidates returned from Nano Banana 2")
       }
 
       const content = response.candidates[0].content
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
       }
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-pro-image-preview",
+        model: "gemini-3.1-flash-image-preview",
         contents: {
           parts: [
             ...imageParts,

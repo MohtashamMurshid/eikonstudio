@@ -75,6 +75,6 @@ export function formatCost(cost: number): string {
  * Get the model name used for generation
  */
 export function getModelName(): string {
-  return "gemini-3-pro-image-preview";
+  return "gemini-3.1-flash-image-preview";
 }
 

@@ -187,7 +187,7 @@ export const generateImageBackground = internalAction({
       if (mode === "text-to-image") {
         // Text-to-image generation
         const response = await ai.models.generateContent({
-          model: "gemini-3-pro-image-preview",
+          model: "gemini-3.1-flash-image-preview",
           contents: {
             parts: [{ text: finalPrompt }],
           },
@@ -245,7 +245,7 @@ export const generateImageBackground = internalAction({
         }
 
         const response = await ai.models.generateContent({
-          model: "gemini-3-pro-image-preview",
+          model: "gemini-3.1-flash-image-preview",
           contents: {
             parts: [...imageParts, { text: finalPrompt }],
           },
@@ -290,7 +290,7 @@ export const generateImageBackground = internalAction({
         imageStorageId,
         thumbnailStorageId,
         estimatedCost,
-        model: "gemini-3-pro-image-preview",
+        model: "gemini-3.1-flash-image-preview",
       });
 
       console.log(`Generation ${generationId} completed successfully`);
