@@ -7,15 +7,6 @@ import { betterAuth } from "better-auth/minimal";
 import authConfig from "./auth.config";
 
 const siteUrl = process.env.SITE_URL!;
-const isProduction = process.env.NODE_ENV === "production";
-const localDevUrl =
-  process.env.DEV_SITE_URL ??
-  process.env.LOCAL_DEV_URL ??
-  "http://localhost:3000";
-const authBaseUrl = isProduction ? siteUrl : localDevUrl;
-const trustedOrigins = isProduction
-  ? [siteUrl]
-  : Array.from(new Set([siteUrl, localDevUrl]));
 
 // The component client has methods needed for integrating Convex with Better Auth,
 // as well as helper methods for general use.
@@ -23,9 +14,9 @@ export const authComponent = createClient<DataModel>(components.betterAuth);
 
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth({
-    baseURL: authBaseUrl,
+    baseURL: siteUrl,
     database: authComponent.adapter(ctx),
-    trustedOrigins,
+    trustedOrigins: [siteUrl],
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
