@@ -241,7 +241,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       if (slot === 3) return !imageUpload.image3
       return !imageUpload.image4
     })
-  }, [IMAGE_SLOTS, imageUpload.image1, imageUpload.image2, imageUpload.image3, imageUpload.image4])
+  }, [imageUpload.image1, imageUpload.image2, imageUpload.image3, imageUpload.image4])
 
   const getFirstAvailableFileSlot = useCallback((): ImageSlot | null => {
     return getAvailableFileSlots()[0] ?? null
