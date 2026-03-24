@@ -11,6 +11,7 @@ interface UsePasteHandlerOptions {
   image2Url: string
   image3Url: string
   image4Url: string
+  switchToFileMode: () => void
   handleImageUpload: (file: File, imageNumber: ImageSlot) => void
   handleUrlChange: (url: string, imageNumber: ImageSlot) => void
   setUseUrls: (value: boolean) => void
@@ -26,7 +27,7 @@ export const usePasteHandler = (options: UsePasteHandlerOptions) => {
   const { 
     useUrls, image1, image2, image3, image4, 
     image1Url, image2Url, image3Url, image4Url, 
-    handleImageUpload, handleUrlChange, setUseUrls,
+    switchToFileMode, handleImageUpload, handleUrlChange, setUseUrls,
     getFirstAvailableSlot
   } = options
 
@@ -44,7 +45,7 @@ export const usePasteHandler = (options: UsePasteHandlerOptions) => {
           const file = item.getAsFile()
           if (file) {
             if (useUrls) {
-              setUseUrls(false)
+              switchToFileMode()
             }
             // Find first available slot (1-4)
             const slot = getFirstAvailableSlot()
@@ -94,6 +95,6 @@ export const usePasteHandler = (options: UsePasteHandlerOptions) => {
 
     document.addEventListener("paste", handlePaste)
     return () => document.removeEventListener("paste", handlePaste)
-  }, [useUrls, image1, image2, image3, image4, image1Url, image2Url, image3Url, image4Url, handleImageUpload, handleUrlChange, setUseUrls, getFirstAvailableSlot])
+  }, [useUrls, image1, image2, image3, image4, image1Url, image2Url, image3Url, image4Url, switchToFileMode, handleImageUpload, handleUrlChange, setUseUrls, getFirstAvailableSlot])
 }
 

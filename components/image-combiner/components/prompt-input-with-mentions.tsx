@@ -1,6 +1,9 @@
-import { useRef } from "react"
+import { useEffect, useState } from "react"
 import { MentionAutocomplete } from "./mention-autocomplete"
 import { SkillAutocomplete } from "./skill-autocomplete"
+
+const MIN_TEXTAREA_HEIGHT = 80
+const MAX_TEXTAREA_HEIGHT = 240
 
 interface PromptInputWithMentionsProps {
   prompt: string
@@ -25,9 +28,6 @@ interface PromptInputWithMentionsProps {
 
 // Helper function to highlight both @mentions (green) and /skills (blue) in the prompt
 function highlightPrompt(text: string) {
-  // Split by both @mentions and /skills patterns
-  const mentionPattern = /(@[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)?)/
-  const skillPattern = /(\/[a-zA-Z0-9-]+)/
   // Combined pattern to split by either
   const combinedPattern = /(@[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)?|\/[a-zA-Z0-9-]+)/
 
@@ -65,6 +65,27 @@ export function PromptInputWithMentions({
   onSkillSelect,
   onCloseSkillDropdown,
 }: PromptInputWithMentionsProps) {
+  const [textareaHeight, setTextareaHeight] = useState(MIN_TEXTAREA_HEIGHT)
+  const [scrollTop, setScrollTop] = useState(0)
+  const [isOverflowing, setIsOverflowing] = useState(false)
+
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    textarea.style.height = "0px"
+    const nextHeight = Math.min(Math.max(textarea.scrollHeight, MIN_TEXTAREA_HEIGHT), MAX_TEXTAREA_HEIGHT)
+
+    textarea.style.height = `${nextHeight}px`
+    setTextareaHeight(nextHeight)
+    setIsOverflowing(textarea.scrollHeight > MAX_TEXTAREA_HEIGHT)
+
+    if (textarea.scrollHeight <= MAX_TEXTAREA_HEIGHT) {
+      textarea.scrollTop = 0
+      setScrollTop(0)
+    }
+  }, [prompt, textareaRef])
+
   return (
     <div className="p-3 sm:p-4 pb-2 relative">
       {/* Highlight backdrop - renders text with @mentions (green) and /skills (blue) highlighted */}
@@ -73,18 +94,22 @@ export function PromptInputWithMentions({
         style={{ fontSize: "16px", lineHeight: "1.5" }}
         aria-hidden="true"
       >
-        {highlightPrompt(prompt)}
+        <div style={{ transform: `translateY(-${scrollTop}px)` }}>{highlightPrompt(prompt)}</div>
       </div>
       <textarea
         ref={textareaRef}
         value={prompt}
         onChange={onPromptChange}
         onKeyDown={onKeyDown}
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
         onSelect={(e) => onCursorChange((e.target as HTMLTextAreaElement).selectionStart || 0)}
         onClick={(e) => onCursorChange((e.target as HTMLTextAreaElement).selectionStart || 0)}
         placeholder="Describe the image you want to generate... (@ for gallery, / for skills)"
-        className="w-full min-h-[60px] sm:min-h-[80px] max-h-[120px] sm:max-h-[160px] bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-transparent caret-foreground text-sm sm:text-base placeholder:text-foreground/40 select-text relative z-10"
+        className="w-full min-h-[60px] bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-transparent caret-foreground text-sm sm:text-base placeholder:text-foreground/40 select-text relative z-10"
         style={{
+          height: `${textareaHeight}px`,
+          maxHeight: `${MAX_TEXTAREA_HEIGHT}px`,
+          overflowY: isOverflowing ? "auto" : "hidden",
           fontSize: "16px",
           WebkitUserSelect: "text",
           userSelect: "text",

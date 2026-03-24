@@ -7,6 +7,7 @@ interface UseDragDropOptions {
   image2: File | null
   image3: File | null
   image4: File | null
+  switchToFileMode: () => void
   handleImageUpload: (file: File, imageNumber: ImageSlot) => void
   getFirstAvailableSlot: () => ImageSlot | null
   onError?: (message: string) => void
@@ -24,7 +25,7 @@ interface UseDragDropOptions {
  * @param onError - The function to call if there is an error
  */
 export const useDragDrop = (options: UseDragDropOptions) => {
-  const { useUrls, handleImageUpload, getFirstAvailableSlot, onError } = options
+  const { useUrls, switchToFileMode, handleImageUpload, getFirstAvailableSlot, onError } = options
   const [isDragOver, setIsDragOver] = useState(false)
 
   const handleGlobalDragEnter = (e: React.DragEvent) => {
@@ -51,6 +52,9 @@ export const useDragDrop = (options: UseDragDropOptions) => {
 
     const file = e.dataTransfer.files[0]
     if (file && file.type.startsWith("image/")) {
+      if (useUrls) {
+        switchToFileMode()
+      }
       // Find first available slot (1-4)
       const slot = getFirstAvailableSlot()
       handleImageUpload(file, slot || 1)
@@ -66,6 +70,9 @@ export const useDragDrop = (options: UseDragDropOptions) => {
     const file = e.dataTransfer.files[0]
     if (file && file.type.startsWith("image/")) {
       console.log("Valid image file dropped:", file.name)
+      if (useUrls) {
+        switchToFileMode()
+      }
       handleImageUpload(file, imageNumber)
     } else {
       console.log("Invalid file type or no file:", file?.type)

@@ -8,6 +8,7 @@ interface UseMentionHandlerProps {
   setPrompt: (prompt: string) => void
   galleryImages: any[] | undefined
   imageUpload: {
+    switchToFileMode: () => void
     getFirstAvailableSlot: () => ImageSlot | null
     handleImageUpload: (file: File, slot: ImageSlot) => void
     clearAllImages: () => void
@@ -72,6 +73,7 @@ export function useMentionHandler({
           return
         }
 
+        imageUpload.switchToFileMode()
         // Clear all existing images first when loading a folder
         imageUpload.clearAllImages()
 
@@ -111,6 +113,7 @@ export function useMentionHandler({
         const blob = await response.blob()
         const file = new File([blob], `${filename}.png`, { type: "image/png" })
 
+        imageUpload.switchToFileMode()
         // Determine which slot to use
         const targetSlot = imageUpload.getFirstAvailableSlot() || 1
 

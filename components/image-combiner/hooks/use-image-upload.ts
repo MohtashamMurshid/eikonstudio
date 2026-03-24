@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { validateImageFormat, compressImage, convertHeicToPng } from "../utils/image-processing"
 
 interface UseImageUploadOptions {
@@ -28,6 +28,19 @@ export const useImageUpload = ({ onError }: UseImageUploadOptions = {}) => {
   const [useUrls, setUseUrls] = useState<boolean>(false)
   const [isConvertingHeic, setIsConvertingHeic] = useState(false)
   const [heicProgress, setHeicProgress] = useState(0)
+
+  const switchToFileMode = useCallback(() => {
+    setUseUrls(false)
+    setImage1Url("")
+    setImage2Url("")
+    setImage3Url("")
+    setImage4Url("")
+
+    if (!image1) setImage1Preview("")
+    if (!image2) setImage2Preview("")
+    if (!image3) setImage3Preview("")
+    if (!image4) setImage4Preview("")
+  }, [image1, image2, image3, image4])
 
   const handleImageUpload = async (file: File, imageNumber: ImageSlot) => {
     console.log("Uploading image:", file.name, "for position:", imageNumber)
@@ -189,6 +202,7 @@ export const useImageUpload = ({ onError }: UseImageUploadOptions = {}) => {
     image4Url,
     useUrls,
     setUseUrls,
+    switchToFileMode,
     isConvertingHeic,
     heicProgress,
     handleImageUpload,
