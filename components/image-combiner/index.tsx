@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo } from "react"
+import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { useMutation } from "convex/react"
 import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
@@ -29,6 +29,8 @@ interface ExtendedImageCombinerProps extends ImageCombinerProps {
   pendingInputImage?: string | null
   onInputImageLoaded?: () => void
 }
+
+const IMAGE_SLOTS: ImageSlot[] = [1, 2, 3, 4]
 
 export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }: ExtendedImageCombinerProps) {
   const [prompt, setPrompt] = useState("")
@@ -151,10 +153,11 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     image2Url: imageUpload.image2Url,
     image3Url: imageUpload.image3Url,
     image4Url: imageUpload.image4Url,
+    switchToFileMode: imageUpload.switchToFileMode,
     handleImageUpload: imageUpload.handleImageUpload,
     handleUrlChange: imageUpload.handleUrlChange,
     setUseUrls: imageUpload.setUseUrls,
-    getFirstAvailableSlot: imageUpload.getFirstAvailableSlot,
+    getFirstAvailableSlot: getFirstAvailableFileSlot,
   })
 
   const dragDrop = useDragDrop({
@@ -163,8 +166,9 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     image2: imageUpload.image2,
     image3: imageUpload.image3,
     image4: imageUpload.image4,
+    switchToFileMode: imageUpload.switchToFileMode,
     handleImageUpload: imageUpload.handleImageUpload,
-    getFirstAvailableSlot: imageUpload.getFirstAvailableSlot,
+    getFirstAvailableSlot: getFirstAvailableFileSlot,
     onError: (message) => showToast(message, "error"),
   })
 
@@ -193,6 +197,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
         const response = await fetch(pendingInputImage)
         const blob = await response.blob()
         const file = new File([blob], "history-image.png", { type: "image/png" })
+        imageUpload.switchToFileMode()
         
         // Load into the first available slot, or replace slot 1
         if (!imageUpload.image1Preview && !imageUpload.image1) {
@@ -229,12 +234,55 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     return () => document.removeEventListener("keydown", handleEscape)
   }, [showFullscreen])
 
+  const getAvailableFileSlots = useCallback((): ImageSlot[] => {
+    return IMAGE_SLOTS.filter((slot) => {
+      if (slot === 1) return !imageUpload.image1
+      if (slot === 2) return !imageUpload.image2
+      if (slot === 3) return !imageUpload.image3
+      return !imageUpload.image4
+    })
+  }, [IMAGE_SLOTS, imageUpload.image1, imageUpload.image2, imageUpload.image3, imageUpload.image4])
+
+  const getFirstAvailableFileSlot = useCallback((): ImageSlot | null => {
+    return getAvailableFileSlots()[0] ?? null
+  }, [getAvailableFileSlots])
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, imageNumber: ImageSlot) => {
     const file = e.target.files?.[0]
     if (file) {
+      imageUpload.switchToFileMode()
       imageUpload.handleImageUpload(file, imageNumber)
       e.target.value = ""
     }
+  }
+
+  const handleMultipleFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    const availableSlots = getAvailableFileSlots()
+    if (availableSlots.length === 0) {
+      showToast("All 4 image slots are already filled. Remove one to add another.", "error")
+      e.target.value = ""
+      return
+    }
+
+    imageUpload.switchToFileMode()
+
+    const filesToProcess = files.slice(0, availableSlots.length)
+    filesToProcess.forEach((file, index) => {
+      imageUpload.handleImageUpload(file, availableSlots[index])
+    })
+
+    if (filesToProcess.length > 1) {
+      showToast(`Added ${filesToProcess.length} local images`, "success")
+    }
+
+    if (files.length > availableSlots.length) {
+      showToast(`Only ${availableSlots.length} image slot(s) were available`, "error")
+    }
+
+    e.target.value = ""
   }
 
   const useGeneratedAsInput = async () => {
@@ -243,7 +291,8 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       const response = await fetch(imageGeneration.generatedImage.url)
       const blob = await response.blob()
       const file = new File([blob], "generated-image.png", { type: "image/png" })
-      const availableSlot = imageUpload.getFirstAvailableSlot()
+      imageUpload.switchToFileMode()
+      const availableSlot = getFirstAvailableFileSlot()
       if (availableSlot) {
         imageUpload.handleImageUpload(file, availableSlot)
         showToast(`Image loaded into Input ${availableSlot}`, "success")
@@ -366,7 +415,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
               onImageSizeChange={setImageSize}
               onArtStyleChange={setSelectedArtStyle}
               onGenerate={handleGenerate}
-              onAddImages={() => document.getElementById("image-upload-1")?.click()}
+              onAddImages={() => document.getElementById("image-upload-multiple")?.click()}
             />
           </div>
 
@@ -379,6 +428,14 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
           )}
 
           {/* Hidden file inputs for all 4 slots */}
+          <input
+            id="image-upload-multiple"
+            type="file"
+            accept="image/*,.heic,.heif"
+            multiple
+            onChange={handleMultipleFilesSelect}
+            className="hidden"
+          />
           <input
             id="image-upload-1"
             type="file"
