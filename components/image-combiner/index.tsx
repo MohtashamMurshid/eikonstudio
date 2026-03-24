@@ -143,6 +143,19 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     textareaRef,
   })
 
+  const getAvailableFileSlots = useCallback((): ImageSlot[] => {
+    return IMAGE_SLOTS.filter((slot) => {
+      if (slot === 1) return !imageUpload.image1
+      if (slot === 2) return !imageUpload.image2
+      if (slot === 3) return !imageUpload.image3
+      return !imageUpload.image4
+    })
+  }, [imageUpload.image1, imageUpload.image2, imageUpload.image3, imageUpload.image4])
+
+  const getFirstAvailableFileSlot = useCallback((): ImageSlot | null => {
+    return getAvailableFileSlots()[0] ?? null
+  }, [getAvailableFileSlots])
+
   usePasteHandler({
     useUrls: imageUpload.useUrls,
     image1: imageUpload.image1,
@@ -177,29 +190,24 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     if (!activeGeneration || !activeGenerationId) return
     
     if (activeGeneration.status === "completed" && activeGeneration.imageUrl) {
-      // Generation completed - update the UI and stop loading
       imageGeneration.handleGenerationComplete(activeGeneration.imageUrl, activeGeneration.prompt)
       setActiveGenerationId(null)
     } else if (activeGeneration.status === "failed") {
-      // Generation failed - stop loading and show error
       imageGeneration.handleGenerationFailed(activeGeneration.errorMessage)
       setActiveGenerationId(null)
     }
   }, [activeGeneration, activeGenerationId, imageGeneration.handleGenerationComplete, imageGeneration.handleGenerationFailed])
 
-  // Handle pending input image from history
   useEffect(() => {
     const loadPendingImage = async () => {
       if (!pendingInputImage) return
       
       try {
-        // Convert base64 data URL to a file
         const response = await fetch(pendingInputImage)
         const blob = await response.blob()
         const file = new File([blob], "history-image.png", { type: "image/png" })
         imageUpload.switchToFileMode()
         
-        // Load into the first available slot, or replace slot 1
         if (!imageUpload.image1Preview && !imageUpload.image1) {
           imageUpload.handleImageUpload(file, 1)
           showToast("Image loaded from history", "success")
@@ -211,7 +219,6 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
           showToast("Image from history replaced Input 1", "success")
         }
         
-        // Notify parent that we've loaded the image
         onInputImageLoaded?.()
       } catch (error) {
         console.error("Error loading image from history:", error)
@@ -233,19 +240,6 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     document.addEventListener("keydown", handleEscape)
     return () => document.removeEventListener("keydown", handleEscape)
   }, [showFullscreen])
-
-  const getAvailableFileSlots = useCallback((): ImageSlot[] => {
-    return IMAGE_SLOTS.filter((slot) => {
-      if (slot === 1) return !imageUpload.image1
-      if (slot === 2) return !imageUpload.image2
-      if (slot === 3) return !imageUpload.image3
-      return !imageUpload.image4
-    })
-  }, [imageUpload.image1, imageUpload.image2, imageUpload.image3, imageUpload.image4])
-
-  const getFirstAvailableFileSlot = useCallback((): ImageSlot | null => {
-    return getAvailableFileSlots()[0] ?? null
-  }, [getAvailableFileSlots])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, imageNumber: ImageSlot) => {
     const file = e.target.files?.[0]
