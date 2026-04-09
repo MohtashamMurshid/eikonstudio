@@ -144,7 +144,7 @@ export function ScenePanel({
                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
-                Soul Cast avatars will be sent as style references
+                First avatar used as Veo asset reference
               </p>
             )}
           </div>
