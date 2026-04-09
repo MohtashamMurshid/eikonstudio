@@ -10,6 +10,7 @@
 
 import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
+import type * as characters from "../characters.js";
 import type * as gallery from "../gallery.js";
 import type * as generations from "../generations.js";
 import type * as http from "../http.js";
@@ -26,6 +27,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   apiKeys: typeof apiKeys;
   auth: typeof auth;
+  characters: typeof characters;
   gallery: typeof gallery;
   generations: typeof generations;
   http: typeof http;

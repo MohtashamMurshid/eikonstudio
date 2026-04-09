@@ -71,6 +71,30 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_name", ["userId", "name"]),
 
+  // Soul Cast characters for video studio
+  characters: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    genre: v.optional(v.string()),
+    archetype: v.optional(v.string()),
+    appearance: v.object({
+      gender: v.optional(v.string()),
+      age: v.optional(v.string()),
+      height: v.optional(v.string()),
+      eyeColor: v.optional(v.string()),
+      hairColor: v.optional(v.string()),
+      hairStyle: v.optional(v.string()),
+      skinTone: v.optional(v.string()),
+      facialHair: v.optional(v.string()),
+      build: v.optional(v.string()),
+    }),
+    outfit: v.optional(v.string()),
+    details: v.optional(v.string()),
+    avatarStorageId: v.optional(v.id("_storage")),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
+
   // Video generations
   videoGenerations: defineTable({
     userId: v.string(),
