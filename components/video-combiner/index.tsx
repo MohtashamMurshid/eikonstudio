@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -402,7 +403,9 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
                             key={label}
                             className="relative overflow-hidden rounded-[22px] border border-white/10 bg-[#050505]"
                           >
-                            <img src={reference.preview} alt={label} className="h-48 w-full object-cover" />
+                            <div className="relative h-48 w-full">
+                              <Image src={reference.preview} alt={label} fill unoptimized className="object-cover" />
+                            </div>
                             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/70 to-transparent p-3">
                               <p className="text-sm font-medium text-white">{label}</p>
                               <p className="mt-1 truncate text-xs text-white/55">{reference.file?.name}</p>
