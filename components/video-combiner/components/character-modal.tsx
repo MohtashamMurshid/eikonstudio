@@ -114,7 +114,7 @@ export function CharacterModal({ isOpen, onClose, editingCharacter, onSaved }: C
           <h2 className="text-base font-semibold text-foreground">
             {editingCharacter ? "Edit Character" : "New Soul Cast Character"}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-secondary/40 text-foreground/40 hover:text-foreground transition-all duration-200">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -123,25 +123,25 @@ export function CharacterModal({ isOpen, onClose, editingCharacter, onSaved }: C
           {/* Avatar + Name row */}
           <div className="flex items-start gap-3">
             <label className="relative shrink-0 cursor-pointer group">
-              <div className="w-16 h-16 rounded-xl bg-secondary/50 border border-border flex items-center justify-center overflow-hidden">
+              <div className="w-16 h-16 rounded-2xl bg-secondary/30 border border-border/50 flex items-center justify-center overflow-hidden">
                 {avatarPreview ? (
                   <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <User className="w-6 h-6 text-foreground/30" />
                 )}
               </div>
-              <div className="absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <div className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center">
                 <Upload className="w-4 h-4 text-white" />
               </div>
               <input type="file" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
             </label>
             <div className="flex-1">
-              <label className="text-xs text-foreground/50 mb-1 block">Name *</label>
+              <label className="text-xs text-foreground/40 mb-1 block">Name *</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Character name..."
-                className="w-full h-9 px-3 bg-secondary/30 border border-border rounded-lg text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                className="w-full h-9 px-3 bg-secondary/20 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-foreground/25 focus:outline-none focus:ring-1 focus:ring-foreground/15 transition-colors duration-200"
               />
             </div>
           </div>
@@ -149,9 +149,9 @@ export function CharacterModal({ isOpen, onClose, editingCharacter, onSaved }: C
           {/* Genre + Archetype */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-foreground/50 mb-1 block">Genre</label>
+              <label className="text-xs text-foreground/40 mb-1 block">Genre</label>
               <Select value={genre} onValueChange={setGenre}>
-                <SelectTrigger className="h-9 bg-secondary/30 border-border text-sm w-full">
+                <SelectTrigger className="h-9 bg-secondary/20 border-border/50 rounded-xl text-sm w-full">
                   <SelectValue placeholder="Select genre" />
                 </SelectTrigger>
                 <SelectContent>
@@ -162,9 +162,9 @@ export function CharacterModal({ isOpen, onClose, editingCharacter, onSaved }: C
               </Select>
             </div>
             <div>
-              <label className="text-xs text-foreground/50 mb-1 block">Archetype</label>
+              <label className="text-xs text-foreground/40 mb-1 block">Archetype</label>
               <Select value={archetype} onValueChange={setArchetype}>
-                <SelectTrigger className="h-9 bg-secondary/30 border-border text-sm w-full">
+                <SelectTrigger className="h-9 bg-secondary/20 border-border/50 rounded-xl text-sm w-full">
                   <SelectValue placeholder="Select archetype" />
                 </SelectTrigger>
                 <SelectContent>
@@ -178,7 +178,7 @@ export function CharacterModal({ isOpen, onClose, editingCharacter, onSaved }: C
 
           {/* Appearance section */}
           <div>
-            <label className="text-xs text-foreground/50 mb-2 block font-medium">Appearance</label>
+            <label className="text-xs text-foreground/40 mb-2 block font-medium">Appearance</label>
             <div className="grid grid-cols-2 gap-2">
               {([
                 ["gender", "Gender", "Male, Female, Non-binary..."],
@@ -192,12 +192,12 @@ export function CharacterModal({ isOpen, onClose, editingCharacter, onSaved }: C
                 ["facialHair", "Facial Hair", "None, Beard, Stubble..."],
               ] as [keyof CharacterAppearance, string, string][]).map(([key, label, placeholder]) => (
                 <div key={key}>
-                  <label className="text-[10px] text-foreground/40 mb-0.5 block">{label}</label>
+                  <label className="text-[10px] text-foreground/35 mb-0.5 block">{label}</label>
                   <input
                     value={appearance[key] ?? ""}
                     onChange={(e) => updateAppearance(key, e.target.value)}
                     placeholder={placeholder}
-                    className="w-full h-8 px-2.5 bg-secondary/20 border border-border/50 rounded-md text-xs text-foreground placeholder:text-foreground/25 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                    className="w-full h-8 px-2.5 bg-secondary/15 border border-border/40 rounded-xl text-xs text-foreground placeholder:text-foreground/25 focus:outline-none focus:ring-1 focus:ring-foreground/15 transition-colors duration-200"
                   />
                 </div>
               ))}
@@ -206,24 +206,24 @@ export function CharacterModal({ isOpen, onClose, editingCharacter, onSaved }: C
 
           {/* Outfit */}
           <div>
-            <label className="text-xs text-foreground/50 mb-1 block">Outfit</label>
+            <label className="text-xs text-foreground/40 mb-1 block">Outfit</label>
             <input
               value={outfit}
               onChange={(e) => setOutfit(e.target.value)}
               placeholder="Leather jacket, combat boots, silver necklace..."
-              className="w-full h-9 px-3 bg-secondary/30 border border-border rounded-lg text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+              className="w-full h-9 px-3 bg-secondary/20 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-foreground/25 focus:outline-none focus:ring-1 focus:ring-foreground/15 transition-colors duration-200"
             />
           </div>
 
           {/* Details */}
           <div>
-            <label className="text-xs text-foreground/50 mb-1 block">Additional Details</label>
+            <label className="text-xs text-foreground/40 mb-1 block">Additional Details</label>
             <textarea
               value={details}
               onChange={(e) => setDetails(e.target.value)}
               placeholder="Scar across left eyebrow, walks with a limp..."
               rows={2}
-              className="w-full px-3 py-2 bg-secondary/30 border border-border rounded-lg text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-1 focus:ring-foreground/20 resize-none"
+              className="w-full px-3 py-2 bg-secondary/20 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-foreground/25 focus:outline-none focus:ring-1 focus:ring-foreground/15 resize-none transition-colors duration-200"
             />
           </div>
         </div>

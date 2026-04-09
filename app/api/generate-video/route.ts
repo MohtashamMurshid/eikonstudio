@@ -26,11 +26,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Handle Soul Cast character avatar images (Veo 3.1 referenceImages with "asset" type)
+    const characterImageFiles = formData.getAll("characterImages") as File[];
+    const characterImages: { base64Data: string; mimeType: string }[] = [];
+
+    if (characterImageFiles.length > 0) {
+      console.log(`Video API: Processing ${characterImageFiles.length} character avatar files`);
+      for (const charImage of characterImageFiles) {
+        const buffer = await charImage.arrayBuffer();
+        const base64Data = Buffer.from(buffer).toString("base64");
+        const mimeType = charImage.type || "image/png";
+        characterImages.push({ base64Data, mimeType });
+      }
+    }
+
     console.log("Video API: Prompt:", prompt);
     console.log("Video API: Resolution:", resolution);
     console.log("Video API: Aspect Ratio:", aspectRatio);
     console.log("Video API: Mode:", mode);
     console.log("Video API: Number of reference images:", referenceImages.length);
+    console.log("Video API: Number of character images:", characterImages.length);
 
     // Validation
     if (!prompt || prompt.trim().length === 0) {
@@ -80,12 +95,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if ((mode === "image-to-video" || mode === "frame-to-video") && referenceImages.length === 0) {
-      console.log(`Video API: ${mode} mode requires at least one reference image`);
+    if ((mode === "image-to-video" || mode === "frame-to-video") && referenceImages.length === 0 && characterImageFiles.length === 0) {
+      console.log(`Video API: ${mode} mode requires at least one reference image or character image`);
       return NextResponse.json(
         {
           error: "Missing reference images",
-          details: `${mode} mode requires at least one reference image`,
+          details: `${mode} mode requires at least one reference image or character avatar`,
         },
         { status: 400 }
       );
@@ -170,8 +185,20 @@ export async function POST(request: NextRequest) {
       throw new Error("No video data found in response");
     };
 
+    // Build Veo 3.1 referenceImages payload from Soul Cast character avatars
+    const characterReferenceImages: any[] = characterImages.map((img) => ({
+      image: {
+        imageBytes: img.base64Data,
+        mimeType: img.mimeType,
+      },
+      referenceType: "asset",
+    }));
+
     if (mode === "text-to-video") {
       console.log("Video API: Using text-to-video mode with Veo 3.1");
+      if (characterReferenceImages.length > 0) {
+        console.log(`Video API: Including ${characterReferenceImages.length} character reference image(s)`);
+      }
 
       let operation = await ai.models.generateVideos({
         model: "veo-3.1-generate-preview",
@@ -180,6 +207,7 @@ export async function POST(request: NextRequest) {
           numberOfVideos: 1,
           resolution: resolution,
           aspectRatio: aspectRatio,
+          ...(characterReferenceImages.length > 0 && { referenceImages: characterReferenceImages }),
         },
       });
 
@@ -201,43 +229,56 @@ export async function POST(request: NextRequest) {
     } else if (mode === "image-to-video") {
       console.log("Video API: Using image-to-video mode with Veo 3.1");
 
-      // For image-to-video, use the first image as the starting frame
-      // and include additional images as reference images
-      if (referenceImages.length === 0) {
-        throw new Error("No valid reference images provided");
+      if (referenceImages.length === 0 && characterImages.length === 0) {
+        throw new Error("No valid reference images or character images provided");
       }
 
-      // Parse the first image for the starting frame
-      const firstImage = parseDataUrl(referenceImages[0]);
-      console.log("Video API: First image mime type:", firstImage.mimeType);
+      // Determine the starting frame: user-uploaded image first, else first character avatar
+      let startingFrame: { base64Data: string; mimeType: string };
+      let remainingUserImages: string[] = [];
 
-      // Build reference images payload for additional images (if any)
-      const referenceImagesPayload: any[] = [];
-      for (let i = 1; i < referenceImages.length; i++) {
-        const parsed = parseDataUrl(referenceImages[i]);
-        referenceImagesPayload.push({
+      if (referenceImages.length > 0) {
+        startingFrame = parseDataUrl(referenceImages[0]);
+        remainingUserImages = referenceImages.slice(1);
+      } else {
+        // Use first character avatar as starting frame, rest stay as references
+        startingFrame = characterImages[0];
+        console.log("Video API: Using first character avatar as starting frame");
+      }
+
+      console.log("Video API: Starting frame mime type:", startingFrame.mimeType);
+
+      // Build reference images from remaining user images + character avatars
+      // (skip the first character avatar if it was used as starting frame)
+      const allReferenceImages: any[] = [];
+      const charRefsToUse = referenceImages.length > 0
+        ? characterReferenceImages
+        : characterReferenceImages.slice(1);
+      allReferenceImages.push(...charRefsToUse);
+
+      for (const imgDataUrl of remainingUserImages) {
+        const parsed = parseDataUrl(imgDataUrl);
+        allReferenceImages.push({
           image: {
             imageBytes: parsed.base64Data,
             mimeType: parsed.mimeType,
           },
-          referenceType: "STYLE",
+          referenceType: "asset",
         });
       }
 
-      // Official Google structure for image-to-video
-      // Use `image` parameter for the starting frame
       let operation = await ai.models.generateVideos({
         model: "veo-3.1-generate-preview",
         prompt: prompt,
         image: {
-          imageBytes: firstImage.base64Data,
-          mimeType: firstImage.mimeType,
+          imageBytes: startingFrame.base64Data,
+          mimeType: startingFrame.mimeType,
         },
         config: {
           numberOfVideos: 1,
           resolution: resolution,
           aspectRatio: aspectRatio,
-          ...(referenceImagesPayload.length > 0 && { referenceImages: referenceImagesPayload }),
+          ...(allReferenceImages.length > 0 && { referenceImages: allReferenceImages }),
         },
       });
 

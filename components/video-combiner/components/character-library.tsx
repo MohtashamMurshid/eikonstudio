@@ -55,14 +55,14 @@ export function CharacterLibrary({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       <div className="flex items-center justify-between">
-        <h3 className="text-[11px] font-medium text-foreground/50 uppercase tracking-wider">
+        <h3 className="text-[11px] font-medium text-foreground/40 uppercase tracking-wider">
           Soul Cast
         </h3>
         <button
           onClick={() => { setEditingChar(null); setModalOpen(true); }}
-          className="p-1 rounded-md hover:bg-secondary/50 text-foreground/40 hover:text-foreground transition-colors"
+          className="p-1 rounded-xl hover:bg-secondary/40 text-foreground/35 hover:text-foreground transition-all duration-200"
           title="Create character"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -76,18 +76,18 @@ export function CharacterLibrary({
             <button
               key={char._id}
               onClick={() => onToggleCharacter(char)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-foreground/10 border border-foreground/20 text-xs text-foreground hover:bg-foreground/15 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-foreground/8 border border-foreground/15 text-xs text-foreground hover:bg-foreground/12 transition-all duration-200"
             >
               {char.avatarUrl ? (
                 <img src={char.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover" />
               ) : (
-                <User className="w-3 h-3 text-foreground/50" />
+                <User className="w-3 h-3 text-foreground/40" />
               )}
               <span className="truncate max-w-[80px]">{char.name}</span>
-              <span className="text-foreground/30 ml-0.5">×</span>
+              <span className="text-foreground/25 ml-0.5">×</span>
             </button>
           ))}
-          <span className="text-[10px] text-foreground/30 self-center">
+          <span className="text-[10px] text-foreground/25 self-center">
             {selectedCharacters.length}/{maxSelection}
           </span>
         </div>
@@ -97,12 +97,12 @@ export function CharacterLibrary({
       <div className="space-y-1 max-h-[200px] overflow-y-auto pr-0.5">
         {characters === undefined ? (
           <div className="py-4 text-center">
-            <div className="w-4 h-4 border-2 border-foreground/20 border-t-foreground/60 rounded-full animate-spin mx-auto" />
+            <div className="w-4 h-4 border-2 border-foreground/15 border-t-foreground/50 rounded-full animate-spin mx-auto" />
           </div>
         ) : characters.length === 0 ? (
           <button
             onClick={() => { setEditingChar(null); setModalOpen(true); }}
-            className="w-full py-4 border border-dashed border-border rounded-lg text-xs text-foreground/40 hover:text-foreground/60 hover:border-foreground/30 transition-colors text-center"
+            className="w-full py-4 border border-dashed border-border/50 rounded-xl text-xs text-foreground/35 hover:text-foreground/55 hover:border-foreground/25 transition-all duration-200 text-center"
           >
             Create your first character
           </button>
@@ -113,21 +113,21 @@ export function CharacterLibrary({
             return (
               <div
                 key={char._id}
-                className={`group flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${
+                className={`group flex items-center gap-2.5 p-2 rounded-xl cursor-pointer transition-all duration-200 ${
                   selected
-                    ? "bg-foreground/10 border border-foreground/20"
+                    ? "bg-foreground/8 border border-foreground/15"
                     : atLimit
                     ? "opacity-40 cursor-not-allowed"
-                    : "hover:bg-secondary/40 border border-transparent"
+                    : "hover:bg-secondary/30 border border-transparent"
                 }`}
                 onClick={() => !atLimit && handleToggle(char)}
               >
                 <div className="relative shrink-0">
-                  <div className="w-8 h-8 rounded-lg bg-secondary/50 flex items-center justify-center overflow-hidden">
+                  <div className="w-8 h-8 rounded-xl bg-secondary/30 flex items-center justify-center overflow-hidden">
                     {char.avatarUrl ? (
                       <img src={char.avatarUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <User className="w-3.5 h-3.5 text-foreground/30" />
+                      <User className="w-3.5 h-3.5 text-foreground/25" />
                     )}
                   </div>
                   {selected && (
@@ -139,20 +139,20 @@ export function CharacterLibrary({
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-foreground truncate">{char.name}</p>
                   {char.archetype && (
-                    <p className="text-[10px] text-foreground/40 truncate">{char.archetype}</p>
+                    <p className="text-[10px] text-foreground/35 truncate">{char.archetype}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all duration-200">
                   <button
                     onClick={(e) => { e.stopPropagation(); handleEdit(char); }}
-                    className="p-1 rounded hover:bg-secondary/60 text-foreground/40 hover:text-foreground"
+                    className="p-1 rounded-lg hover:bg-secondary/50 text-foreground/35 hover:text-foreground"
                   >
                     <Edit2 className="w-3 h-3" />
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDelete(char); }}
                     disabled={deletingId === char._id}
-                    className="p-1 rounded hover:bg-red-500/20 text-foreground/40 hover:text-red-400"
+                    className="p-1 rounded-lg hover:bg-red-500/15 text-foreground/35 hover:text-red-400"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>

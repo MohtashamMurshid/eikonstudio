@@ -19,13 +19,13 @@ interface StudioCanvasProps {
 function EmptyCanvas() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-      <div className="w-20 h-20 rounded-2xl bg-secondary/30 border border-border/50 flex items-center justify-center mb-5">
-        <Film className="w-8 h-8 text-foreground/20" />
+      <div className="w-20 h-20 rounded-2xl bg-secondary/20 border border-border/40 flex items-center justify-center mb-5">
+        <Film className="w-8 h-8 text-foreground/15" />
       </div>
-      <h3 className="text-lg font-medium text-foreground/60 mb-2">
+      <h3 className="text-lg font-medium text-foreground/50 mb-2">
         Direct your scene
       </h3>
-      <p className="text-sm text-foreground/30 max-w-sm">
+      <p className="text-sm text-foreground/25 max-w-sm leading-relaxed">
         Set up your cast and location in the scene panel, describe the action, and generate your cinematic video.
       </p>
     </div>
@@ -39,7 +39,7 @@ function ProgressCanvas({ progress, progressStage }: { progress: number; progres
         <svg className="w-36 h-36 transform -rotate-90">
           <circle
             className="text-foreground/5"
-            strokeWidth="3"
+            strokeWidth="2.5"
             stroke="currentColor"
             fill="transparent"
             r="64"
@@ -47,8 +47,8 @@ function ProgressCanvas({ progress, progressStage }: { progress: number; progres
             cy="72"
           />
           <circle
-            className="text-foreground transition-all duration-500 ease-out"
-            strokeWidth="3"
+            className="text-foreground transition-all duration-700 ease-out"
+            strokeWidth="2.5"
             strokeLinecap="round"
             stroke="currentColor"
             fill="transparent"
@@ -68,7 +68,7 @@ function ProgressCanvas({ progress, progressStage }: { progress: number; progres
       <span className="text-3xl font-semibold text-foreground mb-2 tabular-nums">
         {Math.round(progress)}%
       </span>
-      <p className="text-sm text-foreground/50">{progressStage}</p>
+      <p className="text-sm text-foreground/40">{progressStage}</p>
     </div>
   );
 }
@@ -87,14 +87,14 @@ function VideoCanvas({
   onCopyUrl: () => void;
 }) {
   return (
-    <div className="flex-1 flex flex-col p-4">
+    <div className="flex-1 flex flex-col p-5">
       {/* Top action bar */}
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-foreground/50">Generated Video</span>
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs text-foreground/40">Generated Video</span>
           {isSaving && (
-            <div className="flex items-center gap-1.5 text-[11px] text-foreground/40">
-              <div className="w-3 h-3 border-2 border-foreground/20 border-t-foreground/50 rounded-full animate-spin" />
+            <div className="flex items-center gap-1.5 text-[11px] text-foreground/35">
+              <div className="w-3 h-3 border-2 border-foreground/15 border-t-foreground/40 rounded-full animate-spin" />
               Saving...
             </div>
           )}
@@ -102,21 +102,21 @@ function VideoCanvas({
         <div className="flex items-center gap-1">
           <button
             onClick={onNewVideo}
-            className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground/70 hover:text-foreground text-xs transition-colors"
+            className="h-7 px-3 flex items-center gap-1.5 rounded-xl bg-secondary/30 hover:bg-secondary/50 text-foreground/60 hover:text-foreground text-xs transition-all duration-200"
           >
             <Plus className="w-3.5 h-3.5" />
             New
           </button>
           <button
             onClick={onDownload}
-            className="p-1.5 rounded-lg hover:bg-secondary/50 text-foreground/50 hover:text-foreground transition-colors"
+            className="p-1.5 rounded-xl hover:bg-secondary/40 text-foreground/40 hover:text-foreground transition-all duration-200"
             title="Download"
           >
             <Download className="w-4 h-4" />
           </button>
           <button
             onClick={onCopyUrl}
-            className="p-1.5 rounded-lg hover:bg-secondary/50 text-foreground/50 hover:text-foreground transition-colors"
+            className="p-1.5 rounded-xl hover:bg-secondary/40 text-foreground/40 hover:text-foreground transition-all duration-200"
             title="Copy URL"
           >
             <Copy className="w-4 h-4" />
@@ -125,22 +125,22 @@ function VideoCanvas({
       </div>
 
       {/* Video */}
-      <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden bg-black/20">
+      <div className="flex-1 flex items-center justify-center rounded-2xl overflow-hidden bg-black/15">
         <VideoPlayer
           src={video.url}
           autoPlay
           loop
-          className="rounded-xl w-full"
+          className="rounded-2xl w-full"
           maxHeight="calc(100vh - 320px)"
         />
       </div>
 
       {/* Metadata */}
-      <div className="mt-3 p-3 bg-secondary/20 rounded-xl">
-        <p className="text-xs text-foreground/60 line-clamp-2">
-          <span className="font-medium text-foreground/80">Prompt:</span> {video.prompt}
+      <div className="mt-3 p-3.5 bg-secondary/15 rounded-2xl">
+        <p className="text-xs text-foreground/50 line-clamp-2">
+          <span className="font-medium text-foreground/70">Prompt:</span> {video.prompt}
         </p>
-        <div className="flex items-center gap-3 mt-1.5 text-[11px] text-foreground/40">
+        <div className="flex items-center gap-3 mt-1.5 text-[11px] text-foreground/35">
           <span>{video.metadata?.resolution || "720p"}</span>
           <span>{video.metadata?.aspectRatio || "16:9"}</span>
           <span>{video.duration || 8}s</span>

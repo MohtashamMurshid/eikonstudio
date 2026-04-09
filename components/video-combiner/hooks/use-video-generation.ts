@@ -99,9 +99,9 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
     try {
       setProgressStage("Preparing request...");
 
-      // Fetch character avatar images when user explicitly chose image-to-video
+      // Fetch character avatar images (sent as Veo 3.1 referenceImages in any mode)
       const avatarFiles: File[] = [];
-      if (hasCharacterAvatars && mode === "image-to-video") {
+      if (hasCharacterAvatars) {
         setProgressStage("Loading character avatars...");
         for (const avatar of characterAvatars!) {
           try {
@@ -124,10 +124,15 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
         formData.append("apiKey", apiKey);
       }
 
-      // Add reference images: character avatars first, then user-uploaded images
+      // Character avatars go as separate "characterImages" field (Veo 3.1 referenceImages)
+      if (avatarFiles.length > 0) {
+        setProgressStage("Uploading character references...");
+        avatarFiles.forEach((file) => formData.append("characterImages", file));
+      }
+
+      // User-uploaded images for image-to-video / frame-to-video modes
       if (mode === "image-to-video") {
         setProgressStage("Uploading reference images...");
-        avatarFiles.forEach((file) => formData.append("images", file));
         referenceImages.forEach((img) => {
           if (img) formData.append("images", img);
         });

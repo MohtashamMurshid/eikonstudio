@@ -125,7 +125,7 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
   );
 
   return (
-    <div className="select-none flex flex-col h-[calc(100vh-200px)] lg:h-[calc(100vh-140px)]">
+    <div className="select-none flex flex-col h-full">
       {/* Toast */}
       {toast.visible && (
         <div
@@ -144,12 +144,12 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
       )}
 
       {/* Studio Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border/60 shrink-0">
         <div className="flex items-center gap-3">
           {/* Desktop panel toggle */}
           <button
             onClick={() => setPanelOpen(!panelOpen)}
-            className="hidden lg:flex p-1.5 rounded-lg hover:bg-secondary/50 text-foreground/50 hover:text-foreground transition-colors"
+            className="hidden lg:flex p-1.5 rounded-xl hover:bg-secondary/40 text-foreground/40 hover:text-foreground transition-all duration-200"
             title={panelOpen ? "Collapse panel" : "Expand panel"}
           >
             {panelOpen ? (
@@ -161,7 +161,7 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
           {/* Mobile scene setup button */}
           <button
             onClick={() => setMobileDrawerOpen(true)}
-            className="lg:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-secondary/40 hover:bg-secondary/60 text-foreground/60 hover:text-foreground text-xs transition-colors"
+            className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary/30 hover:bg-secondary/50 text-foreground/50 hover:text-foreground text-xs transition-all duration-200"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
             Scene Setup
@@ -170,20 +170,20 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
             variant="default"
             size="sm"
             colorScheme="dark"
-            className="opacity-50 hover:opacity-80 transition-opacity"
+            className="opacity-50 hover:opacity-80 transition-opacity duration-300"
           />
-          <span className="text-xs font-medium text-foreground/30 hidden sm:block">
+          <span className="text-xs font-medium text-foreground/25 hidden sm:block">
             Cinema Studio
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           {selectedCharacters.length > 0 && (
-            <span className="text-[11px] text-foreground/40">
+            <span className="text-[11px] text-foreground/35">
               {selectedCharacters.length} cast
             </span>
           )}
           {location && (
-            <span className="text-[11px] text-foreground/40 hidden sm:block truncate max-w-[120px]">
+            <span className="text-[11px] text-foreground/35 hidden sm:block truncate max-w-[120px]">
               {location}
             </span>
           )}
@@ -194,7 +194,7 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel -- desktop */}
         {panelOpen && (
-          <div className="hidden lg:flex w-[280px] shrink-0 border-r border-border bg-card/50 flex-col overflow-hidden">
+          <div className="hidden lg:flex w-[280px] shrink-0 border-r border-border/60 bg-card/30 flex-col overflow-hidden">
             {scenePanelContent}
           </div>
         )}
@@ -206,12 +206,12 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
               className="absolute inset-0 bg-black/50 backdrop-blur-sm"
               onClick={() => setMobileDrawerOpen(false)}
             />
-            <div className="absolute left-0 top-0 bottom-0 w-[300px] bg-card border-r border-border shadow-2xl flex flex-col">
-              <div className="flex items-center justify-between p-3 border-b border-border">
+            <div className="absolute left-0 top-0 bottom-0 w-[300px] bg-card border-r border-border/60 shadow-2xl flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b border-border/60">
                 <span className="text-sm font-medium text-foreground">Scene Setup</span>
                 <button
                   onClick={() => setMobileDrawerOpen(false)}
-                  className="p-1.5 rounded-lg hover:bg-secondary/50 text-foreground/50 hover:text-foreground transition-colors"
+                  className="p-1.5 rounded-xl hover:bg-secondary/40 text-foreground/40 hover:text-foreground transition-all duration-200"
                 >
                   <PanelLeftClose className="w-4 h-4" />
                 </button>
