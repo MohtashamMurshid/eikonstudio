@@ -5,10 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Zap, ImagePlus } from "lucide-react";
 import type { VideoMode, ReferenceImage } from "../types";
 
+interface CharacterAvatarPreview {
+  name: string;
+  url: string;
+}
+
 interface PromptBarProps {
   prompt: string;
   onPromptChange: (value: string) => void;
   mode: VideoMode;
+  effectiveMode: VideoMode;
   canGenerate: boolean;
   isLoading: boolean;
   estimatedCost: number;
@@ -17,12 +23,14 @@ interface PromptBarProps {
   onImageUpload: (file: File, index: number) => void;
   onClearImage: (index: number) => void;
   hasAnyImages: boolean;
+  characterAvatarPreviews?: CharacterAvatarPreview[];
 }
 
 export function PromptBar({
   prompt,
   onPromptChange,
   mode,
+  effectiveMode,
   canGenerate,
   isLoading,
   estimatedCost,
@@ -31,6 +39,7 @@ export function PromptBar({
   onImageUpload,
   onClearImage,
   hasAnyImages,
+  characterAvatarPreviews = [],
 }: PromptBarProps) {
   const fileInputRefs = [
     useRef<HTMLInputElement>(null),
@@ -55,9 +64,40 @@ export function PromptBar({
 
   const maxImages = mode === "frame-to-video" ? 2 : 3;
   const showImageControls = mode === "image-to-video" || mode === "frame-to-video";
+  const hasCharacterAvatars = characterAvatarPreviews.length > 0;
+  const avatarsActive = hasCharacterAvatars && mode === "image-to-video";
 
   return (
     <div className="border-t border-border bg-card">
+      {/* Character avatar thumbnails (only shown when in image mode) */}
+      {hasCharacterAvatars && (
+        <div className="px-4 pt-3 pb-0">
+          <div className="flex items-center gap-2">
+            {characterAvatarPreviews.map((avatar, index) => (
+              <div key={`avatar-${index}`} className={`relative shrink-0 ${avatarsActive ? "" : "opacity-40"}`}>
+                <img
+                  src={avatar.url}
+                  alt={avatar.name}
+                  className={`h-12 w-12 object-cover rounded-lg border ${avatarsActive ? "border-emerald-500/40" : "border-border"}`}
+                />
+                <span className={`absolute bottom-0 left-0 right-0 text-[8px] text-center py-0.5 rounded-b-lg truncate px-0.5 ${avatarsActive ? "bg-emerald-900/80 text-emerald-200" : "bg-black/60 text-white/60"}`}>
+                  {avatar.name}
+                </span>
+              </div>
+            ))}
+            {avatarsActive ? (
+              <span className="text-[10px] text-emerald-400/70 bg-emerald-400/10 px-2 py-1 rounded-md border border-emerald-400/20">
+                Sent as references
+              </span>
+            ) : (
+              <span className="text-[10px] text-foreground/30">
+                Text descriptions only
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Reference image thumbnails */}
       {showImageControls && hasAnyImages && (
         <div className="px-4 pt-3 pb-0">

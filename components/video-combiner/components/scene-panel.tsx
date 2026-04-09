@@ -14,6 +14,7 @@ interface ScenePanelProps {
   mood: string;
   onMoodChange: (value: string) => void;
   mode: VideoMode;
+  effectiveMode: VideoMode;
   onModeChange: (mode: VideoMode) => void;
   resolution: VideoResolution;
   onResolutionChange: (res: VideoResolution) => void;
@@ -57,12 +58,14 @@ export function ScenePanel({
   mood,
   onMoodChange,
   mode,
+  effectiveMode,
   onModeChange,
   resolution,
   onResolutionChange,
   aspectRatio,
   onAspectRatioChange,
 }: ScenePanelProps) {
+  const hasCharacterAvatars = selectedCharacters.some((c) => c.avatarUrl);
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto space-y-5 p-3">
@@ -131,6 +134,19 @@ export function ScenePanel({
               ]}
               onChange={onModeChange}
             />
+            {mode === "text-to-video" && hasCharacterAvatars && (
+              <p className="mt-1.5 text-[10px] text-foreground/40">
+                Text mode uses character descriptions. Switch to Image mode to send avatar images to Veo.
+              </p>
+            )}
+            {mode === "image-to-video" && hasCharacterAvatars && (
+              <p className="mt-1.5 text-[10px] text-emerald-400/80 flex items-center gap-1">
+                <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Soul Cast avatars will be sent as style references
+              </p>
+            )}
           </div>
 
           <div>

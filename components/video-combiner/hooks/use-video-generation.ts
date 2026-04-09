@@ -15,6 +15,11 @@ interface SaveVideoGenerationParams {
   hasAudio?: boolean;
 }
 
+interface CharacterAvatar {
+  url: string;
+  name: string;
+}
+
 interface UseVideoGenerationOptions {
   apiKey: string;
   mode: VideoMode;
@@ -22,6 +27,7 @@ interface UseVideoGenerationOptions {
   prompt: string;
   aspectRatio: string;
   resolution: string;
+  characterAvatars?: CharacterAvatar[];
   onError?: (message: string) => void;
   generateUploadUrl: () => Promise<string>;
   onSaveVideoGeneration?: (params: SaveVideoGenerationParams) => Promise<void>;
@@ -43,6 +49,7 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
       aspectRatio,
       resolution,
       apiKey,
+      characterAvatars,
       onError,
       generateUploadUrl,
     } = options;
@@ -53,7 +60,9 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
       return;
     }
 
-    if ((mode === "image-to-video" || mode === "frame-to-video") && !referenceImages[0]) {
+    const hasCharacterAvatars = characterAvatars && characterAvatars.length > 0;
+
+    if ((mode === "image-to-video" || mode === "frame-to-video") && !referenceImages[0] && !hasCharacterAvatars) {
       onError?.(`${mode} mode requires at least one reference image`);
       return;
     }
@@ -90,6 +99,22 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
     try {
       setProgressStage("Preparing request...");
 
+      // Fetch character avatar images when user explicitly chose image-to-video
+      const avatarFiles: File[] = [];
+      if (hasCharacterAvatars && mode === "image-to-video") {
+        setProgressStage("Loading character avatars...");
+        for (const avatar of characterAvatars!) {
+          try {
+            const response = await fetch(avatar.url);
+            const blob = await response.blob();
+            const ext = blob.type.split("/")[1] || "png";
+            avatarFiles.push(new File([blob], `${avatar.name}.${ext}`, { type: blob.type }));
+          } catch (err) {
+            console.warn(`Failed to fetch avatar for ${avatar.name}:`, err);
+          }
+        }
+      }
+
       const formData = new FormData();
       formData.append("mode", mode);
       formData.append("prompt", prompt);
@@ -99,13 +124,12 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
         formData.append("apiKey", apiKey);
       }
 
-      // Add reference images
+      // Add reference images: character avatars first, then user-uploaded images
       if (mode === "image-to-video") {
         setProgressStage("Uploading reference images...");
-        referenceImages.forEach((img, index) => {
-          if (img) {
-            formData.append("images", img);
-          }
+        avatarFiles.forEach((file) => formData.append("images", file));
+        referenceImages.forEach((img) => {
+          if (img) formData.append("images", img);
         });
       } else if (mode === "frame-to-video") {
         setProgressStage("Uploading frame images...");

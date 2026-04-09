@@ -38,6 +38,11 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
 
   const videoUpload = useVideoUpload();
 
+  // Collect avatar URLs from selected characters that have them
+  const characterAvatars = selectedCharacters
+    .filter((c) => c.avatarUrl)
+    .map((c) => ({ url: c.avatarUrl!, name: c.name }));
+
   const videoGeneration = useVideoGeneration({
     apiKey,
     mode,
@@ -50,6 +55,7 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
     }),
     aspectRatio,
     resolution,
+    characterAvatars,
     onError: (message) => showToast(message, "error"),
     generateUploadUrl,
     onSaveVideoGeneration: async (params) => {
@@ -73,10 +79,16 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
     });
   }, []);
 
+  const hasCharacterImages = characterAvatars.length > 0;
+
+  // Text mode uses character descriptions in the prompt text.
+  // Image mode additionally sends avatar images as Veo style references.
+  const effectiveMode: VideoMode = mode;
+
   const canGenerate =
     prompt.trim().length > 0 &&
     (mode === "text-to-video" ||
-      (mode === "image-to-video" && videoUpload.hasAnyImages) ||
+      (mode === "image-to-video" && (videoUpload.hasAnyImages || hasCharacterImages)) ||
       (mode === "frame-to-video" &&
         !!videoUpload.referenceImages[0].file &&
         !!videoUpload.referenceImages[1].file));
@@ -103,6 +115,7 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
       mood={mood}
       onMoodChange={setMood}
       mode={mode}
+      effectiveMode={effectiveMode}
       onModeChange={handleModeChange}
       resolution={resolution}
       onResolutionChange={setResolution}
@@ -228,6 +241,7 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
             prompt={prompt}
             onPromptChange={setPrompt}
             mode={mode}
+            effectiveMode={effectiveMode}
             canGenerate={canGenerate}
             isLoading={videoGeneration.isLoading}
             estimatedCost={estimatedCost}
@@ -236,6 +250,7 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
             onImageUpload={(file, index) => videoUpload.handleImageUpload(file, index)}
             onClearImage={(index) => videoUpload.clearImage(index)}
             hasAnyImages={videoUpload.hasAnyImages}
+            characterAvatarPreviews={characterAvatars}
           />
         </div>
       </div>
