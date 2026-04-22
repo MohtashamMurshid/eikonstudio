@@ -33,21 +33,41 @@ export function ControlsBar({
   onGenerate,
   onAddImages,
 }: ControlsBarProps) {
+  const selectedModelMeta =
+    IMAGE_MODEL_OPTIONS.find((o) => o.id === imageModel) ?? IMAGE_MODEL_OPTIONS[0]
+
   return (
     <div className="px-3 sm:px-4 pb-3 sm:pb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-        {/* Model */}
+        {/* Model — closed: logo only; open: logo + full name per option */}
         <Select value={imageModel} onValueChange={(v) => onImageModelChange(v as ImageModelId)}>
-          <SelectTrigger className="h-8 px-2 sm:px-2.5 bg-secondary/50 border-0 text-foreground text-xs gap-1 sm:gap-1.5 rounded-lg hover:bg-secondary transition-colors min-w-[100px] sm:min-w-[130px]">
-            <svg className="w-3.5 h-3.5 text-foreground/60 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
+          <SelectTrigger
+            title={selectedModelMeta.label}
+            aria-label={`Image model: ${selectedModelMeta.label}`}
+            className="h-8 min-w-[2.75rem] shrink-0 px-1 sm:px-1.5 bg-secondary/50 border-0 text-foreground text-xs gap-0.5 rounded-lg hover:bg-secondary transition-colors justify-between *:data-[slot=select-value]:sr-only *:data-[slot=select-value]:w-0 *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:overflow-hidden *:data-[slot=select-value]:p-0"
+          >
+            <img
+              src={selectedModelMeta.logo}
+              alt=""
+              width={18}
+              height={18}
+              className="size-[18px] shrink-0 object-contain pointer-events-none"
+            />
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-card border-border text-foreground">
+          <SelectContent className="bg-card border-border text-foreground min-w-[200px]">
             {IMAGE_MODEL_OPTIONS.map((opt) => (
               <SelectItem key={opt.id} value={opt.id} className="text-xs">
-                {opt.label}
+                <span className="flex items-center gap-2">
+                  <img
+                    src={opt.logo}
+                    alt=""
+                    width={16}
+                    height={16}
+                    className="size-4 shrink-0 object-contain"
+                  />
+                  <span className="truncate">{opt.label}</span>
+                </span>
               </SelectItem>
             ))}
           </SelectContent>

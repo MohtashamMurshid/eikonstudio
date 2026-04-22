@@ -4,9 +4,13 @@ export const IMAGE_MODEL_GPT_IMAGE_2 = "gpt-image-2" as const;
 
 export type ImageModelId = typeof IMAGE_MODEL_GEMINI | typeof IMAGE_MODEL_GPT_IMAGE_2;
 
-export const IMAGE_MODEL_OPTIONS: { id: ImageModelId; label: string }[] = [
-  { id: IMAGE_MODEL_GPT_IMAGE_2, label: "GPT Image 2" },
-  { id: IMAGE_MODEL_GEMINI, label: "Gemini 3.1 Flash" },
+export const IMAGE_MODEL_OPTIONS: {
+  id: ImageModelId;
+  label: string;
+  logo: string;
+}[] = [
+  { id: IMAGE_MODEL_GPT_IMAGE_2, label: "GPT Image 2", logo: "/logos/gpt-image.svg" },
+  { id: IMAGE_MODEL_GEMINI, label: "Gemini 3.1 Flash", logo: "/logos/gemini.svg" },
 ];
 
 export const randomPrompts = [
