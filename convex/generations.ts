@@ -44,6 +44,10 @@ export const startGeneration = mutation({
     imageSize: v.string(),
     artStyle: v.optional(v.string()),
     apiKey: v.optional(v.string()),
+    imageModel: v.union(
+      v.literal("gemini-3.1-flash-image-preview"),
+      v.literal("gpt-image-2")
+    ),
     // Reference image storage IDs for image-editing mode
     referenceImageIds: v.optional(v.array(v.id("_storage"))),
   },
@@ -61,6 +65,7 @@ export const startGeneration = mutation({
       aspectRatio: args.aspectRatio,
       imageSize: args.imageSize,
       artStyle: args.artStyle,
+      imageModel: args.imageModel,
       createdAt: Date.now(),
       status: "pending",
       referenceImageIds: args.referenceImageIds,
@@ -87,6 +92,7 @@ export const startGeneration = mutation({
       imageSize: args.imageSize,
       artStyle: args.artStyle,
       apiKey: args.apiKey,
+      imageModel: args.imageModel,
       referenceImageUrls,
       userId: user._id, // Pass userId for looking up custom skills
     });

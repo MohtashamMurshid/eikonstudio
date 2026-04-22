@@ -29,7 +29,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth({
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
-    trustedOrigins: [siteUrl],
+    trustedOrigins,
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,

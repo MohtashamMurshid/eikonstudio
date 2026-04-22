@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import type { GeneratedImage } from "../types"
+import type { ImageModelId } from "../constants"
 import type { Id } from "@/convex/_generated/dataModel"
 
 /**
@@ -33,6 +34,7 @@ interface StartGenerationParams {
   imageSize: string
   artStyle?: string
   apiKey?: string
+  imageModel: ImageModelId
   referenceImageIds?: Id<"_storage">[]
 }
 
@@ -59,6 +61,7 @@ interface UseImageGenerationOptions {
   prompt: string
   aspectRatio: string
   imageSize: string
+  imageModel: ImageModelId
   selectedArtStyle: string
   onError?: (message: string) => void
   generateUploadUrl: () => Promise<string>
@@ -148,7 +151,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       currentMode, useUrls, 
       image1, image1Url, image2, image2Url, 
       image3, image3Url, image4, image4Url,
-      prompt, aspectRatio, imageSize, selectedArtStyle, apiKey, 
+      prompt, aspectRatio, imageSize, imageModel, selectedArtStyle, apiKey, 
       onError, generateUploadUrl, startGeneration 
     } = options
 
@@ -239,6 +242,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
         imageSize,
         artStyle: selectedArtStyle || undefined,
         apiKey: apiKey || undefined,
+        imageModel,
         referenceImageIds,
       })
 

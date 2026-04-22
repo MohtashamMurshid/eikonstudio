@@ -1,14 +1,16 @@
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { predefinedArtStyles } from "../constants"
+import { IMAGE_MODEL_OPTIONS, predefinedArtStyles, type ImageModelId } from "../constants"
 
 interface ControlsBarProps {
+  imageModel: ImageModelId
   aspectRatio: string
   imageSize: string
   selectedArtStyle: string
   canGenerate: boolean
   isLoading: boolean
   isConvertingHeic: boolean
+  onImageModelChange: (value: ImageModelId) => void
   onAspectRatioChange: (value: string) => void
   onImageSizeChange: (value: string) => void
   onArtStyleChange: (value: string) => void
@@ -17,12 +19,14 @@ interface ControlsBarProps {
 }
 
 export function ControlsBar({
+  imageModel,
   aspectRatio,
   imageSize,
   selectedArtStyle,
   canGenerate,
   isLoading,
   isConvertingHeic,
+  onImageModelChange,
   onAspectRatioChange,
   onImageSizeChange,
   onArtStyleChange,
@@ -32,6 +36,23 @@ export function ControlsBar({
   return (
     <div className="px-3 sm:px-4 pb-3 sm:pb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+        {/* Model */}
+        <Select value={imageModel} onValueChange={(v) => onImageModelChange(v as ImageModelId)}>
+          <SelectTrigger className="h-8 px-2 sm:px-2.5 bg-secondary/50 border-0 text-foreground text-xs gap-1 sm:gap-1.5 rounded-lg hover:bg-secondary transition-colors min-w-[100px] sm:min-w-[130px]">
+            <svg className="w-3.5 h-3.5 text-foreground/60 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-card border-border text-foreground">
+            {IMAGE_MODEL_OPTIONS.map((opt) => (
+              <SelectItem key={opt.id} value={opt.id} className="text-xs">
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         {/* Add Images Button */}
         <button
           onClick={onAddImages}

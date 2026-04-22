@@ -221,7 +221,7 @@ export default function AuthPage() {
       {/* Right Side - Image */}
       <div className="hidden lg:block flex-1 relative overflow-hidden">
         <img
-          src="/auth-pic.png"
+          src="/new-auth-pic.png"
           alt="Abstract visualization"
           className="absolute inset-0 w-full h-full object-cover"
         />

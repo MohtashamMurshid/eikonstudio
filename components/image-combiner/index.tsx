@@ -24,6 +24,7 @@ import { ControlsBar } from "./components/controls-bar"
 import { ArtStyleSuggestions } from "./components/art-style-suggestions"
 import { GeneratedResultDisplay } from "./components/generated-result-display"
 import { Logo } from "@/components/logo"
+import { IMAGE_MODEL_GPT_IMAGE_2, type ImageModelId } from "./constants"
 
 interface ExtendedImageCombinerProps extends ImageCombinerProps {
   pendingInputImage?: string | null
@@ -35,6 +36,7 @@ const IMAGE_SLOTS: ImageSlot[] = [1, 2, 3, 4]
 export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }: ExtendedImageCombinerProps) {
   const [prompt, setPrompt] = useState("")
   const [showFullscreen, setShowFullscreen] = useState(false)
+  const [imageModel, setImageModel] = useState<ImageModelId>(IMAGE_MODEL_GPT_IMAGE_2)
   const [aspectRatio, setAspectRatio] = useState<string>("square")
   const [imageSize, setImageSize] = useState<string>("2K")
   const [selectedArtStyle, setSelectedArtStyle] = useState<string>("")
@@ -92,6 +94,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     prompt,
     aspectRatio,
     imageSize,
+    imageModel,
     selectedArtStyle,
     onError: (message) => showToast(message, "error"),
     generateUploadUrl,
@@ -399,12 +402,14 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
 
             {/* Controls Bar */}
             <ControlsBar
+              imageModel={imageModel}
               aspectRatio={aspectRatio}
               imageSize={imageSize}
               selectedArtStyle={selectedArtStyle}
               canGenerate={canGenerate}
               isLoading={imageGeneration.isLoading}
               isConvertingHeic={imageUpload.isConvertingHeic}
+              onImageModelChange={setImageModel}
               onAspectRatioChange={setAspectRatio}
               onImageSizeChange={setImageSize}
               onArtStyleChange={setSelectedArtStyle}
