@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 import { IMAGE_MODEL_OPTIONS, predefinedArtStyles, type ImageModelId } from "../constants"
 
 interface ControlsBarProps {
@@ -51,7 +52,10 @@ export function ControlsBar({
               alt=""
               width={18}
               height={18}
-              className="size-[18px] shrink-0 object-contain pointer-events-none"
+              className={cn(
+                "size-[18px] shrink-0 object-contain pointer-events-none",
+                selectedModelMeta.logoClassName,
+              )}
             />
             <SelectValue />
           </SelectTrigger>
@@ -64,7 +68,7 @@ export function ControlsBar({
                     alt=""
                     width={16}
                     height={16}
-                    className="size-4 shrink-0 object-contain"
+                    className={cn("size-4 shrink-0 object-contain", opt.logoClassName)}
                   />
                   <span className="truncate">{opt.label}</span>
                 </span>

@@ -8,8 +8,15 @@ export const IMAGE_MODEL_OPTIONS: {
   id: ImageModelId;
   label: string;
   logo: string;
+  /** Extra classes for the logo <img> (e.g. invert black mark to white in dark mode) */
+  logoClassName?: string;
 }[] = [
-  { id: IMAGE_MODEL_GPT_IMAGE_2, label: "GPT Image 2", logo: "/logos/gpt-image.svg" },
+  {
+    id: IMAGE_MODEL_GPT_IMAGE_2,
+    label: "GPT Image 2",
+    logo: "/logos/gpt-image.svg",
+    logoClassName: "dark:invert",
+  },
   { id: IMAGE_MODEL_GEMINI, label: "Gemini 3.1 Flash", logo: "/logos/gemini.svg" },
 ];
 

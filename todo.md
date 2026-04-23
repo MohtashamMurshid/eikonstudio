@@ -1,3 +1,12 @@
+# image gen
+- add semi gen images while loading
+-better skills
+
+
+
+
+
+
 # Cinema Studio — Deferred Features Roadmap
 
 Features inspired by Higgsfield Cinema Studio 2.5 to be implemented in future iterations.
