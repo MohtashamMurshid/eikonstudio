@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { Plus, Edit2, Trash2, User, Check } from "lucide-react";
 import type { Character } from "../types";
 import { CharacterModal } from "./character-modal";
+import { getUserFacingErrorMessage } from "@/lib/error-utils";
 
 interface CharacterLibraryProps {
   selectedCharacters: Character[];
@@ -24,6 +25,7 @@ export function CharacterLibrary({
   const [modalOpen, setModalOpen] = useState(false);
   const [editingChar, setEditingChar] = useState<Character | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const isSelected = (char: Character) =>
     selectedCharacters.some((c) => c._id === char._id);
@@ -39,11 +41,16 @@ export function CharacterLibrary({
 
   const handleDelete = async (char: Character) => {
     setDeletingId(char._id);
+    setFeedback(null);
     try {
       await deleteCharacter({ characterId: char._id });
       if (isSelected(char)) onToggleCharacter(char);
+      setFeedback("Character deleted.");
     } catch (err) {
       console.error("Failed to delete character:", err);
+      setFeedback(
+        getUserFacingErrorMessage(err, "Failed to delete this character."),
+      );
     } finally {
       setDeletingId(null);
     }
@@ -68,6 +75,9 @@ export function CharacterLibrary({
           <Plus className="w-3.5 h-3.5" />
         </button>
       </div>
+      {feedback && (
+        <p className="text-[11px] text-foreground/45">{feedback}</p>
+      )}
 
       {/* Selected characters pills */}
       {selectedCharacters.length > 0 && (

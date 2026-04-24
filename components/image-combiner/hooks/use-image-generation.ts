@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import type { GeneratedImage } from "../types"
 import { IMAGE_MODEL_GPT_IMAGE_2, type ImageModelId } from "../constants"
 import type { Id } from "@/convex/_generated/dataModel"
+import { getUserFacingErrorMessage } from "@/lib/error-utils"
 
 /**
  * Upload blob to Convex storage
@@ -16,6 +17,9 @@ const uploadToStorage = async (
     headers: { "Content-Type": blob.type },
     body: blob,
   })
+  if (!response.ok) {
+    throw new Error("Failed to upload the image to storage")
+  }
   const { storageId } = await response.json()
   return storageId
 }
@@ -222,6 +226,9 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
             } else if (img.url) {
               // Fetch URL and convert to blob
               const response = await fetch(img.url)
+              if (!response.ok) {
+                throw new Error("Failed to fetch a reference image")
+              }
               blob = await response.blob()
             } else {
               continue
@@ -280,8 +287,12 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       setIsSaving(false)
       console.error("Error starting generation:", error)
 
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
-      onError?.(`Error starting generation: ${errorMessage}`)
+      onError?.(
+        getUserFacingErrorMessage(
+          error,
+          "Unable to start generation right now. Please try again.",
+        ),
+      )
     }
   }
 

@@ -14,6 +14,7 @@ import {
   type SkillDefinition,
   type SkillSections,
 } from "@/lib/skill-library"
+import { getUserFacingErrorMessage } from "@/lib/error-utils"
 
 type StoredSkill = {
   _id: Id<"skills">
@@ -239,7 +240,10 @@ export function SkillLibraryManager() {
       setIsCreatingNewSkill(false)
       setSelectedLibraryKey(draft.builtInSkillKey ?? draft.name)
     } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Save failed." })
+      setFeedback({
+        kind: "error",
+        message: getUserFacingErrorMessage(error, "Save failed."),
+      })
     } finally {
       setIsSaving(false)
     }
@@ -254,7 +258,10 @@ export function SkillLibraryManager() {
       setFeedback({ kind: "success", message: selectedItem.isStarter ? "Reset to default." : "Deleted." })
       if (!selectedItem.isStarter) setSelectedLibraryKey("renaissance")
     } catch (error) {
-      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Delete failed." })
+      setFeedback({
+        kind: "error",
+        message: getUserFacingErrorMessage(error, "Delete failed."),
+      })
     } finally {
       setIsDeleting(false)
     }

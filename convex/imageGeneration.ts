@@ -111,6 +111,44 @@ async function urlToOpenAiUploadable(
   return await toFile(buf, `ref-${index}.${ext}`, { type: mime });
 }
 
+function getGenerationFailureMessage(error: unknown): string {
+  const rawMessage = error instanceof Error ? error.message : "";
+  const message = rawMessage.toLowerCase();
+
+  if (
+    message.includes("openai api key not configured") ||
+    message.includes("no api key configured")
+  ) {
+    return "Add a valid provider API key in Settings before generating images."
+  }
+
+  if (message.includes("rate limit") || message.includes("429")) {
+    return "The image provider is rate limited right now. Please wait a moment and try again."
+  }
+
+  if (message.includes("reference image")) {
+    return "One or more reference images could not be processed. Try re-uploading them and generating again."
+  }
+
+  if (
+    message.includes("no image data") ||
+    message.includes("no candidates returned") ||
+    message.includes("no content parts found")
+  ) {
+    return "The image provider returned an empty response. Please try again."
+  }
+
+  if (message.includes("safety") || message.includes("blocked")) {
+    return "The request was blocked by the model's safety system. Try a different prompt."
+  }
+
+  if (rawMessage.trim()) {
+    return rawMessage
+  }
+
+  return "Image generation failed unexpectedly. Please try again."
+}
+
 /**
  * Background action to generate an image (Gemini or OpenAI GPT Image).
  * OpenAI requires OPENAI_API_KEY in Convex environment variables.
@@ -156,22 +194,26 @@ export const generateImageBackground = internalAction({
 
         for (const skillName of skillNames) {
           const builtInSkill = builtInSkillMap.get(skillName);
-          if (userId) {
-            const customSkill = await ctx.runQuery(internal.skills.getSkillByNameInternal, {
-              userId,
-              name: skillName,
-            });
-            if (customSkill) {
-              skillPromptMap[skillName] = renderSkillPrompt({
-                ...customSkill,
-                category: customSkill.category as "style" | "composition" | "brand" | "lighting" | "mood" | "subject" | "other" | undefined,
+          try {
+            if (userId) {
+              const customSkill = await ctx.runQuery(internal.skills.getSkillByNameInternal, {
+                userId,
+                name: skillName,
               });
-              continue;
+              if (customSkill) {
+                skillPromptMap[skillName] = renderSkillPrompt({
+                  ...customSkill,
+                  category: customSkill.category as "style" | "composition" | "brand" | "lighting" | "mood" | "subject" | "other" | undefined,
+                });
+                continue;
+              }
             }
-          }
 
-          if (builtInSkill) {
-            skillPromptMap[skillName] = renderSkillPrompt(builtInSkill);
+            if (builtInSkill) {
+              skillPromptMap[skillName] = renderSkillPrompt(builtInSkill);
+            }
+          } catch (skillError) {
+            console.error(`[Image Generation] Failed to resolve skill /${skillName}:`, skillError);
           }
         }
 
@@ -366,7 +408,7 @@ export const generateImageBackground = internalAction({
     } catch (error) {
       console.error(`Generation ${generationId} failed:`, error);
 
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      const errorMessage = getGenerationFailureMessage(error);
 
       await ctx.runMutation(internal.generations.failGeneration, {
         generationId,

@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { internalQuery, mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
+import { createAppError } from "../lib/error-utils";
 
 const skillSectionsValidator = v.object({
   styleOverview: v.optional(v.string()),
@@ -124,12 +125,21 @@ function buildStoredSkill(args: {
 }) {
   const normalizedName = normalizeName(args.name);
   if (!normalizedName) {
-    throw new ConvexError("Skill name cannot be empty");
+    throw new ConvexError(
+      createAppError("VALIDATION_ERROR", "Skill name cannot be empty"),
+    );
+  }
+
+  const description = args.description.trim();
+  if (!description) {
+    throw new ConvexError(
+      createAppError("VALIDATION_ERROR", "Skill description cannot be empty"),
+    );
   }
 
   return {
     name: normalizedName,
-    description: args.description.trim(),
+    description,
     category: cleanString(args.category),
     tags: cleanTags(args.tags),
     promptText: cleanString(args.promptText),
@@ -148,7 +158,9 @@ export const createSkill = mutation({
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new ConvexError("Must be authenticated to create skills");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to create skills"),
+      );
     }
 
     const storedSkill = buildStoredSkill(args);
@@ -159,7 +171,12 @@ export const createSkill = mutation({
       .first();
 
     if (existingSkill) {
-      throw new ConvexError(`You already have a skill named "${storedSkill.name}"`);
+      throw new ConvexError(
+        createAppError(
+          "CONFLICT",
+          `You already have a skill named "${storedSkill.name}"`,
+        ),
+      );
     }
 
     return await ctx.db.insert("skills", {
@@ -189,21 +206,33 @@ export const updateSkill = mutation({
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new ConvexError("Must be authenticated to update skills");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to update skills"),
+      );
     }
 
     const skill = await ctx.db.get("skills", args.skillId);
     if (!skill) {
-      throw new ConvexError("Skill not found");
+      throw new ConvexError(createAppError("NOT_FOUND", "Skill not found"));
     }
 
     if (skill.userId !== user._id) {
-      throw new ConvexError("Cannot update another user's skill");
+      throw new ConvexError(
+        createAppError("FORBIDDEN", "You can only update your own skills"),
+      );
     }
 
     const nextName = args.name !== undefined ? normalizeName(args.name) : skill.name;
     if (!nextName) {
-      throw new ConvexError("Skill name cannot be empty");
+      throw new ConvexError(
+        createAppError("VALIDATION_ERROR", "Skill name cannot be empty"),
+      );
+    }
+
+    if (args.description !== undefined && !args.description.trim()) {
+      throw new ConvexError(
+        createAppError("VALIDATION_ERROR", "Skill description cannot be empty"),
+      );
     }
 
     if (nextName !== skill.name) {
@@ -213,7 +242,12 @@ export const updateSkill = mutation({
         .first();
 
       if (existingSkill) {
-        throw new ConvexError(`You already have a skill named "${nextName}"`);
+        throw new ConvexError(
+          createAppError(
+            "CONFLICT",
+            `You already have a skill named "${nextName}"`,
+          ),
+        );
       }
     }
 
@@ -248,16 +282,20 @@ export const deleteSkill = mutation({
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new ConvexError("Must be authenticated to delete skills");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to delete skills"),
+      );
     }
 
     const skill = await ctx.db.get("skills", args.skillId);
     if (!skill) {
-      throw new ConvexError("Skill not found");
+      throw new ConvexError(createAppError("NOT_FOUND", "Skill not found"));
     }
 
     if (skill.userId !== user._id) {
-      throw new ConvexError("Cannot delete another user's skill");
+      throw new ConvexError(
+        createAppError("FORBIDDEN", "You can only delete your own skills"),
+      );
     }
 
     await ctx.db.delete("skills", args.skillId);

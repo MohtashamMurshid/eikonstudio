@@ -1,7 +1,8 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { authComponent } from "./auth";
+import { createAppError } from "../lib/error-utils";
 
 // Cost calculation constants (mirrored from lib/cost-calculator.ts for server-side use)
 const COST_FACTORS = {
@@ -25,7 +26,9 @@ export const generateUploadUrl = mutation({
   handler: async (ctx) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new Error("Must be authenticated to upload images");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to upload reference images"),
+      );
     }
     return await ctx.storage.generateUploadUrl();
   },
@@ -53,7 +56,27 @@ export const startGeneration = mutation({
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new Error("Must be authenticated to start generation");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to start a generation"),
+      );
+    }
+
+    if (!args.prompt.trim()) {
+      throw new ConvexError(
+        createAppError("VALIDATION_ERROR", "Prompt cannot be empty"),
+      );
+    }
+
+    if (
+      args.mode === "image-editing" &&
+      (!args.referenceImageIds || args.referenceImageIds.length === 0)
+    ) {
+      throw new ConvexError(
+        createAppError(
+          "VALIDATION_ERROR",
+          "Add at least one reference image for image editing",
+        ),
+      );
     }
 
     // Create a pending generation record
@@ -167,7 +190,9 @@ export const saveGeneration = mutation({
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new Error("Must be authenticated to save generations");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to save generations"),
+      );
     }
 
     // Calculate cost if not provided
@@ -247,16 +272,22 @@ export const deleteGeneration = mutation({
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new Error("Must be authenticated to delete generations");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to delete generations"),
+      );
     }
 
     const generation = await ctx.db.get(args.generationId);
     if (!generation) {
-      throw new Error("Generation not found");
+      throw new ConvexError(
+        createAppError("NOT_FOUND", "Generation not found"),
+      );
     }
 
     if (generation.userId !== user._id) {
-      throw new Error("Cannot delete another user's generation");
+      throw new ConvexError(
+        createAppError("FORBIDDEN", "You can only delete your own generations"),
+      );
     }
 
     // Delete the files from storage (if they exist)
@@ -526,7 +557,9 @@ export const backfillCosts = mutation({
   handler: async (ctx) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new Error("Must be authenticated to backfill costs");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to backfill costs"),
+      );
     }
 
     const generations = await ctx.db

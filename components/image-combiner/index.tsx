@@ -22,6 +22,7 @@ import { ImagePreviewGrid } from "./components/image-preview-grid"
 import { PromptInputWithMentions } from "./components/prompt-input-with-mentions"
 import { ControlsBar } from "./components/controls-bar"
 import { GeneratedResultDisplay } from "./components/generated-result-display"
+import { getUserFacingErrorMessage } from "@/lib/error-utils"
 
 import { Logo } from "@/components/logo"
 import { IMAGE_MODEL_GPT_IMAGE_2, type ImageModelId } from "./constants"
@@ -223,7 +224,13 @@ export function ImageCombiner({ providerApiKeys, pendingInputImage, onInputImage
         onInputImageLoaded?.()
       } catch (error) {
         console.error("Error loading image from history:", error)
-        showToast("Failed to load image from history", "error")
+        showToast(
+          getUserFacingErrorMessage(
+            error,
+            "Failed to load this image from history.",
+          ),
+          "error",
+        )
         onInputImageLoaded?.()
       }
     }
@@ -297,7 +304,10 @@ export function ImageCombiner({ providerApiKeys, pendingInputImage, onInputImage
       }
     } catch (error) {
       console.error("Error loading image as input:", error)
-      showToast("Error loading image", "error")
+      showToast(
+        getUserFacingErrorMessage(error, "Failed to load the generated image."),
+        "error",
+      )
     }
   }
 

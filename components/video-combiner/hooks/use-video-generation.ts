@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { GeneratedVideo, VideoMode } from "../types";
 import type { Id } from "@/convex/_generated/dataModel";
 import { extractVideoFrame, dataUrlToBlob, uploadVideoToStorage } from "@/lib/video-utilities";
+import { getUserFacingErrorMessage } from "@/lib/error-utils";
 
 interface SaveVideoGenerationParams {
   prompt: string;
@@ -106,6 +107,9 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
         for (const avatar of characterAvatars!) {
           try {
             const response = await fetch(avatar.url);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch avatar for ${avatar.name}`);
+            }
             const blob = await response.blob();
             const ext = blob.type.split("/")[1] || "png";
             avatarFiles.push(new File([blob], `${avatar.name}.${ext}`, { type: blob.type }));
@@ -233,8 +237,11 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
           setIsSaving(false);
           setProgressStage("");
           options.onSaveError?.(
-            "Failed to save to history. Please download the video manually."
-          );
+            getUserFacingErrorMessage(
+              saveError,
+              "Failed to save to history. Please download the video manually.",
+            ),
+          )
         }
       }
     } catch (error) {
@@ -243,9 +250,12 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
       setProgressStage("");
       console.error("Error generating video:", error);
 
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      onError?.(`Error generating video: ${errorMessage}`);
+      onError?.(
+        getUserFacingErrorMessage(
+          error,
+          "Unable to generate a video right now. Please try again.",
+        ),
+      )
       setIsLoading(false);
     }
   };

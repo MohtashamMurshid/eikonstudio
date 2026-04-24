@@ -27,22 +27,22 @@ interface SidebarProps {
 
 const mainMenuItems: MenuItem[] = [
   {
-    id: "dashboard",
-    label: "Dashboard",
-    href: "/studio/dashboard",
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-      </svg>
-    ),
-  },
-  {
     id: "studio",
     label: "Studio",
     href: "/studio/create",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
+      </svg>
+    ),
+  },
+  {
+    id: "history",
+    label: "History",
+    href: "/studio/history",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
   },
@@ -65,16 +65,6 @@ const mainMenuItems: MenuItem[] = [
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-2.625 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0118 18.375M20.625 4.5H3.375m17.25 0c.621 0 1.125.504 1.125 1.125M20.625 4.5h-1.5C18.504 4.5 18 5.004 18 5.625m3.75 0v1.5c0 .621-.504 1.125-1.125 1.125M3.375 4.5c-.621 0-1.125.504-1.125 1.125M3.375 4.5h1.5C5.496 4.5 6 5.004 6 5.625m-2.625 0v1.5c0 .621.504 1.125 1.125 1.125m0 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m1.5-3.75C5.496 8.25 6 7.746 6 7.125v-1.5M4.875 8.25C5.496 8.25 6 8.754 6 9.375v1.5m0-5.25v5.25m0-5.25C6 5.004 6.504 4.5 7.125 4.5h9.75c.621 0 1.125.504 1.125 1.125m1.125 2.625h1.5m-1.5 0A1.125 1.125 0 0118 7.125v-1.5m1.125 2.625c-.621 0-1.125.504-1.125 1.125v1.5m2.625-2.625c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125M18 5.625v5.25M7.125 12h9.75m-9.75 0A1.125 1.125 0 016 10.875M7.125 12C6.504 12 6 12.504 6 13.125m0-2.25C6 11.496 5.496 12 4.875 12M18 10.875c0 .621-.504 1.125-1.125 1.125M18 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m-12 5.25v-5.25m0 5.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125m-12 0v-1.5c0-.621-.504-1.125-1.125-1.125M18 18.375v-5.25m0 5.25v-1.5c0-.621.504-1.125 1.125-1.125M18 13.125v1.5c0 .621.504 1.125 1.125 1.125M18 13.125c0-.621.504-1.125 1.125-1.125M6 13.125v1.5c0 .621-.504 1.125-1.125 1.125M6 13.125C6 12.504 5.496 12 4.875 12m-1.5 0h1.5m14.25 0h1.5" />
-      </svg>
-    ),
-  },
-  {
-    id: "history",
-    label: "History",
-    href: "/studio/history",
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
   },
@@ -168,43 +158,66 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
         onClick={() => setIsMobileOpen(false)}
       />
 
+      {/* Label fade: when expanded, delay text fade-in until width animation finishes; when collapsed, fade out immediately */}
+      {/* labelClass controls opacity + pointer-events; outerClass controls width/overflow of the label container */}
+      {/*
+        Expanded:  opacity 1, width auto (with delay on expand to avoid text during width anim)
+        Collapsed: opacity 0, width 0, overflow hidden
+      */}
+
       {/* Sidebar */}
-      <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50
-        ${isCollapsed ? "w-[72px]" : "w-64"} bg-card border-r border-border
-        flex flex-col
-        transition-all duration-300 ease-in-out
-        ${isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-      `}>
+      <aside
+        className={`
+          fixed lg:static inset-y-0 left-0 z-50
+          ${isCollapsed ? "w-[72px]" : "w-64"} bg-card border-r border-border
+          flex flex-col overflow-hidden
+          transition-[width] duration-300 ease-in-out
+          ${isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        `}
+      >
         {/* Logo and Team Selector */}
-        <div className="p-4 border-b border-border">
+        <div className={`${isCollapsed ? "p-2" : "p-4"} border-b border-border transition-[padding] duration-300 ease-in-out`}>
           <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"} p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors`}>
             <div className="w-9 h-9 bg-foreground rounded-lg flex items-center justify-center flex-shrink-0">
               <LogoIcon className="w-5 h-5 text-background" />
             </div>
-            {!isCollapsed && (
-              <>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-foreground/50 uppercase tracking-wider">Workspace</p>
-                  <p className="text-sm font-semibold text-foreground truncate">Eikon Studio</p>
-                </div>
-                <svg className="w-4 h-4 text-foreground/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
-                </svg>
-              </>
-            )}
+            <div
+              className={`flex items-center gap-3 min-w-0 overflow-hidden transition-[opacity,max-width] ${
+                isCollapsed
+                  ? "max-w-0 opacity-0 duration-150"
+                  : "max-w-[200px] opacity-100 duration-200 delay-150"
+              }`}
+              aria-hidden={isCollapsed}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-foreground/50 uppercase tracking-wider whitespace-nowrap">Workspace</p>
+                <p className="text-sm font-semibold text-foreground truncate">Eikon Studio</p>
+              </div>
+              <svg className="w-4 h-4 text-foreground/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+              </svg>
+            </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className={`flex-1 overflow-y-auto ${isCollapsed ? "p-2" : "p-4"} space-y-6`}>
+        <nav className={`flex-1 overflow-y-auto overflow-x-hidden ${isCollapsed ? "p-2" : "p-4"} space-y-6 transition-[padding] duration-300 ease-in-out`}>
           {/* Main Menu */}
           <div>
-            {!isCollapsed && <p className="px-3 mb-2 text-xs font-medium text-foreground/40 uppercase tracking-wider">Main Menu</p>}
+            <p
+              aria-hidden={isCollapsed}
+              className={`px-3 mb-2 h-4 text-xs font-medium text-foreground/40 uppercase tracking-wider whitespace-nowrap overflow-hidden transition-opacity ${
+                isCollapsed
+                  ? "opacity-0 duration-150"
+                  : "opacity-100 duration-200 delay-150"
+              }`}
+            >
+              Main Menu
+            </p>
             <ul className="space-y-1">
               {mainMenuItems.map((item) => {
                 const isActive = activeTab === item.id
-                
+
                 return (
                   <li key={item.id}>
                     <Link
@@ -213,18 +226,29 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
                       title={isCollapsed ? `${item.label}${item.beta ? " (Early Beta)" : ""}` : undefined}
                       className={`
                         w-full flex items-center ${isCollapsed ? "justify-center" : "gap-3 justify-between"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium transition-colors
-                        ${isActive 
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" 
+                        ${isActive
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                           : "text-foreground/70 hover:bg-accent hover:text-foreground"
                         }
                       `}
                     >
                       <div className={`flex items-center ${isCollapsed ? "" : "gap-3"} min-w-0`}>
-                        <span className={isActive ? "text-emerald-600" : ""}>{item.icon}</span>
-                        {!isCollapsed && <span className="truncate">{item.label}</span>}
+                        <span className={`flex-shrink-0 ${isActive ? "text-emerald-600" : ""}`}>{item.icon}</span>
+                        <span
+                          className={`truncate whitespace-nowrap overflow-hidden transition-[opacity,max-width] ${
+                            isCollapsed
+                              ? "max-w-0 opacity-0 duration-150"
+                              : "max-w-[160px] opacity-100 duration-200 delay-150"
+                          }`}
+                        >
+                          {item.label}
+                        </span>
                       </div>
                       {item.beta && !isCollapsed && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded font-medium shrink-0">
+                        <span
+                          className="text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded font-medium shrink-0 whitespace-nowrap animate-in fade-in duration-200"
+                          style={{ animationDelay: "150ms", animationFillMode: "both" }}
+                        >
                           Early Beta
                         </span>
                       )}
@@ -237,7 +261,16 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
 
           {/* Settings */}
           <div>
-            {!isCollapsed && <p className="px-3 mb-2 text-xs font-medium text-foreground/40 uppercase tracking-wider">Settings</p>}
+            <p
+              aria-hidden={isCollapsed}
+              className={`px-3 mb-2 h-4 text-xs font-medium text-foreground/40 uppercase tracking-wider whitespace-nowrap overflow-hidden transition-opacity ${
+                isCollapsed
+                  ? "opacity-0 duration-150"
+                  : "opacity-100 duration-200 delay-150"
+              }`}
+            >
+              Settings
+            </p>
             <ul className="space-y-1">
               {settingsItems.map((item) => {
                 const isActive = activeTab === item.id
@@ -249,14 +282,22 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
                       title={isCollapsed ? item.label : undefined}
                       className={`
                         w-full flex items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium transition-colors
-                        ${isActive 
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" 
+                        ${isActive
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                           : "text-foreground/70 hover:bg-accent hover:text-foreground"
                         }
                       `}
                     >
-                      <span className={isActive ? "text-emerald-600" : ""}>{item.icon}</span>
-                      {!isCollapsed && item.label}
+                      <span className={`flex-shrink-0 ${isActive ? "text-emerald-600" : ""}`}>{item.icon}</span>
+                      <span
+                        className={`truncate whitespace-nowrap overflow-hidden transition-[opacity,max-width] ${
+                          isCollapsed
+                            ? "max-w-0 opacity-0 duration-150"
+                            : "max-w-[160px] opacity-100 duration-200 delay-150"
+                        }`}
+                      >
+                        {item.label}
+                      </span>
                     </Link>
                   </li>
                 )
@@ -265,10 +306,8 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
           </div>
         </nav>
 
-        {/* Studio Info Section - shown when in studio tab */}
-
         {/* User Profile & Footer */}
-        <div className={`${isCollapsed ? "p-2" : "p-4"} border-t border-border space-y-2`}>
+        <div className={`${isCollapsed ? "p-2" : "p-4"} border-t border-border space-y-2 transition-[padding] duration-300 ease-in-out`}>
           {/* User Info */}
           <div
             title={isCollapsed ? displayName : undefined}
@@ -285,12 +324,17 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
                 {getInitials(displayName)}
               </div>
             )}
-            {!isCollapsed && (
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
-                <p className="text-xs text-foreground/50 truncate">{displayEmail}</p>
-              </div>
-            )}
+            <div
+              className={`flex-1 min-w-0 text-left overflow-hidden transition-[opacity,max-width] ${
+                isCollapsed
+                  ? "max-w-0 opacity-0 duration-150"
+                  : "max-w-[200px] opacity-100 duration-200 delay-150"
+              }`}
+              aria-hidden={isCollapsed}
+            >
+              <p className="text-sm font-medium text-foreground truncate whitespace-nowrap">{displayName}</p>
+              <p className="text-xs text-foreground/50 truncate whitespace-nowrap">{displayEmail}</p>
+            </div>
           </div>
 
           {/* Back to Home */}
@@ -302,9 +346,17 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
             </svg>
-            {!isCollapsed && "Back to Home"}
+            <span
+              className={`whitespace-nowrap overflow-hidden transition-[opacity,max-width] ${
+                isCollapsed
+                  ? "max-w-0 opacity-0 duration-150"
+                  : "max-w-[160px] opacity-100 duration-200 delay-150"
+              }`}
+            >
+              Back to Home
+            </span>
           </Link>
-          
+
           {/* Theme Toggle */}
           {isCollapsed ? <ThemeToggleCollapsed /> : <ThemeToggleWithLabel />}
 
@@ -317,7 +369,15 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
             <svg className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${isCollapsed ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
             </svg>
-            {!isCollapsed && "Collapse"}
+            <span
+              className={`whitespace-nowrap overflow-hidden transition-[opacity,max-width] ${
+                isCollapsed
+                  ? "max-w-0 opacity-0 duration-150"
+                  : "max-w-[160px] opacity-100 duration-200 delay-150"
+              }`}
+            >
+              Collapse
+            </span>
           </button>
         </div>
       </aside>
