@@ -7,6 +7,7 @@ import { GoogleGenAI } from "@google/genai";
 import OpenAI, { toFile } from "openai";
 import type { Id } from "./_generated/dataModel";
 import { Jimp } from "jimp";
+import { builtInSkills, renderSkillPrompt } from "../lib/skill-library";
 
 const GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image-preview" as const;
 const GPT_IMAGE_MODEL = "gpt-image-2" as const;
@@ -74,31 +75,9 @@ function openAiSizeAndQuality(
   }
 }
 
-// Predefined skills - must match the client-side constants for consistency
-// These are checked first before querying user's custom skills
-const PREDEFINED_SKILLS: Record<string, string> = {
-  technical: `Technical illustration in an isometric exploded view schematic style, retro 1980s digital blueprint aesthetic. The image shows a deconstructed view of the subject.
-
-The color palette is strictly monochromatic blue based on these hex codes:
-- Background: Pale cool white paper texture [#F4F7FF] with a faint, precise dotted grid pattern in subtle blue [#B0C4DE].
-- Primary Outlines, Text Labels, and Arrows: Sharp, vibrant blueprint blue [#2F52E0] with uniform line weight.
-- Fills and Shading: Flat, semi-transparent light blue fill [#7B92F0] used only for specific internal components to differentiate material.
-- Guide Lines: Dashed vertical assembly lines and leader lines in subtle blue [#B0C4DE].
-
-The composition features components floating vertically above each other with dashed lines indicating the assembly path. Labels are in a retro, pixelated monospaced computer font, pointing to key components. A date stamp in the corner reads "[ C 1986 ]".`,
-  infographic: "educational explainer poster in magazine editorial style, large central character or subject illustration, two columns of content on left and right sides, each section has a small rectangular illustration paired with bold header and short description text, clean white background, no icons or flowcharts, realistic or semi-realistic artwork in the small section images, category headers in colored text, title banner at top with bold sans-serif typography, professional layout like a wiki or guidebook page, no boxes or arrows connecting sections",
-  anime: "anime art style, vibrant colors, detailed line work, expressive eyes, dynamic poses, cel shading, Japanese animation aesthetic, clean outlines, dramatic lighting",
-  portrait: "professional portrait photography, soft studio lighting, shallow depth of field, catchlights in eyes, neutral background, high-end fashion photography style, sharp focus on subject",
-  cinematic: "cinematic composition, dramatic lighting, anamorphic lens flare, film grain, movie still quality, 35mm film aesthetic, wide aspect ratio, depth and atmosphere",
-  minimal: "minimalist design, clean lines, simple composition, negative space, limited color palette, geometric shapes, modern aesthetic, uncluttered layout",
-  watercolor: "watercolor painting, soft edges, wet-on-wet technique, transparent washes, paper texture visible, organic color blending, artistic imperfections, traditional media aesthetic",
-  "3d": "3D render, octane render quality, volumetric lighting, subsurface scattering, high polygon count, realistic materials, studio lighting setup, professional 3D visualization",
-  pixel: "pixel art, 16-bit style, limited color palette, crisp edges, retro gaming aesthetic, dithering techniques, nostalgic video game art, sprite-like quality",
-  sketch: "pencil sketch, hand-drawn illustration, crosshatching, graphite texture, artistic linework, rough edges, traditional drawing style, sketchbook aesthetic",
-  isometric: "isometric illustration style, clean geometric shapes, 30-degree viewing angle, flat colors with subtle gradients, technical precision, no perspective distortion, grid-aligned composition, vector-like quality, detailed components, modern infographic aesthetic",
-  product: "professional product photography, studio lighting setup, clean white seamless background, perfect reflections on surface, high-end commercial quality, sharp focus throughout, soft diffused shadows, premium brand aesthetic, hero shot composition",
-  architecture: "architectural technical diagram, blueprint style illustration, cross-section view showing wall construction and structural elements, clean line drawings with annotations, construction detail callouts, material layer visualization, professional CAD-style rendering, labeled components, scale indicators, orthographic projection, technical documentation aesthetic",
-};
+const builtInSkillMap = new Map(
+  builtInSkills.map((skillDefinition) => [skillDefinition.name.toLowerCase(), skillDefinition]),
+);
 
 /**
  * Parse /skillnames from a prompt and return the skill names
@@ -143,7 +122,6 @@ export const generateImageBackground = internalAction({
     mode: v.union(v.literal("text-to-image"), v.literal("image-editing")),
     aspectRatio: v.string(),
     imageSize: v.string(),
-    artStyle: v.optional(v.string()),
     apiKey: v.optional(v.string()),
     imageModel: v.union(
       v.literal("gemini-3.1-flash-image-preview"),
@@ -159,7 +137,6 @@ export const generateImageBackground = internalAction({
       mode,
       aspectRatio,
       imageSize,
-      artStyle,
       apiKey,
       imageModel,
       referenceImageUrls,
@@ -178,16 +155,23 @@ export const generateImageBackground = internalAction({
         const skillPromptMap: Record<string, string> = {};
 
         for (const skillName of skillNames) {
-          if (PREDEFINED_SKILLS[skillName]) {
-            skillPromptMap[skillName] = PREDEFINED_SKILLS[skillName];
-          } else if (userId) {
+          const builtInSkill = builtInSkillMap.get(skillName);
+          if (userId) {
             const customSkill = await ctx.runQuery(internal.skills.getSkillByNameInternal, {
               userId,
               name: skillName,
             });
             if (customSkill) {
-              skillPromptMap[skillName] = customSkill.promptText;
+              skillPromptMap[skillName] = renderSkillPrompt({
+                ...customSkill,
+                category: customSkill.category as "style" | "composition" | "brand" | "lighting" | "mood" | "subject" | "other" | undefined,
+              });
+              continue;
             }
+          }
+
+          if (builtInSkill) {
+            skillPromptMap[skillName] = renderSkillPrompt(builtInSkill);
           }
         }
 
@@ -195,13 +179,6 @@ export const generateImageBackground = internalAction({
           const skillRegex = new RegExp(`\\/${skillName}\\b`, "gi");
           finalPrompt = finalPrompt.replace(skillRegex, promptText);
         }
-      }
-
-      if (artStyle) {
-        const styleText = artStyle.toLowerCase().includes("style")
-          ? artStyle
-          : `${artStyle} style`;
-        finalPrompt = `${finalPrompt}, in ${styleText}`;
       }
 
       console.log("[Image Generation] Final prompt with skills:", finalPrompt);

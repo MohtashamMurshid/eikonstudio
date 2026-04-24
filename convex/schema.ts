@@ -84,7 +84,25 @@ export default defineSchema({
     userId: v.string(),
     name: v.string(), // Skill name (lowercase, no spaces)
     description: v.string(), // Short description
-    promptText: v.string(), // The prompt text to append
+    category: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    promptText: v.optional(v.string()), // Legacy single-block prompt text
+    freeformInstructions: v.optional(v.string()),
+    sections: v.optional(v.object({
+      styleOverview: v.optional(v.string()),
+      visualHallmarks: v.optional(v.string()),
+      composition: v.optional(v.string()),
+      lighting: v.optional(v.string()),
+      palette: v.optional(v.string()),
+      materialsAndTextures: v.optional(v.string()),
+      mustInclude: v.optional(v.string()),
+      avoid: v.optional(v.string()),
+      negativePrompt: v.optional(v.string()),
+    })),
+    builtInSkillKey: v.optional(v.string()),
+    isBuiltIn: v.optional(v.boolean()),
+    isEditable: v.optional(v.boolean()),
+    sortOrder: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])

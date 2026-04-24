@@ -32,7 +32,6 @@ interface StartGenerationParams {
   mode: "text-to-image" | "image-editing"
   aspectRatio: string
   imageSize: string
-  artStyle?: string
   apiKey?: string
   imageModel: ImageModelId
   referenceImageIds?: Id<"_storage">[]
@@ -65,7 +64,6 @@ interface UseImageGenerationOptions {
   aspectRatio: string
   imageSize: string
   imageModel: ImageModelId
-  selectedArtStyle: string
   onError?: (message: string) => void
   generateUploadUrl: () => Promise<string>
   startGeneration: (params: StartGenerationParams) => Promise<Id<"generations">>
@@ -154,7 +152,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       currentMode, useUrls, 
       image1, image1Url, image2, image2Url, 
       image3, image3Url, image4, image4Url,
-      prompt, aspectRatio, imageSize, imageModel, selectedArtStyle, providerApiKeys, 
+      prompt, aspectRatio, imageSize, imageModel, providerApiKeys, 
       onError, generateUploadUrl, startGeneration 
     } = options
 
@@ -248,7 +246,6 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
         mode: currentMode,
         aspectRatio,
         imageSize,
-        artStyle: selectedArtStyle || undefined,
         apiKey: providerApiKey || undefined,
         imageModel,
         referenceImageIds,

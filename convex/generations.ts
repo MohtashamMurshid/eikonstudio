@@ -42,7 +42,6 @@ export const startGeneration = mutation({
     mode: v.union(v.literal("text-to-image"), v.literal("image-editing")),
     aspectRatio: v.string(),
     imageSize: v.string(),
-    artStyle: v.optional(v.string()),
     apiKey: v.optional(v.string()),
     imageModel: v.union(
       v.literal("gemini-3.1-flash-image-preview"),
@@ -64,7 +63,6 @@ export const startGeneration = mutation({
       mode: args.mode,
       aspectRatio: args.aspectRatio,
       imageSize: args.imageSize,
-      artStyle: args.artStyle,
       imageModel: args.imageModel,
       createdAt: Date.now(),
       status: "pending",
@@ -90,7 +88,6 @@ export const startGeneration = mutation({
       mode: args.mode,
       aspectRatio: args.aspectRatio,
       imageSize: args.imageSize,
-      artStyle: args.artStyle,
       apiKey: args.apiKey,
       imageModel: args.imageModel,
       referenceImageUrls,

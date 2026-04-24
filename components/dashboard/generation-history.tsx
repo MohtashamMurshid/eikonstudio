@@ -666,10 +666,12 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
                     <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">Aspect</p>
                     <p className="text-sm text-foreground capitalize">{selectedImage.aspectRatio}</p>
                   </div>
-                  <div className="bg-secondary/30 rounded-xl p-3">
-                    <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">Style</p>
-                    <p className="text-sm text-foreground">{selectedImage.artStyle || "None"}</p>
-                  </div>
+                  {selectedImage.artStyle ? (
+                    <div className="bg-secondary/30 rounded-xl p-3">
+                      <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">Legacy Style</p>
+                      <p className="text-sm text-foreground">{selectedImage.artStyle}</p>
+                    </div>
+                  ) : null}
                   <div className="bg-secondary/30 rounded-xl p-3">
                     <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">Est. Cost</p>
                     <p className="text-sm text-emerald-600 font-medium">

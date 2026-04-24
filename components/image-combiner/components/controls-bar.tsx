@@ -1,20 +1,18 @@
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { IMAGE_MODEL_OPTIONS, predefinedArtStyles, type ImageModelId } from "../constants"
+import { IMAGE_MODEL_OPTIONS, type ImageModelId } from "../constants"
 
 interface ControlsBarProps {
   imageModel: ImageModelId
   aspectRatio: string
   imageSize: string
-  selectedArtStyle: string
   canGenerate: boolean
   isLoading: boolean
   isConvertingHeic: boolean
   onImageModelChange: (value: ImageModelId) => void
   onAspectRatioChange: (value: string) => void
   onImageSizeChange: (value: string) => void
-  onArtStyleChange: (value: string) => void
   onGenerate: () => void
   onAddImages: () => void
 }
@@ -23,14 +21,12 @@ export function ControlsBar({
   imageModel,
   aspectRatio,
   imageSize,
-  selectedArtStyle,
   canGenerate,
   isLoading,
   isConvertingHeic,
   onImageModelChange,
   onAspectRatioChange,
   onImageSizeChange,
-  onArtStyleChange,
   onGenerate,
   onAddImages,
 }: ControlsBarProps) {
@@ -121,27 +117,6 @@ export function ControlsBar({
           </SelectContent>
         </Select>
 
-        {/* Art Style Dropdown */}
-        <Select value={selectedArtStyle || "none"} onValueChange={(v) => onArtStyleChange(v === "none" ? "" : v)}>
-          <SelectTrigger
-            title={selectedArtStyle || "Style"}
-            aria-label="Art style"
-            className="h-8 px-1.5 sm:px-2.5 bg-secondary/50 border-0 text-foreground text-xs gap-1 sm:gap-1.5 rounded-lg hover:bg-secondary transition-colors sm:min-w-[100px] [&_[data-slot=select-value]]:hidden sm:[&_[data-slot=select-value]]:block"
-          >
-            <svg className="w-3.5 h-3.5 text-foreground/60 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.098 19.902a3.75 3.75 0 005.304 0l6.401-6.402M6.75 21A3.75 3.75 0 013 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 003.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008z" />
-            </svg>
-            <SelectValue placeholder="Style" className="truncate" />
-          </SelectTrigger>
-          <SelectContent className="bg-card border-border text-foreground max-h-[300px]">
-            <SelectItem value="none" className="text-xs">No Style</SelectItem>
-            {predefinedArtStyles.map((style) => (
-              <SelectItem key={style} value={style} className="text-xs">
-                {style}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Generate Button */}

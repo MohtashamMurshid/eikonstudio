@@ -104,7 +104,7 @@ export function PromptInputWithMentions({
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
         onSelect={(e) => onCursorChange((e.target as HTMLTextAreaElement).selectionStart || 0)}
         onClick={(e) => onCursorChange((e.target as HTMLTextAreaElement).selectionStart || 0)}
-        placeholder="Describe the image you want to generate... (@ for gallery, / for skills)"
+        placeholder="Describe the image you want to generate... (@ for gallery, /renaissance for skills)"
         className="w-full min-h-[60px] bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-transparent caret-foreground text-sm sm:text-base placeholder:text-foreground/40 select-text relative z-10"
         style={{
           height: `${textareaHeight}px`,
