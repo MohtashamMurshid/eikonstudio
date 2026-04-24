@@ -211,7 +211,7 @@ export default function AuthPageClient() {
 
       <div className="hidden lg:block flex-1 relative overflow-hidden">
         <img
-          src="/new-auth-pic.png"
+          src="/auth-hero-hands-logo.png"
           alt="Abstract visualization"
           className="absolute inset-0 w-full h-full object-cover"
         />

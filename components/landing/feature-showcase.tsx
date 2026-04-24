@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { LogoIcon } from "@/components/logo-icon";
 
 export function FeatureShowcase() {
@@ -124,20 +125,44 @@ export function FeatureShowcase() {
               <div className="pt-2 border-t border-white/10">
                 <p className="text-xs text-white/40 mb-2">Recent</p>
                 <div className="flex gap-2">
-                  <div className="w-12 h-8 rounded bg-gradient-to-br from-rose-500/30 to-amber-500/30 flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white/60" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
+                  <div className="relative w-12 h-8 overflow-hidden rounded border border-white/10">
+                    <Image
+                      src="/neon-city-rain.png"
+                      alt="Recent generated neon city video thumbnail"
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <svg className="w-3 h-3 text-white/80" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
                   </div>
-                  <div className="w-12 h-8 rounded bg-gradient-to-br from-blue-500/30 to-cyan-500/30 flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white/60" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
+                  <div className="relative w-12 h-8 overflow-hidden rounded border border-white/10">
+                    <Image
+                      src="/ocean-cliffs-aerial.png"
+                      alt="Recent generated ocean cliffs video thumbnail"
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <svg className="w-3 h-3 text-white/80" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
                   </div>
-                  <div className="w-12 h-8 rounded bg-gradient-to-br from-emerald-500/30 to-teal-500/30 flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white/60" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
+                  <div className="relative w-12 h-8 overflow-hidden rounded border border-white/10">
+                    <Image
+                      src="/sakura-castle-cityscape.png"
+                      alt="Recent generated cherry blossom city video thumbnail"
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <svg className="w-3 h-3 text-white/80" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
               </div>

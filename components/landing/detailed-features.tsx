@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export function DetailedFeatures() {
@@ -30,12 +31,17 @@ export function DetailedFeatures() {
               <span className="px-2 py-1 bg-secondary text-foreground/60 text-xs rounded-lg">+14 more</span>
             </div>
             {/* Result mockup */}
-            <div className="aspect-video bg-gradient-to-br from-pink-100 via-rose-50 to-amber-100 dark:from-pink-900/30 dark:via-rose-900/20 dark:to-amber-900/30 rounded-xl flex items-center justify-center">
-              <div className="text-center">
-                <svg className="w-8 h-8 text-rose-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                </svg>
-                <span className="text-xs text-rose-500 font-medium">Generated</span>
+            <div className="relative aspect-video overflow-hidden rounded-xl">
+              <Image
+                src="/ai-image-japanese-garden.png"
+                alt="AI-generated Japanese garden scene with cherry blossoms and koi pond"
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-4">
+                <span className="inline-flex rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-black">
+                  Generated
+                </span>
               </div>
             </div>
           </div>
@@ -153,6 +159,23 @@ export function DetailedFeatures() {
         {/* Visual */}
         <div className="relative md:order-1">
           <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+            <div className="relative mb-4 aspect-video overflow-hidden rounded-xl border border-violet-500/20">
+              <Image
+                src="/sunlit-mystic-forest.png"
+                alt="Cinematic forest scene used as a video generation preview"
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/75 via-black/25 to-transparent p-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/60">Preview</p>
+                  <p className="text-sm font-medium text-white">Text to Video Output</p>
+                </div>
+                <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs text-white backdrop-blur">
+                  1080p
+                </span>
+              </div>
+            </div>
             {/* Video generation modes */}
             <div className="text-xs text-foreground/50 uppercase tracking-wider mb-4">Generation Modes</div>
             <div className="space-y-3">
