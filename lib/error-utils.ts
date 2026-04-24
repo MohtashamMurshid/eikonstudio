@@ -1,4 +1,4 @@
-import { ConvexError } from "convex/values"
+import { ConvexError, type Value } from "convex/values"
 
 export type AppErrorCode =
   | "UNAUTHENTICATED"
@@ -12,11 +12,12 @@ export type AppErrorCode =
   | "UPLOAD_ERROR"
   | "UNKNOWN"
 
-export interface AppErrorData {
+export type AppErrorData = {
   code: AppErrorCode
   message: string
   retryable?: boolean
-  [key: string]: string | boolean | undefined
+} & {
+  [key: string]: Value | undefined
 }
 
 export function createAppError(
