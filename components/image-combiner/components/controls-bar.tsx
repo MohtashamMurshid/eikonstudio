@@ -38,8 +38,8 @@ export function ControlsBar({
     IMAGE_MODEL_OPTIONS.find((o) => o.id === imageModel) ?? IMAGE_MODEL_OPTIONS[0]
 
   return (
-    <div className="px-3 sm:px-4 pb-3 sm:pb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+    <div className="px-2.5 sm:px-4 pb-2.5 sm:pb-4 flex flex-row items-center justify-between gap-2">
+      <div className="flex items-center gap-1 sm:gap-2 flex-wrap min-w-0 flex-1">
         {/* Model — closed: logo only; open: logo + full name per option */}
         <Select value={imageModel} onValueChange={(v) => onImageModelChange(v as ImageModelId)}>
           <SelectTrigger
@@ -123,7 +123,11 @@ export function ControlsBar({
 
         {/* Art Style Dropdown */}
         <Select value={selectedArtStyle || "none"} onValueChange={(v) => onArtStyleChange(v === "none" ? "" : v)}>
-          <SelectTrigger className="h-8 px-2 sm:px-2.5 bg-secondary/50 border-0 text-foreground text-xs gap-1 sm:gap-1.5 rounded-lg hover:bg-secondary transition-colors min-w-[70px] sm:min-w-[100px]">
+          <SelectTrigger
+            title={selectedArtStyle || "Style"}
+            aria-label="Art style"
+            className="h-8 px-1.5 sm:px-2.5 bg-secondary/50 border-0 text-foreground text-xs gap-1 sm:gap-1.5 rounded-lg hover:bg-secondary transition-colors sm:min-w-[100px] [&_[data-slot=select-value]]:hidden sm:[&_[data-slot=select-value]]:block"
+          >
             <svg className="w-3.5 h-3.5 text-foreground/60 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.098 19.902a3.75 3.75 0 005.304 0l6.401-6.402M6.75 21A3.75 3.75 0 013 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 003.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008z" />
             </svg>
@@ -144,24 +148,19 @@ export function ControlsBar({
       <Button
         onClick={onGenerate}
         disabled={!canGenerate || isLoading || isConvertingHeic}
-        className="h-10 sm:h-8 px-4 rounded-full bg-foreground text-background hover:bg-foreground/90 text-sm font-medium transition-colors w-full sm:w-auto"
+        aria-label="Generate"
+        className="shrink-0 h-8 w-8 sm:w-auto sm:px-4 p-0 rounded-full bg-foreground text-background hover:bg-foreground/90 text-sm font-medium transition-colors"
       >
-        {isConvertingHeic ? (
-          <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" strokeWidth={4} />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-        ) : isLoading ? (
+        {isConvertingHeic || isLoading ? (
           <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" strokeWidth={4} />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
         ) : (
           <>
-            <svg className="w-4 h-4 sm:mr-0 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            <span className="sm:hidden">Generate</span>
           </>
         )}
       </Button>
