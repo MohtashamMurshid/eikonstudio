@@ -49,7 +49,7 @@ export function LandingHeader() {
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <a
-            href="https://github.com/mohtashammurshid"
+            href="https://github.com/mohtashammurshid/eikonstudio"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-4 py-2 border border-border rounded-full text-sm hover:bg-accent transition-colors"

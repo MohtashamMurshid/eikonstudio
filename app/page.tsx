@@ -5,7 +5,6 @@ import { FeatureShowcase } from "@/components/landing/feature-showcase";
 import { Stats } from "@/components/landing/stats";
 import { FeaturesGrid } from "@/components/landing/features-grid";
 import { DetailedFeatures } from "@/components/landing/detailed-features";
-import { Pricing } from "@/components/landing/pricing";
 import { LandingFooter } from "@/components/landing/footer";
 import { StripedDivider } from "@/components/landing/striped-divider";
 
@@ -47,13 +46,6 @@ export default function LandingPage() {
             </div>
 
       <DetailedFeatures />
-
-        {/* Striped divider */}
-      <div className="max-w-5xl mx-auto mt-24">
-        <StripedDivider />
-            </div>
-
-      <Pricing />
 
       <LandingFooter />
     </div>
