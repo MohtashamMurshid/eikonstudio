@@ -16,6 +16,7 @@ export interface AppErrorData {
   code: AppErrorCode
   message: string
   retryable?: boolean
+  [key: string]: string | boolean | undefined
 }
 
 export function createAppError(
