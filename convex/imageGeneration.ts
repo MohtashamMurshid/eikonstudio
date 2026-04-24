@@ -211,10 +211,10 @@ export const generateImageBackground = internalAction({
       let completedModel: string = imageModel;
 
       if (imageModel === GPT_IMAGE_MODEL) {
-        const openaiKey = process.env.OPENAI_API_KEY;
+        const openaiKey = apiKey || process.env.OPENAI_API_KEY;
         if (!openaiKey) {
           throw new Error(
-            "OpenAI API key not configured. Set OPENAI_API_KEY in your Convex deployment environment variables (Dashboard → Settings → Environment Variables, or `npx convex env set OPENAI_API_KEY ...` for dev)."
+            "OpenAI API key not configured. Add your own key in Settings or set OPENAI_API_KEY in the Convex environment."
           );
         }
 

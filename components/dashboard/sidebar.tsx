@@ -101,6 +101,16 @@ const settingsItems = [
       </svg>
     ),
   },
+  {
+    id: "api",
+    label: "API",
+    href: "/studio/api",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L21 12l-3.75 5.25m-10.5 0L3 12l3.75-5.25m6.75-1.5L10.5 19.5" />
+      </svg>
+    ),
+  },
 ]
 
 export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: controlledCollapsed, onCollapsedChange }: SidebarProps) {

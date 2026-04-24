@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, type ReactNode } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useQuery } from "convex-helpers/react/cache/hooks"
 import { useMutation, useAction } from "convex/react"
@@ -24,6 +25,30 @@ const predefinedSkills = [
 ]
 
 type SettingsSection = "profile" | "api-keys" | "skills" | "account"
+type ProviderId = "gemini" | "openai"
+
+const providerConfigs: {
+  id: ProviderId
+  label: string
+  docsUrl: string
+  inputPlaceholder: string
+  helpText: string
+}[] = [
+  {
+    id: "gemini",
+    label: "Gemini",
+    docsUrl: "https://aistudio.google.com/app/apikey",
+    inputPlaceholder: "Enter your Gemini API key…",
+    helpText: "Used for Gemini-powered image generation inside the studio and through your API gateway.",
+  },
+  {
+    id: "openai",
+    label: "OpenAI",
+    docsUrl: "https://platform.openai.com/api-keys",
+    inputPlaceholder: "Enter your OpenAI API key…",
+    helpText: "Used for GPT Image generations inside the studio and through your API gateway.",
+  },
+]
 
 const navigationItems = [
   {
@@ -72,12 +97,30 @@ const navigationItems = [
 export default function SettingsPage() {
   const router = useRouter()
   const [activeSection, setActiveSection] = useState<SettingsSection>("profile")
-  const [pendingApiKey, setPendingApiKey] = useState("")
-  const [isTesting, setIsTesting] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [testResult, setTestResult] = useState<{ valid: boolean; message: string } | null>(null)
-  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [pendingApiKeys, setPendingApiKeys] = useState<Record<ProviderId, string>>({
+    gemini: "",
+    openai: "",
+  })
+  const [isTestingProvider, setIsTestingProvider] = useState<Record<ProviderId, boolean>>({
+    gemini: false,
+    openai: false,
+  })
+  const [isSavingProvider, setIsSavingProvider] = useState<Record<ProviderId, boolean>>({
+    gemini: false,
+    openai: false,
+  })
+  const [isDeletingProvider, setIsDeletingProvider] = useState<Record<ProviderId, boolean>>({
+    gemini: false,
+    openai: false,
+  })
+  const [providerFeedback, setProviderFeedback] = useState<Record<ProviderId, { valid: boolean; message: string } | null>>({
+    gemini: null,
+    openai: null,
+  })
+  const [saveSuccessProvider, setSaveSuccessProvider] = useState<Record<ProviderId, boolean>>({
+    gemini: false,
+    openai: false,
+  })
 
   // User data
   const { data: session } = authClient.useSession()
@@ -87,11 +130,11 @@ export default function SettingsPage() {
   const displayEmail = user?.email || session?.user?.email || ""
   const displayImage = user?.image || session?.user?.image
 
-  // Secure API key storage
-  const storedApiKey = useQuery(api.apiKeys.getApiKey, {})
-  const saveApiKeyMutation = useMutation(api.apiKeys.saveApiKey)
-  const deleteApiKeyMutation = useMutation(api.apiKeys.deleteApiKey)
-  const testApiKeyAction = useAction(api.apiKeys.testApiKey)
+  // Secure provider API key storage
+  const storedProviderApiKeys = useQuery(api.apiKeys.getMyProviderApiKeys, {})
+  const saveProviderApiKeyMutation = useMutation(api.apiKeys.saveProviderApiKey)
+  const deleteProviderApiKeyMutation = useMutation(api.apiKeys.deleteProviderApiKey)
+  const testProviderApiKeyAction = useAction(api.apiKeyActions.testProviderApiKey)
 
   // Skills management
   const customSkills = useQuery(api.skills.getMySkills, {})
@@ -108,64 +151,81 @@ export default function SettingsPage() {
   const [editingSkill, setEditingSkill] = useState<{ id: Id<"skills">; name: string; description: string; promptText: string } | null>(null)
   const [deletingSkillId, setDeletingSkillId] = useState<Id<"skills"> | null>(null)
 
-  // Initialize pending key from stored key
+  // Initialize pending keys from stored keys
   useEffect(() => {
-    if (storedApiKey?.apiKey) {
-      setPendingApiKey(storedApiKey.apiKey)
-    }
-  }, [storedApiKey?.apiKey])
+    if (!storedProviderApiKeys) return
 
-  const handleTestKey = async () => {
+    setPendingApiKeys({
+      gemini: storedProviderApiKeys.gemini?.apiKey || "",
+      openai: storedProviderApiKeys.openai?.apiKey || "",
+    })
+  }, [storedProviderApiKeys])
+
+  const handleTestKey = async (provider: ProviderId) => {
+    const pendingApiKey = pendingApiKeys[provider]
     if (!pendingApiKey.trim()) {
-      setTestResult({ valid: false, message: "Please enter an API key first" })
+      setProviderFeedback((current) => ({
+        ...current,
+        [provider]: { valid: false, message: "Please enter an API key first" },
+      }))
       return
     }
 
-    setIsTesting(true)
-    setTestResult(null)
-    setSaveSuccess(false)
+    setIsTestingProvider((current) => ({ ...current, [provider]: true }))
+    setProviderFeedback((current) => ({ ...current, [provider]: null }))
+    setSaveSuccessProvider((current) => ({ ...current, [provider]: false }))
 
     try {
-      const result = await testApiKeyAction({ apiKey: pendingApiKey })
-      setTestResult(result)
-    } catch (error) {
-      setTestResult({ valid: false, message: "Failed to test API key" })
+      const result = await testProviderApiKeyAction({ provider, apiKey: pendingApiKey })
+      setProviderFeedback((current) => ({ ...current, [provider]: result }))
+    } catch {
+      setProviderFeedback((current) => ({
+        ...current,
+        [provider]: { valid: false, message: "Failed to test API key" },
+      }))
     } finally {
-      setIsTesting(false)
+      setIsTestingProvider((current) => ({ ...current, [provider]: false }))
     }
   }
 
-  const handleSaveKey = async () => {
+  const handleSaveKey = async (provider: ProviderId) => {
+    const pendingApiKey = pendingApiKeys[provider]
     if (!pendingApiKey.trim()) return
 
-    setIsSaving(true)
-    setSaveSuccess(false)
-    setTestResult(null)
+    setIsSavingProvider((current) => ({ ...current, [provider]: true }))
+    setSaveSuccessProvider((current) => ({ ...current, [provider]: false }))
+    setProviderFeedback((current) => ({ ...current, [provider]: null }))
 
     try {
-      await saveApiKeyMutation({ apiKey: pendingApiKey })
-      setSaveSuccess(true)
-      localStorage.setItem("gemini-api-key", pendingApiKey)
-    } catch (error) {
-      setTestResult({ valid: false, message: "Failed to save API key" })
+      await saveProviderApiKeyMutation({ provider, apiKey: pendingApiKey })
+      setSaveSuccessProvider((current) => ({ ...current, [provider]: true }))
+      localStorage.setItem(provider === "gemini" ? "gemini-api-key" : "openai-api-key", pendingApiKey)
+    } catch {
+      setProviderFeedback((current) => ({
+        ...current,
+        [provider]: { valid: false, message: "Failed to save API key" },
+      }))
     } finally {
-      setIsSaving(false)
+      setIsSavingProvider((current) => ({ ...current, [provider]: false }))
     }
   }
 
-  const handleDeleteKey = async () => {
-    setIsDeleting(true)
-    setSaveSuccess(false)
-    setTestResult(null)
+  const handleDeleteKey = async (provider: ProviderId) => {
+    setIsDeletingProvider((current) => ({ ...current, [provider]: true }))
+    setSaveSuccessProvider((current) => ({ ...current, [provider]: false }))
+    setProviderFeedback((current) => ({ ...current, [provider]: null }))
 
     try {
-      await deleteApiKeyMutation({})
-      setPendingApiKey("")
-      localStorage.removeItem("gemini-api-key")
-    } catch (error) {
-      setTestResult({ valid: false, message: "Failed to delete API key" })
+      await deleteProviderApiKeyMutation({ provider })
+      setPendingApiKeys((current) => ({ ...current, [provider]: "" }))
+      localStorage.removeItem(provider === "gemini" ? "gemini-api-key" : "openai-api-key")
+    } catch {
+      setProviderFeedback((current) => ({
+        ...current,
+        [provider]: { valid: false, message: "Failed to delete API key" },
+      }))
     } finally {
-      setIsDeleting(false)
+      setIsDeletingProvider((current) => ({ ...current, [provider]: false }))
     }
   }
 
@@ -189,8 +249,9 @@ export default function SettingsPage() {
       .slice(0, 2)
   }
 
-  const hasStoredKey = !!storedApiKey?.apiKey
-  const hasChanges = pendingApiKey !== (storedApiKey?.apiKey || "")
+  const hasStoredKey = (provider: ProviderId) => Boolean(storedProviderApiKeys?.[provider]?.apiKey)
+  const hasChanges = (provider: ProviderId) =>
+    pendingApiKeys[provider] !== (storedProviderApiKeys?.[provider]?.apiKey || "")
 
   // Skill handlers
   const handleCreateSkill = async () => {
@@ -370,31 +431,11 @@ export default function SettingsPage() {
               <div className="space-y-8">
                 <div>
                   <h2 className="text-lg font-semibold text-foreground tracking-tight">API keys</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Securely manage your Gemini API credentials</p>
-                </div>
-
-                <div className="rounded-lg border border-border">
-                  <SettingsRow label="Status">
-                    {hasStoredKey ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                        </svg>
-                        Encrypted & stored
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-400">
-                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                        </svg>
-                        Not configured
-                      </span>
-                    )}
-                  </SettingsRow>
+                  <p className="mt-1 text-sm text-muted-foreground">Securely manage the provider keys used by your studio and API gateway.</p>
                 </div>
 
                 <InlineCallout
-                  title="Bring your own key"
+                  title="Bring your own keys"
                   icon={
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
@@ -402,154 +443,137 @@ export default function SettingsPage() {
                   }
                 >
                   <p>
-                    Your API key is encrypted and stored securely. Get a free key from{" "}
-                    <a
-                      href="https://aistudio.google.com/app/apikey"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-primary underline-offset-2 hover:underline"
-                    >
-                      Google AI Studio
-                    </a>
-                    .
+                    Save one key per provider here, then generate a platform API key from{" "}
+                    <Link href="/studio/api" className="font-medium text-primary underline-offset-2 hover:underline">
+                      the API section
+                    </Link>
+                    . Your provider keys stay private and are only used server-side.
                   </p>
                 </InlineCallout>
 
-                <div className="space-y-2">
-                  <label htmlFor="gemini-api-key" className="text-sm font-medium text-foreground">
-                    Gemini API key
-                  </label>
-                  <input
-                    id="gemini-api-key"
-                    type="password"
-                    value={pendingApiKey}
-                    onChange={(e) => {
-                      setPendingApiKey(e.target.value)
-                      setTestResult(null)
-                      setSaveSuccess(false)
-                    }}
-                    placeholder="Enter your Gemini API key…"
-                    className="w-full rounded-lg border border-border bg-card px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  {hasChanges && pendingApiKey && (
-                    <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
-                      <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                      </svg>
-                      Unsaved changes
-                    </p>
-                  )}
-                </div>
+                <div className="space-y-6">
+                  {providerConfigs.map((provider) => {
+                    const feedback = providerFeedback[provider.id]
+                    const pendingValue = pendingApiKeys[provider.id]
+                    const providerHasStoredKey = hasStoredKey(provider.id)
+                    const providerHasChanges = hasChanges(provider.id)
 
-                {testResult && (
-                  <div
-                    className={`rounded-lg border px-3 py-2.5 ${
-                      testResult.valid ? "border-emerald-500/25 bg-emerald-500/10" : "border-red-500/25 bg-red-500/10"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {testResult.valid ? (
-                        <svg className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      ) : (
-                        <svg className="h-4 w-4 shrink-0 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                        </svg>
-                      )}
-                      <span className={`text-sm font-medium ${testResult.valid ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"}`}>
-                        {testResult.message}
-                      </span>
-                    </div>
-                  </div>
-                )}
+                    return (
+                      <div key={provider.id} className="rounded-xl border border-border p-5">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <h3 className="text-sm font-semibold text-foreground">{provider.label}</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">{provider.helpText}</p>
+                          </div>
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                              providerHasStoredKey
+                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                            }`}
+                          >
+                            {providerHasStoredKey ? "Configured" : "Not configured"}
+                          </span>
+                        </div>
 
-                {saveSuccess && (
-                  <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <svg className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">API key encrypted and saved successfully.</span>
-                    </div>
-                  </div>
-                )}
+                        <div className="mt-4 space-y-2">
+                          <label htmlFor={`${provider.id}-api-key`} className="text-sm font-medium text-foreground">
+                            {provider.label} API key
+                          </label>
+                          <input
+                            id={`${provider.id}-api-key`}
+                            type="password"
+                            value={pendingValue}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              setPendingApiKeys((current) => ({ ...current, [provider.id]: value }))
+                              setProviderFeedback((current) => ({ ...current, [provider.id]: null }))
+                              setSaveSuccessProvider((current) => ({ ...current, [provider.id]: false }))
+                            }}
+                            placeholder={provider.inputPlaceholder}
+                            className="w-full rounded-lg border border-border bg-card px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                          {providerHasChanges && pendingValue && (
+                            <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                              <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                              </svg>
+                              Unsaved changes
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Need a key?{" "}
+                            <a
+                              href={provider.docsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-primary underline-offset-2 hover:underline"
+                            >
+                              Open provider dashboard
+                            </a>
+                            .
+                          </p>
+                        </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleTestKey}
-                    disabled={isTesting || !pendingApiKey.trim()}
-                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isTesting ? (
-                      <>
-                        <svg className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Testing…
-                      </>
-                    ) : (
-                      <>
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-                        </svg>
-                        Test key
-                      </>
-                    )}
-                  </button>
+                        {feedback && (
+                          <div
+                            className={`mt-4 rounded-lg border px-3 py-2.5 ${
+                              feedback.valid ? "border-emerald-500/25 bg-emerald-500/10" : "border-red-500/25 bg-red-500/10"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={`text-sm font-medium ${feedback.valid ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"}`}>
+                                {feedback.message}
+                              </span>
+                            </div>
+                          </div>
+                        )}
 
-                  <button
-                    type="button"
-                    onClick={handleSaveKey}
-                    disabled={isSaving || !pendingApiKey.trim() || !hasChanges}
-                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isSaving ? (
-                      <>
-                        <svg className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Saving…
-                      </>
-                    ) : (
-                      <>
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                        </svg>
-                        Save & encrypt
-                      </>
-                    )}
-                  </button>
+                        {saveSuccessProvider[provider.id] && (
+                          <div className="mt-4 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5">
+                            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                              {provider.label} API key saved successfully.
+                            </span>
+                          </div>
+                        )}
 
-                  {hasStoredKey && (
-                    <button
-                      type="button"
-                      onClick={handleDeleteKey}
-                      disabled={isDeleting}
-                      className="inline-flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400"
-                    >
-                      {isDeleting ? (
-                        <>
-                          <svg className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          Deleting…
-                        </>
-                      ) : (
-                        <>
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                          </svg>
-                          Delete key
-                        </>
-                      )}
-                    </button>
-                  )}
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleTestKey(provider.id)}
+                            disabled={isTestingProvider[provider.id] || !pendingValue.trim()}
+                            className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isTestingProvider[provider.id] ? "Testing…" : "Test key"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSaveKey(provider.id)}
+                            disabled={isSavingProvider[provider.id] || !pendingValue.trim() || !providerHasChanges}
+                            className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isSavingProvider[provider.id] ? "Saving…" : "Save key"}
+                          </button>
+
+                          {providerHasStoredKey && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteKey(provider.id)}
+                              disabled={isDeletingProvider[provider.id]}
+                              className="inline-flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400"
+                            >
+                              {isDeletingProvider[provider.id] ? "Deleting…" : "Delete key"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
 
                 <p className="border-t border-border pt-6 text-xs text-muted-foreground">
-                  Your API key is encrypted with AES before storage. We never see your plaintext key.
+                  Provider keys are stored server-side for your authenticated account and only used when you trigger studio generations or authenticated API gateway requests.
                 </p>
               </div>
             )}

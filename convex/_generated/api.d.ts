@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as apiKeyActions from "../apiKeyActions.js";
 import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
 import type * as characters from "../characters.js";
@@ -25,6 +26,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  apiKeyActions: typeof apiKeyActions;
   apiKeys: typeof apiKeys;
   auth: typeof auth;
   characters: typeof characters;

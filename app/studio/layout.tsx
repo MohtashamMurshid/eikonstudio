@@ -10,9 +10,16 @@ import { api } from "@/convex/_generated/api"
 import { type StudioTab, TAB_ROUTES, getTabFromPathname } from "@/types/studio"
 
 // Context for sharing state between studio routes
+type ProviderApiKeys = {
+  gemini: string
+  openai: string
+}
+
 interface StudioContextType {
   apiKey: string
   setApiKey: (key: string) => void
+  providerApiKeys: ProviderApiKeys
+  setProviderApiKey: (provider: keyof ProviderApiKeys, key: string) => void
   pendingInputImage: string | null
   setPendingInputImage: (image: string | null) => void
   sidebarCollapsed: boolean
@@ -34,38 +41,59 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   
-  const [apiKey, setApiKey] = useState<string>("")
+  const [providerApiKeys, setProviderApiKeys] = useState<ProviderApiKeys>({
+    gemini: "",
+    openai: "",
+  })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [pendingInputImage, setPendingInputImage] = useState<string | null>(null)
   
-  // Load API key from secure storage
-  const storedApiKey = useQuery(api.apiKeys.getApiKey, isAuthenticated ? {} : "skip")
+  // Load provider API keys from secure storage
+  const storedApiKeys = useQuery(api.apiKeys.getMyProviderApiKeys, isAuthenticated ? {} : "skip")
 
   // Determine active tab from pathname
   const activeTab = getTabFromPathname(pathname)
 
-  // Sync API key from secure storage when it loads
+  // Sync provider API keys from secure storage when they load
   useEffect(() => {
-    if (storedApiKey?.apiKey) {
-      setApiKey(storedApiKey.apiKey)
-    }
-  }, [storedApiKey?.apiKey])
+    if (!storedApiKeys) return
+
+    setProviderApiKeys((current) => ({
+      gemini: storedApiKeys.gemini?.apiKey || current.gemini,
+      openai: storedApiKeys.openai?.apiKey || current.openai,
+    }))
+  }, [storedApiKeys])
 
   // Also check localStorage as fallback (for immediate use before Convex loads)
   useEffect(() => {
-    const savedApiKey = localStorage.getItem("gemini-api-key")
-    if (savedApiKey && !apiKey) {
-      setApiKey(savedApiKey)
-    }
-  }, [apiKey])
+    setProviderApiKeys((current) => {
+      const nextKeys = { ...current }
+      const savedGeminiKey = localStorage.getItem("gemini-api-key")
+      const savedOpenAiKey = localStorage.getItem("openai-api-key")
 
-  // Save API key to localStorage whenever it changes (for sync)
-  const handleApiKeyChange = (key: string) => {
-    setApiKey(key)
+      if (savedGeminiKey && !nextKeys.gemini) {
+        nextKeys.gemini = savedGeminiKey
+      }
+      if (savedOpenAiKey && !nextKeys.openai) {
+        nextKeys.openai = savedOpenAiKey
+      }
+
+      return nextKeys
+    })
+  }, [])
+
+  // Save API keys to localStorage whenever they change (for sync)
+  const handleProviderApiKeyChange = (provider: keyof ProviderApiKeys, key: string) => {
+    setProviderApiKeys((current) => ({
+      ...current,
+      [provider]: key,
+    }))
+
+    const storageKey = provider === "gemini" ? "gemini-api-key" : "openai-api-key"
     if (key) {
-      localStorage.setItem("gemini-api-key", key)
+      localStorage.setItem(storageKey, key)
     } else {
-      localStorage.removeItem("gemini-api-key")
+      localStorage.removeItem(storageKey)
     }
   }
 
@@ -103,8 +131,10 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
   return (
     <StudioContext.Provider
       value={{
-        apiKey,
-        setApiKey: handleApiKeyChange,
+        apiKey: providerApiKeys.gemini,
+        setApiKey: (key) => handleProviderApiKeyChange("gemini", key),
+        providerApiKeys,
+        setProviderApiKey: handleProviderApiKeyChange,
         pendingInputImage,
         setPendingInputImage,
         sidebarCollapsed,

@@ -54,12 +54,18 @@ export function DetailedFeatures() {
             <span className="text-xs uppercase tracking-wider text-emerald-600 font-medium">AI Image Generation</span>
           </div>
           <h3 className="text-2xl font-semibold mb-4 tracking-tight">
-            Create stunning images with Gemini 3 Pro
+            Create stunning images with Gemini 3 Pro or GPT Image 2
           </h3>
           <p className="text-foreground/60 mb-6 leading-relaxed">
-            Generate images from text or transform existing ones. Use skill presets like <code className="bg-secondary px-1.5 py-0.5 rounded text-sm">/technical</code> or <code className="bg-secondary px-1.5 py-0.5 rounded text-sm">/anime</code> for instant style application.
+            Generate images from text or transform existing ones. Switch between Google&apos;s Gemini 3 Pro and OpenAI&apos;s GPT Image 2 on the fly, and use skill presets like <code className="bg-secondary px-1.5 py-0.5 rounded text-sm">/technical</code> or <code className="bg-secondary px-1.5 py-0.5 rounded text-sm">/anime</code> for instant style application.
           </p>
           <ul className="space-y-3">
+            <li className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-sm text-foreground/70">Choose your model: Gemini 3 Pro or GPT Image 2</span>
+            </li>
             <li className="flex items-start gap-3">
               <svg className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />

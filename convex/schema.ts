@@ -57,12 +57,27 @@ export default defineSchema({
   // Secure API key storage
   apiKeys: defineTable({
     userId: v.string(),
+    provider: v.optional(
+      v.union(v.literal("gemini"), v.literal("openai"))
+    ),
     encryptedKey: v.string(), // AES-GCM encrypted API key
     iv: v.string(), // Initialization vector for decryption
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_user_provider", ["userId", "provider"]),
+
+  platformApiKeys: defineTable({
+    userId: v.string(),
+    keyHash: v.string(),
+    keyPrefix: v.string(),
+    createdAt: v.number(),
+    revokedAt: v.optional(v.number()),
+    lastUsedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_key_hash", ["keyHash"]),
 
   // User custom skills for /skillname slash commands
   skills: defineTable({

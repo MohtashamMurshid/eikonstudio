@@ -33,7 +33,7 @@ interface ExtendedImageCombinerProps extends ImageCombinerProps {
 
 const IMAGE_SLOTS: ImageSlot[] = [1, 2, 3, 4]
 
-export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }: ExtendedImageCombinerProps) {
+export function ImageCombiner({ providerApiKeys, pendingInputImage, onInputImageLoaded }: ExtendedImageCombinerProps) {
   const [prompt, setPrompt] = useState("")
   const [showFullscreen, setShowFullscreen] = useState(false)
   const [imageModel, setImageModel] = useState<ImageModelId>(IMAGE_MODEL_GPT_IMAGE_2)
@@ -80,7 +80,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
   }, [generations])
 
   const imageGeneration = useImageGeneration({
-    apiKey,
+    providerApiKeys,
     currentMode,
     useUrls: imageUpload.useUrls,
     image1: imageUpload.image1,

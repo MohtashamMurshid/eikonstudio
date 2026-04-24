@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import type { GeneratedImage } from "../types"
-import type { ImageModelId } from "../constants"
+import { IMAGE_MODEL_GPT_IMAGE_2, type ImageModelId } from "../constants"
 import type { Id } from "@/convex/_generated/dataModel"
 
 /**
@@ -47,7 +47,10 @@ interface GenerationRecord {
 }
 
 interface UseImageGenerationOptions {
-  apiKey: string
+  providerApiKeys: {
+    gemini: string
+    openai: string
+  }
   currentMode: "text-to-image" | "image-editing"
   useUrls: boolean
   image1: File | null
@@ -151,7 +154,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       currentMode, useUrls, 
       image1, image1Url, image2, image2Url, 
       image3, image3Url, image4, image4Url,
-      prompt, aspectRatio, imageSize, imageModel, selectedArtStyle, apiKey, 
+      prompt, aspectRatio, imageSize, imageModel, selectedArtStyle, providerApiKeys, 
       onError, generateUploadUrl, startGeneration 
     } = options
 
@@ -184,6 +187,11 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
         }
       })
     }, 100)
+
+    const providerApiKey =
+      imageModel === IMAGE_MODEL_GPT_IMAGE_2
+        ? providerApiKeys.openai
+        : providerApiKeys.gemini
 
     try {
       // Upload reference images first if in image-editing mode
@@ -241,7 +249,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
         aspectRatio,
         imageSize,
         artStyle: selectedArtStyle || undefined,
-        apiKey: apiKey || undefined,
+        apiKey: providerApiKey || undefined,
         imageModel,
         referenceImageIds,
       })
