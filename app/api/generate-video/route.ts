@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
+import { debug } from "@/lib/debug";
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("Video API: Starting video generation request");
+    debug("Video API: Starting video generation request");
 
     const formData = await request.formData();
 
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
     const imageFiles = formData.getAll("images") as File[];
 
     if (imageFiles.length > 0) {
-      console.log(`Video API: Processing ${imageFiles.length} reference image files`);
+      debug(`Video API: Processing ${imageFiles.length} reference image files`);
       for (const imageFile of imageFiles) {
         const buffer = await imageFile.arrayBuffer();
         const base64 = `data:${imageFile.type};base64,${Buffer.from(buffer).toString("base64")}`;
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     const characterImages: { base64Data: string; mimeType: string }[] = [];
 
     if (characterImageFiles.length > 0) {
-      console.log(`Video API: Processing ${characterImageFiles.length} character avatar files`);
+      debug(`Video API: Processing ${characterImageFiles.length} character avatar files`);
       for (const charImage of characterImageFiles) {
         const buffer = await charImage.arrayBuffer();
         const base64Data = Buffer.from(buffer).toString("base64");
@@ -40,16 +41,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log("Video API: Prompt:", prompt);
-    console.log("Video API: Resolution:", resolution);
-    console.log("Video API: Aspect Ratio:", aspectRatio);
-    console.log("Video API: Mode:", mode);
-    console.log("Video API: Number of reference images:", referenceImages.length);
-    console.log("Video API: Number of character images:", characterImages.length);
+    debug("Video API: Prompt:", prompt);
+    debug("Video API: Resolution:", resolution);
+    debug("Video API: Aspect Ratio:", aspectRatio);
+    debug("Video API: Mode:", mode);
+    debug("Video API: Number of reference images:", referenceImages.length);
+    debug("Video API: Number of character images:", characterImages.length);
 
     // Validation
     if (!prompt || prompt.trim().length === 0) {
-      console.log("Video API: Missing required field: prompt");
+      debug("Video API: Missing required field: prompt");
       return NextResponse.json(
         {
           error: "Missing required field",
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     const validResolutions = ["720p", "1080p"];
     if (!validResolutions.includes(resolution)) {
-      console.log("Video API: Invalid resolution:", resolution);
+      debug("Video API: Invalid resolution:", resolution);
       return NextResponse.json(
         {
           error: "Invalid resolution",
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     const validAspectRatios = ["16:9", "9:16"];
     if (!validAspectRatios.includes(aspectRatio)) {
-      console.log("Video API: Invalid aspectRatio:", aspectRatio);
+      debug("Video API: Invalid aspectRatio:", aspectRatio);
       return NextResponse.json(
         {
           error: "Invalid aspectRatio",
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     const validModes = ["text-to-video", "image-to-video", "frame-to-video"];
     if (!validModes.includes(mode)) {
-      console.log("Video API: Invalid mode:", mode);
+      debug("Video API: Invalid mode:", mode);
       return NextResponse.json(
         {
           error: "Invalid mode",
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     if ((mode === "image-to-video" || mode === "frame-to-video") && referenceImages.length === 0 && characterImageFiles.length === 0) {
-      console.log(`Video API: ${mode} mode requires at least one reference image or character image`);
+      debug(`Video API: ${mode} mode requires at least one reference image or character image`);
       return NextResponse.json(
         {
           error: "Missing reference images",
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (mode === "frame-to-video" && referenceImages.length < 2) {
-      console.log("Video API: frame-to-video mode requires exactly 2 images (first & last frame)");
+      debug("Video API: frame-to-video mode requires exactly 2 images (first & last frame)");
       return NextResponse.json(
         {
           error: "Missing reference images",
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
     const apiKeyToUse = apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
     if (!apiKeyToUse) {
-      console.log("Video API: No API key available");
+      debug("Video API: No API key available");
       return NextResponse.json(
         {
           error: "No API key configured",
@@ -149,7 +150,7 @@ export async function POST(request: NextRequest) {
     const pollForCompletion = async (operation: any, maxPolls = 60) => {
       let pollCount = 0;
       while (!operation.done && pollCount < maxPolls) {
-        console.log(`Video API: Polling attempt ${pollCount + 1}/${maxPolls}...`);
+        debug(`Video API: Polling attempt ${pollCount + 1}/${maxPolls}...`);
         await new Promise((resolve) => setTimeout(resolve, 10000));
         operation = await ai.operations.getVideosOperation({ operation });
         pollCount++;
@@ -165,7 +166,7 @@ export async function POST(request: NextRequest) {
 
         if (video && video.uri) {
           const videoUri = decodeURIComponent(video.uri);
-          console.log("Video API: Fetching video from:", videoUri);
+          debug("Video API: Fetching video from:", videoUri);
 
           const videoResponse = await fetch(`${videoUri}&key=${apiKeyToUse}`);
           if (!videoResponse.ok) {
@@ -195,9 +196,9 @@ export async function POST(request: NextRequest) {
     }));
 
     if (mode === "text-to-video") {
-      console.log("Video API: Using text-to-video mode with Veo 3.1");
+      debug("Video API: Using text-to-video mode with Veo 3.1");
       if (characterReferenceImages.length > 0) {
-        console.log(`Video API: Including ${characterReferenceImages.length} character reference image(s)`);
+        debug(`Video API: Including ${characterReferenceImages.length} character reference image(s)`);
       }
 
       let operation = await ai.models.generateVideos({
@@ -211,7 +212,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      console.log("Video API: Polling for video generation completion...");
+      debug("Video API: Polling for video generation completion...");
       operation = await pollForCompletion(operation);
 
       if (!operation.done) {
@@ -224,10 +225,10 @@ export async function POST(request: NextRequest) {
       const result = await extractVideoFromOperation(operation);
       resultUrl = result.url;
       resultDuration = result.duration;
-      console.log("Video API: Successfully fetched and converted video to base64");
+      debug("Video API: Successfully fetched and converted video to base64");
 
     } else if (mode === "image-to-video") {
-      console.log("Video API: Using image-to-video mode with Veo 3.1");
+      debug("Video API: Using image-to-video mode with Veo 3.1");
 
       if (referenceImages.length === 0 && characterImages.length === 0) {
         throw new Error("No valid reference images or character images provided");
@@ -243,10 +244,10 @@ export async function POST(request: NextRequest) {
       } else {
         // Use first character avatar as starting frame, rest stay as references
         startingFrame = characterImages[0];
-        console.log("Video API: Using first character avatar as starting frame");
+        debug("Video API: Using first character avatar as starting frame");
       }
 
-      console.log("Video API: Starting frame mime type:", startingFrame.mimeType);
+      debug("Video API: Starting frame mime type:", startingFrame.mimeType);
 
       // Build reference images from remaining user images + character avatars
       // (skip the first character avatar if it was used as starting frame)
@@ -282,7 +283,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      console.log("Video API: Polling for image-to-video generation completion...");
+      debug("Video API: Polling for image-to-video generation completion...");
       operation = await pollForCompletion(operation);
 
       if (!operation.done) {
@@ -295,10 +296,10 @@ export async function POST(request: NextRequest) {
       const result = await extractVideoFromOperation(operation);
       resultUrl = result.url;
       resultDuration = result.duration;
-      console.log("Video API: Successfully fetched and converted image-to-video to base64");
+      debug("Video API: Successfully fetched and converted image-to-video to base64");
 
     } else if (mode === "frame-to-video") {
-      console.log("Video API: Using frame-to-video mode (first & last frames) with Veo 3.1");
+      debug("Video API: Using frame-to-video mode (first & last frames) with Veo 3.1");
 
       if (referenceImages.length < 2) {
         throw new Error("frame-to-video mode requires exactly 2 images (first and last frames)");
@@ -308,8 +309,8 @@ export async function POST(request: NextRequest) {
       const firstFrame = parseDataUrl(referenceImages[0]);
       const lastFrame = parseDataUrl(referenceImages[1]);
 
-      console.log("Video API: First frame mime type:", firstFrame.mimeType);
-      console.log("Video API: Last frame mime type:", lastFrame.mimeType);
+      debug("Video API: First frame mime type:", firstFrame.mimeType);
+      debug("Video API: Last frame mime type:", lastFrame.mimeType);
 
       // Enhanced prompt for frame interpolation
       const framePrompt = `${prompt}. Create a smooth video transition between the two frames.`;
@@ -333,7 +334,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      console.log("Video API: Polling for frame-to-video generation completion...");
+      debug("Video API: Polling for frame-to-video generation completion...");
       operation = await pollForCompletion(operation);
 
       if (!operation.done) {
@@ -346,14 +347,14 @@ export async function POST(request: NextRequest) {
       const result = await extractVideoFromOperation(operation);
       resultUrl = result.url;
       resultDuration = result.duration;
-      console.log("Video API: Successfully fetched and converted frame-to-video to base64");
+      debug("Video API: Successfully fetched and converted frame-to-video to base64");
     }
 
     if (!resultUrl) {
       throw new Error("No video generated");
     }
 
-    console.log("Video API: Video generated successfully");
+    debug("Video API: Video generated successfully");
 
     return NextResponse.json(
       {

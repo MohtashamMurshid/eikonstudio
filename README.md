@@ -43,8 +43,8 @@ one place.
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/MohtashamMurshid/nano-banana-starter.git eikon-studio
-cd eikon-studio
+git clone https://github.com/MohtashamMurshid/eikonstudio.git
+cd eikonstudio
 pnpm install
 ```
 
@@ -80,7 +80,7 @@ In the [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
 
 1. Create an OAuth 2.0 Client ID (Web application).
 2. Add an authorized redirect URI:
-   `<NEXT_PUBLIC_CONVEX_SITE_URL>/api/auth/callback/google`
+  `<NEXT_PUBLIC_CONVEX_SITE_URL>/api/auth/callback/google`
 3. Copy the client ID / secret into `.env.local`.
 
 ### 5. Run the app
@@ -95,12 +95,14 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Scripts
 
-| Command       | Description                     |
-| ------------- | ------------------------------- |
-| `pnpm dev`    | Start Next.js dev server        |
-| `pnpm build`  | Production build                |
-| `pnpm start`  | Run the production build        |
-| `pnpm lint`   | Lint with ESLint                |
+
+| Command      | Description              |
+| ------------ | ------------------------ |
+| `pnpm dev`   | Start Next.js dev server |
+| `pnpm build` | Production build         |
+| `pnpm start` | Run the production build |
+| `pnpm lint`  | Lint with ESLint         |
+
 
 ---
 
@@ -122,63 +124,54 @@ public/       Static assets
 ## Public API
 
 Eikon Studio exposes a public REST endpoint for programmatic image generation.
-
-> The public API currently uses **Google Gemini** only. GPT Image 2 is available
-> in the in-app studio but not exposed through this endpoint.
+Each request must include a **platform API key** generated from your Eikon
+Studio account (Studio → Settings → API Keys).
 
 ### Endpoint
 
 `POST /api/v1/generate`
 
-### Required parameters
+### Authentication
 
-| Field       | Type   | Description                          |
-| ----------- | ------ | ------------------------------------ |
-| `prompt`    | string | Description of the image to generate |
-| `imageSize` | string | `"1K"`, `"2K"`, or `"4K"`            |
+Send your platform API key as a Bearer token or in the `x-api-key` header:
 
-### Optional parameters
+```
+Authorization: Bearer eik_your_platform_key
+# or
+x-api-key: eik_your_platform_key
+```
 
-| Field         | Type     | Default          | Description                                                        |
-| ------------- | -------- | ---------------- | ------------------------------------------------------------------ |
-| `aspectRatio` | string   | `"square"`       | `"square"`, `"portrait"`, `"landscape"`, `"wide"`                  |
-| `mode`        | string   | `"text-to-image"`| `"text-to-image"` or `"image-editing"`                             |
-| `apiKey`      | string   | server default   | Override the server's Gemini key with your own                     |
-| `images`      | string[] | —                | Base64 or URL images (required when `mode` is `"image-editing"`)   |
+### Body parameters
+
+
+| Field         | Type   | Required | Default          | Description                                       |
+| ------------- | ------ | -------- | ---------------- | ------------------------------------------------- |
+| `prompt`      | string | yes      | —                | Description of the image to generate              |
+| `provider`    | string | yes      | —                | `"gemini"` or `"openai"`                          |
+| `model`       | string | no       | provider default | Specific model id to use                          |
+| `imageSize`   | string | no       | `"2K"`           | `"1K"`, `"2K"`, or `"4K"`                         |
+| `aspectRatio` | string | no       | `"square"`       | `"square"`, `"portrait"`, `"landscape"`, `"wide"` |
+
 
 ### Example
 
 ```bash
 curl -X POST https://eikonstudio.xyz/api/v1/generate \
+  -H "Authorization: Bearer eik_your_platform_key" \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "A beautiful landscape with mountains and a lake at sunset",
+    "provider": "gemini",
     "imageSize": "2K",
     "aspectRatio": "landscape"
   }'
 ```
 
-### Response
-
-```json
-{
-  "url": "data:image/png;base64,iVBORw0KGgo...",
-  "prompt": "A beautiful landscape with mountains and a lake at sunset",
-  "description": "",
-  "metadata": {
-    "imageSize": "2K",
-    "aspectRatio": "landscape",
-    "mode": "text-to-image"
-  }
-}
-```
-
-The endpoint is CORS-enabled and can be called from any origin.
-
-> **Note:** The public API is currently unauthenticated and has no rate limiting.
-> If you self-host Eikon Studio, you are responsible for your own Gemini usage and
-> costs. Consider adding authentication or rate limiting before exposing this
-> endpoint publicly.
+The endpoint is CORS-enabled and can be called from any origin. Requests are
+authenticated per-user, but there is currently **no rate limiting** — if you
+self-host Eikon Studio, you are responsible for your own Gemini / OpenAI
+usage and costs. Consider adding rate limiting before exposing a public
+deployment.
 
 ---
 
@@ -190,7 +183,7 @@ Any platform that runs Next.js works. The live demo is deployed on Vercel:
 2. Import the project into Vercel (or your platform of choice).
 3. Add the environment variables from `.env.example`.
 4. Run `npx convex deploy` to provision a production Convex deployment and use the
-   production `CONVEX_URL` / `CONVEX_SITE_URL` in your hosting environment.
+  production `CONVEX_URL` / `CONVEX_SITE_URL` in your hosting environment.
 
 ---
 
