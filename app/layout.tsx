@@ -6,6 +6,7 @@ import "./globals.css"
 import { ConvexClientProvider } from "../components/ConvexClientProvider"
 import { ClientProviders } from "@/components/client-providers"
 import { ThemeProvider } from "@/components/theme-provider"
+import { getToken } from "@/lib/auth-server"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -43,13 +44,13 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  // Don't block on auth token - let client-side handle authentication
-  // This allows the page to render immediately while auth loads in background
+  const initialToken = await getToken()
+
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="font-mono antialiased">
@@ -59,7 +60,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ConvexClientProvider initialToken={null}>
+          <ConvexClientProvider initialToken={initialToken}>
             <Suspense fallback={null}>{children}</Suspense>
             <ClientProviders />
           </ConvexClientProvider>

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { GenerationHistory } from "@/components/dashboard/generation-history"
-import { useStudioContext } from "../layout"
+import { useStudioContext } from "@/components/studio/studio-layout-client"
 
 export default function HistoryPage() {
   const router = useRouter()

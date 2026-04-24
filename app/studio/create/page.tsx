@@ -1,7 +1,7 @@
 "use client"
 
 import { ImageCombiner } from "@/components/image-combiner/index"
-import { useStudioContext } from "../layout"
+import { useStudioContext } from "@/components/studio/studio-layout-client"
 
 export default function CreatePage() {
   const { providerApiKeys, pendingInputImage, setPendingInputImage } = useStudioContext()
