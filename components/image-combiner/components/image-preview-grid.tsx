@@ -23,7 +23,7 @@ export function ImagePreviewGrid({
 
   return (
     <div
-      className="grid transition-all duration-300 ease-out"
+      className="grid"
       style={{
         gridTemplateRows: hasAnyPreview ? "1fr" : "0fr",
       }}
@@ -40,10 +40,10 @@ export function ImagePreviewGrid({
               preview ? (
                 <div
                   key={slot}
-                  className={`relative group transition-all duration-200 ease-out ${
+                  className={`relative group transition-[transform,opacity] duration-180 ease-[var(--ease-ui-out)] motion-reduce:transition-opacity ${
                     removingImages[slot]
                       ? "opacity-0 scale-90"
-                      : "opacity-100 scale-100 animate-in fade-in zoom-in-95"
+                      : "opacity-100 scale-100"
                   }`}
                 >
                   <img
@@ -55,7 +55,7 @@ export function ImagePreviewGrid({
                   <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 flex items-center gap-0.5">
                     <button
                       onClick={() => onReplace(slot)}
-                      className="w-5 h-5 sm:w-6 sm:h-6 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                      className="ui-pressable w-5 h-5 sm:w-6 sm:h-6 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 [@media(hover:hover)_and_(pointer:fine)]:sm:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:sm:group-hover:opacity-100 shadow-sm border border-border/50"
                       title="Replace image"
                     >
                       <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,7 +64,7 @@ export function ImagePreviewGrid({
                     </button>
                     <button
                       onClick={() => onRemove(slot)}
-                      className="w-5 h-5 sm:w-6 sm:h-6 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm border border-border/50"
+                      className="ui-pressable w-5 h-5 sm:w-6 sm:h-6 bg-background/90 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center opacity-100 [@media(hover:hover)_and_(pointer:fine)]:sm:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:sm:group-hover:opacity-100 shadow-sm border border-border/50"
                       title="Remove image"
                     >
                       <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,4 +85,3 @@ export function ImagePreviewGrid({
     </div>
   )
 }
-

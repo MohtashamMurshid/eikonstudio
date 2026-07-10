@@ -154,7 +154,7 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
     <>
       {/* Mobile overlay */}
       <div 
-        className={`fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity ${isMobileOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        className={`ui-overlay fixed inset-0 bg-black/50 z-40 lg:hidden ${isMobileOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setIsMobileOpen(false)}
       />
 
@@ -171,12 +171,12 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
           fixed lg:static inset-y-0 left-0 z-50
           ${isCollapsed ? "w-[72px]" : "w-64"} bg-card border-r border-border
           flex flex-col overflow-hidden
-          transition-[width] duration-300 ease-in-out
+          transition-transform duration-200 ease-[var(--ease-ui-out)] motion-reduce:transition-none
           ${isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
         {/* Logo and Team Selector */}
-        <div className={`${isCollapsed ? "p-2" : "p-4"} border-b border-border transition-[padding] duration-300 ease-in-out`}>
+        <div className={`${isCollapsed ? "p-2" : "p-4"} border-b border-border`}>
           <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"} p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors`}>
             <div className="w-9 h-9 bg-foreground rounded-lg flex items-center justify-center flex-shrink-0">
               <LogoIcon className="w-5 h-5 text-background" />
@@ -201,7 +201,7 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
         </div>
 
         {/* Navigation */}
-        <nav className={`flex-1 overflow-y-auto overflow-x-hidden ${isCollapsed ? "p-2" : "p-4"} space-y-6 transition-[padding] duration-300 ease-in-out`}>
+        <nav className={`flex-1 overflow-y-auto overflow-x-hidden ${isCollapsed ? "p-2" : "p-4"} space-y-6`}>
           {/* Main Menu */}
           <div>
             <p
@@ -246,8 +246,7 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
                       </div>
                       {item.beta && !isCollapsed && (
                         <span
-                          className="text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded font-medium shrink-0 whitespace-nowrap animate-in fade-in duration-200"
-                          style={{ animationDelay: "150ms", animationFillMode: "both" }}
+                          className="text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded font-medium shrink-0 whitespace-nowrap"
                         >
                           Early Beta
                         </span>
@@ -307,7 +306,7 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
         </nav>
 
         {/* User Profile & Footer */}
-        <div className={`${isCollapsed ? "p-2" : "p-4"} border-t border-border space-y-2 transition-[padding] duration-300 ease-in-out`}>
+        <div className={`${isCollapsed ? "p-2" : "p-4"} border-t border-border space-y-2`}>
           {/* User Info */}
           <div
             title={isCollapsed ? displayName : undefined}
@@ -364,9 +363,9 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={`hidden lg:flex w-full items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-accent hover:text-foreground transition-colors`}
+            className={`ui-pressable hidden lg:flex w-full items-center ${isCollapsed ? "justify-center" : "gap-3"} ${isCollapsed ? "px-2" : "px-3"} py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-accent hover:text-foreground`}
           >
-            <svg className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${isCollapsed ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <svg className={`w-5 h-5 flex-shrink-0 transition-transform duration-150 ease-[var(--ease-ui-out)] motion-reduce:transition-none ${isCollapsed ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
             </svg>
             <span
@@ -385,7 +384,7 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
       {/* Mobile toggle button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="fixed bottom-4 left-4 z-50 lg:hidden w-12 h-12 bg-foreground text-background rounded-full shadow-lg flex items-center justify-center"
+        className="ui-pressable fixed bottom-4 left-4 z-50 lg:hidden w-12 h-12 bg-foreground text-background rounded-full shadow-lg flex items-center justify-center"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -394,4 +393,3 @@ export function Sidebar({ activeTab: propActiveTab, onTabChange, isCollapsed: co
     </>
   )
 }
-

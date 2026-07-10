@@ -27,11 +27,11 @@ export function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      className="relative flex items-center justify-center w-9 h-9 rounded-lg hover:bg-accent transition-colors"
+      className="ui-pressable relative flex items-center justify-center w-9 h-9 rounded-lg hover:bg-accent"
       aria-label="Toggle theme"
     >
-      <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      <Sun className="h-5 w-5 rotate-0 scale-100 opacity-100 transition-[transform,opacity] duration-150 ease-[var(--ease-ui-out)] dark:-rotate-90 dark:scale-90 dark:opacity-0 motion-reduce:transform-none" />
+      <Moon className="absolute h-5 w-5 rotate-90 scale-90 opacity-0 transition-[transform,opacity] duration-150 ease-[var(--ease-ui-out)] dark:rotate-0 dark:scale-100 dark:opacity-100 motion-reduce:transform-none" />
       <span className="sr-only">Toggle theme</span>
     </button>
   )
@@ -57,11 +57,11 @@ export function ThemeToggleWithLabel() {
   return (
     <button
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-accent hover:text-foreground transition-colors"
+      className="ui-pressable w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-accent hover:text-foreground"
     >
       <div className="relative w-5 h-5">
-        <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-        <Moon className="absolute inset-0 h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+        <Sun className="h-5 w-5 rotate-0 scale-100 opacity-100 transition-[transform,opacity] duration-150 ease-[var(--ease-ui-out)] dark:-rotate-90 dark:scale-90 dark:opacity-0 motion-reduce:transform-none" />
+        <Moon className="absolute inset-0 h-5 w-5 rotate-90 scale-90 opacity-0 transition-[transform,opacity] duration-150 ease-[var(--ease-ui-out)] dark:rotate-0 dark:scale-100 dark:opacity-100 motion-reduce:transform-none" />
       </div>
       <span>{resolvedTheme === "dark" ? "Light Mode" : "Dark Mode"}</span>
     </button>
@@ -90,12 +90,12 @@ export function ThemeToggleCollapsed() {
   return (
     <button
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      className="w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-accent hover:text-foreground transition-colors"
+      className="ui-pressable w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium text-foreground/70 hover:bg-accent hover:text-foreground"
       title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
     >
       <div className="relative w-5 h-5">
-        <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-        <Moon className="absolute inset-0 h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+        <Sun className="h-5 w-5 rotate-0 scale-100 opacity-100 transition-[transform,opacity] duration-150 ease-[var(--ease-ui-out)] dark:-rotate-90 dark:scale-90 dark:opacity-0 motion-reduce:transform-none" />
+        <Moon className="absolute inset-0 h-5 w-5 rotate-90 scale-90 opacity-0 transition-[transform,opacity] duration-150 ease-[var(--ease-ui-out)] dark:rotate-0 dark:scale-100 dark:opacity-100 motion-reduce:transform-none" />
       </div>
     </button>
   )

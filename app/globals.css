@@ -4,6 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --ease-ui-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-ui-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   /* Light theme matching landing page style */
   --background: #e8e8e8;
   --foreground: #000000;
@@ -151,6 +153,13 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-optical-sizing: auto;
+  }
+
+  button,
+  [role="button"],
+  a {
+    -webkit-tap-highlight-color: transparent;
   }
   
   /* Override browser autofill styles for dark inputs - only apply in dark contexts */
@@ -173,5 +182,77 @@
     -webkit-text-fill-color: #000000 !important;
     caret-color: #000000 !important;
     transition: background-color 5000s ease-in-out 0s;
+  }
+}
+
+@layer components {
+  .ui-pressable {
+    transition-property: transform, color, background-color, border-color, opacity, box-shadow;
+    transition-duration: 140ms;
+    transition-timing-function: var(--ease-ui-out);
+  }
+
+  .ui-pressable:active:not(:disabled):not([aria-disabled="true"]) {
+    transform: scale(0.97);
+    transition-duration: 100ms;
+  }
+
+  .ui-overlay {
+    transition-property: opacity, transform;
+    transition-duration: 180ms;
+    transition-timing-function: var(--ease-ui-out);
+  }
+
+  .ui-modal-surface {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .ui-toast {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  @starting-style {
+    .ui-modal-surface {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+
+    .ui-toast {
+      opacity: 0;
+      transform: translateX(-50%) translateY(0.5rem);
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .ui-hover-lift:hover {
+      transform: translateY(-1px);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-pressable,
+  .ui-overlay,
+  .ui-modal-surface,
+  .ui-toast,
+  [data-slot="select-content"] {
+    transform: none !important;
+    animation: none !important;
+    transition-property: opacity, color, background-color, border-color, box-shadow !important;
+    transition-duration: 120ms !important;
+  }
+
+  .ui-toast {
+    transform: translateX(-50%) !important;
+  }
+
+  .animate-spin,
+  .animate-pulse,
+  .animate-shimmer,
+  .animate-bounce,
+  .animate-ping {
+    animation: none !important;
   }
 }

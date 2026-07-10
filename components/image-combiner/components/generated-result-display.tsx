@@ -75,7 +75,7 @@ export function GeneratedResultDisplay({
               <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                 <button
                   onClick={onNewGeneration}
-                  className="h-7 sm:h-8 px-2 sm:px-3 flex items-center gap-1 sm:gap-1.5 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground/80 hover:text-foreground text-xs sm:text-sm transition-colors"
+                  className="ui-pressable h-7 sm:h-8 px-2 sm:px-3 flex items-center gap-1 sm:gap-1.5 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground/80 hover:text-foreground text-xs sm:text-sm"
                   title="New Generation"
                 >
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -86,7 +86,7 @@ export function GeneratedResultDisplay({
                 <button
                   onClick={onAddToGallery}
                   disabled={isAddingToGallery}
-                  className="h-7 sm:h-8 px-2 sm:px-3 flex items-center gap-1 sm:gap-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 hover:text-emerald-700 text-xs sm:text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="ui-pressable h-7 sm:h-8 px-2 sm:px-3 flex items-center gap-1 sm:gap-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 hover:text-emerald-700 text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Add to Gallery"
                 >
                   {isAddingToGallery ? (
@@ -104,7 +104,7 @@ export function GeneratedResultDisplay({
                 <div className="w-px h-4 sm:h-5 bg-border hidden sm:block" />
                 <button
                   onClick={onUseAsInput}
-                  className="p-1.5 sm:p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
+                  className="ui-pressable p-1.5 sm:p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground"
                   title="Use as Input"
                 >
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,7 +113,7 @@ export function GeneratedResultDisplay({
                 </button>
                 <button
                   onClick={onCopy}
-                  className="p-1.5 sm:p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
+                  className="ui-pressable p-1.5 sm:p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground"
                   title="Copy"
                 >
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -123,7 +123,7 @@ export function GeneratedResultDisplay({
                 </button>
                 <button
                   onClick={onDownload}
-                  className="p-1.5 sm:p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
+                  className="ui-pressable p-1.5 sm:p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground"
                   title="Download"
                 >
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,7 +132,7 @@ export function GeneratedResultDisplay({
                 </button>
                 <button
                   onClick={onFullscreen}
-                  className="p-1.5 sm:p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground transition-colors"
+                  className="ui-pressable p-1.5 sm:p-2 rounded-lg hover:bg-secondary/50 text-foreground/60 hover:text-foreground"
                   title="Fullscreen"
                 >
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,7 +158,7 @@ export function GeneratedResultDisplay({
                 alt="Generated"
                 onLoad={() => setImageReady(true)}
                 onError={() => setImageReady(true)}
-                className={`relative z-[1] max-w-full max-h-[300px] sm:max-h-[500px] object-contain rounded-lg sm:rounded-xl transition-opacity duration-300 ${
+                className={`relative z-[1] max-w-full max-h-[300px] sm:max-h-[500px] object-contain rounded-lg sm:rounded-xl transition-opacity duration-180 ease-[var(--ease-ui-out)] ${
                   imageReady ? "opacity-100" : "opacity-0"
                 }`}
               />
@@ -176,4 +176,3 @@ export function GeneratedResultDisplay({
     </div>
   )
 }
-

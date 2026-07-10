@@ -76,7 +76,7 @@ export function ControlsBar({
         {/* Add Images Button */}
         <button
           onClick={onAddImages}
-          className="h-8 px-2 sm:px-2.5 flex items-center gap-1 sm:gap-1.5 bg-secondary/50 text-foreground text-xs rounded-lg hover:bg-secondary transition-colors"
+          className="ui-pressable h-8 px-2 sm:px-2.5 flex items-center gap-1 sm:gap-1.5 bg-secondary/50 text-foreground text-xs rounded-lg hover:bg-secondary"
         >
           <svg className="w-3.5 h-3.5 text-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" strokeWidth={1.5} />
@@ -142,4 +142,3 @@ export function ControlsBar({
     </div>
   )
 }
-

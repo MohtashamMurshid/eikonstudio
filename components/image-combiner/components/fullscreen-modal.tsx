@@ -11,14 +11,14 @@ export function FullscreenModal({ showFullscreen, generatedImage, onClose }: Ful
 
   return (
     <div
-      className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-8 select-none"
+      className="ui-overlay fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-8 select-none"
       onClick={onClose}
     >
-      <div className="relative max-w-[90vw] max-h-[90vh]">
+      <div className="ui-overlay ui-modal-surface relative max-w-[90vw] max-h-[90vh]">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 bg-black/80 hover:bg-black/90 text-white p-2 rounded-full transition-all duration-200"
+          className="ui-pressable absolute top-4 right-4 z-10 bg-black/80 hover:bg-black/90 text-white p-2 rounded-full"
           title="Close (ESC)"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,4 +36,3 @@ export function FullscreenModal({ showFullscreen, generatedImage, onClose }: Ful
     </div>
   )
 }
-

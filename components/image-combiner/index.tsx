@@ -354,27 +354,27 @@ export function ImageCombiner({ providerApiKeys, pendingInputImage, onInputImage
       <Toast toast={toast} />
       <DragOverlay isDragOver={dragDrop.isDragOver} />
 
-      {/* Main Content Area - use padding for smooth centering transition */}
+      {/* Main Content Area */}
       <div 
-        className="flex-1 flex flex-col w-full max-w-3xl mx-auto px-0 sm:px-4 items-center transition-[padding] duration-500 ease-out"
+        className="flex-1 flex flex-col w-full max-w-3xl mx-auto px-0 sm:px-4 items-center"
         style={{
           paddingTop: isGenerating ? '2rem' : 'max(2rem, calc((100vh - 400px) / 2 - 100px))',
         }}
       >
         
         {/* Input Container - Scira Style */}
-        <div className="w-full transition-all duration-500 ease-out">
+        <div className="w-full">
           {/* Subtle Logo Branding */}
           <div className="flex justify-center mb-4 sm:mb-6">
             <Logo 
               variant="default" 
               size="sm" 
               colorScheme="dark"
-              className="opacity-60 hover:opacity-100 transition-opacity"
+              className="opacity-60 transition-opacity duration-150 ease-[var(--ease-ui-out)] motion-reduce:transition-none [@media(hover:hover)_and_(pointer:fine)]:hover:opacity-100"
             />
           </div>
           
-          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm transition-all duration-500 ease-out">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
             {/* Image Previews */}
             <ImagePreviewGrid
               image1Preview={imageUpload.image1Preview}
