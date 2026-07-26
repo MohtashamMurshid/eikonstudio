@@ -84,7 +84,7 @@
   /* Updated font variables to use new Inter and JetBrains Mono fonts */
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
-  
+
   /* Shimmer animation for loading states */
   --animate-shimmer: shimmer 2s infinite;
   
@@ -152,7 +152,7 @@
   body {
     @apply bg-background text-foreground;
   }
-  
+
   /* Override browser autofill styles for dark inputs - only apply in dark contexts */
   .dark input:-webkit-autofill,
   .dark input:-webkit-autofill:hover,
@@ -173,5 +173,56 @@
     -webkit-text-fill-color: #000000 !important;
     caret-color: #000000 !important;
     transition: background-color 5000s ease-in-out 0s;
+  }
+}
+.landing-page {
+  --ease-ui-out: cubic-bezier(0.23, 1, 0.32, 1);
+  isolation: isolate;
+  position: relative;
+}
+
+.landing-page .ui-pressable {
+  transition-property: transform, color, background-color, border-color, opacity, box-shadow;
+  transition-duration: 140ms;
+  transition-timing-function: var(--ease-ui-out);
+}
+
+.landing-page .ui-pressable:active:not(:disabled):not([aria-disabled="true"]) {
+  transform: scale(0.97);
+  transition-duration: 100ms;
+}
+
+.landing-grid {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--foreground) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--foreground) 4%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+
+.landing-dots {
+  background-image: radial-gradient(currentColor 0.7px, transparent 0.7px);
+  background-size: 12px 12px;
+}
+
+.landing-radial {
+  background:
+    radial-gradient(circle at center, color-mix(in srgb, #34d399 13%, transparent), transparent 45%),
+    linear-gradient(to right, transparent 49.9%, color-mix(in srgb, var(--foreground) 7%, transparent) 50%, transparent 50.1%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page .animate-ping {
+    animation: none !important;
+  }
+  .landing-page .ui-pressable {
+    transform: none !important;
+    animation: none !important;
+    transition-property: opacity, color, background-color, border-color, box-shadow !important;
+    transition-duration: 120ms !important;
   }
 }

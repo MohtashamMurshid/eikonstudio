@@ -1,53 +1,38 @@
-import type { Metadata } from "next"
+import type { Metadata } from "next";
 import { LandingHeader } from "@/components/landing/header";
 import { Hero } from "@/components/landing/hero";
-import { FeatureShowcase } from "@/components/landing/feature-showcase";
 import { Stats } from "@/components/landing/stats";
 import { FeaturesGrid } from "@/components/landing/features-grid";
 import { DetailedFeatures } from "@/components/landing/detailed-features";
 import { LandingFooter } from "@/components/landing/footer";
-import { StripedDivider } from "@/components/landing/striped-divider";
 
 export const metadata: Metadata = {
-  title: "Eikon Studio - AI Image Generation Platform",
-  description: "Eikon combines, transforms, and generates images with AI — built for designers, creators, and developers who demand precision.",
+  title: "Eikon — The AI image workshop",
+  description:
+    "Generate, transform, and organize production-ready images with a precise AI creative workspace.",
   openGraph: {
-    title: "Eikon Studio - AI Image Generation Platform",
-    description: "The image studio for creative AI. Generate, transform, and combine images with precision.",
+    title: "Eikon — The AI image workshop",
+    description:
+      "A precise creative workspace for generating, transforming, and organizing images with AI.",
   },
-}
+};
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <LandingHeader />
-
-      {/* Striped border - top */}
-      <div className="fixed top-[72px] left-0 right-0 z-40">
-        <StripedDivider />
-          </div>
-
-      <Hero />
-
-      <FeatureShowcase />
-
-        {/* Striped border - middle */}
-      <div className="max-w-5xl mx-auto mt-20">
-        <StripedDivider />
-            </div>
-
-      <Stats />
-
-      <FeaturesGrid />
-
-        {/* Striped divider */}
-      <div className="max-w-5xl mx-auto mt-24">
-        <StripedDivider />
-            </div>
-
-      <DetailedFeatures />
-
-      <LandingFooter />
+    <div className="landing-page min-h-screen bg-background text-foreground">
+      <div className="landing-grid" aria-hidden="true" />
+      <div className="relative mx-auto w-full max-w-[1240px] px-3 py-3 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        <div className="overflow-hidden border border-foreground/15 bg-background shadow-[0_20px_70px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_70px_rgba(0,0,0,0.35)]">
+          <LandingHeader />
+          <main>
+            <Hero />
+            <Stats />
+            <FeaturesGrid />
+            <DetailedFeatures />
+          </main>
+          <LandingFooter />
+        </div>
+      </div>
     </div>
   );
 }
