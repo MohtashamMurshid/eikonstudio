@@ -158,7 +158,7 @@ export function DetailedFeatures() {
                 {"\n    "}imageSize:{" "}
                 <span className="text-[#d8f3e7]">&quot;4K&quot;</span>,
                 {"\n    "}aspectRatio:{" "}
-                <span className="text-[#d8f3e7]">&quot;16:9&quot;</span>
+                <span className="text-[#d8f3e7]">&quot;landscape&quot;</span>
                 {"\n  "}
                 {"})"}
                 {"\n"}

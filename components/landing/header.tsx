@@ -1,16 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useConvexAuth } from "convex/react";
-import { ArrowUpRight, Menu } from "lucide-react";
+import { ArrowUpRight, Menu, X } from "lucide-react";
 import { LogoIcon } from "@/components/logo-icon";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
+const navigation = [
+  ["Workbench", "/studio"],
+  ["Capabilities", "#capabilities"],
+  ["Process", "#process"],
+  ["API", "/api-docs"],
+] as const;
+
 export function LandingHeader() {
   const { isAuthenticated } = useConvexAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="relative z-50 border-b border-foreground/15 bg-background/95">
+    <header
+      className="relative z-50 border-b border-foreground/15 bg-background/95"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") setMenuOpen(false);
+      }}
+    >
       <div className="grid h-14 grid-cols-[1fr_auto] items-stretch lg:grid-cols-[1.2fr_2fr_1.2fr]">
         <Link
           href="/"
@@ -30,12 +44,7 @@ export function LandingHeader() {
           className="hidden items-stretch justify-center border-x border-foreground/15 lg:flex"
           aria-label="Primary navigation"
         >
-          {[
-            ["Workbench", "/studio"],
-            ["Capabilities", "#capabilities"],
-            ["Process", "#process"],
-            ["API", "/api-docs"],
-          ].map(([label, href]) => (
+          {navigation.map(([label, href]) => (
             <Link
               key={label}
               href={href}
@@ -66,15 +75,42 @@ export function LandingHeader() {
             {isAuthenticated ? "Open studio" : "Start creating"}
             <ArrowUpRight className="size-3" strokeWidth={1.5} />
           </Link>
-          <Link
-            href="/studio"
+          <button
+            type="button"
             className="ui-pressable flex items-center border-l border-foreground/15 px-4 lg:hidden"
-            aria-label="Open studio navigation"
+            aria-label={menuOpen ? "Close navigation" : "Open navigation"}
+            aria-expanded={menuOpen}
+            aria-controls="landing-mobile-nav"
+            onClick={() => setMenuOpen((open) => !open)}
           >
-            <Menu className="size-4" strokeWidth={1.5} />
-          </Link>
+            {menuOpen ? (
+              <X className="size-4" strokeWidth={1.5} />
+            ) : (
+              <Menu className="size-4" strokeWidth={1.5} />
+            )}
+          </button>
         </div>
       </div>
+
+      {menuOpen && (
+        <nav
+          id="landing-mobile-nav"
+          className="absolute inset-x-0 top-full grid grid-cols-2 border-b border-foreground/15 bg-background shadow-[0_18px_40px_rgba(0,0,0,0.12)] sm:grid-cols-4 lg:hidden"
+          aria-label="Compact navigation"
+        >
+          {navigation.map(([label, href]) => (
+            <Link
+              key={label}
+              href={href}
+              onClick={() => setMenuOpen(false)}
+              className="ui-pressable flex h-14 items-center justify-between border-r border-t border-foreground/15 px-5 text-[8px] uppercase tracking-[0.16em] text-foreground/55 hover:bg-foreground/[0.035] hover:text-foreground"
+            >
+              {label}
+              <ArrowUpRight className="size-3" strokeWidth={1.5} />
+            </Link>
+          ))}
+        </nav>
+      )}
     </header>
   );
 }
