@@ -1,315 +1,217 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight, Check, Copy } from "lucide-react";
+
+const images = [
+  {
+    src: "/ai-image-japanese-garden.png",
+    alt: "AI generated Japanese garden",
+    className: "sm:col-span-2 sm:row-span-2",
+    label: "Watercolor study",
+    ratio: "16:9",
+  },
+  {
+    src: "/neon-city-rain.png",
+    alt: "AI generated neon city",
+    className: "",
+    label: "Night system",
+    ratio: "1:1",
+  },
+  {
+    src: "/ocean-cliffs-aerial.png",
+    alt: "AI generated ocean cliffs",
+    className: "",
+    label: "Aerial frame",
+    ratio: "4:3",
+  },
+];
 
 export function DetailedFeatures() {
   return (
-    <section className="max-w-5xl mx-auto mt-24">
-      <h2 className="text-3xl font-semibold text-center mb-6 tracking-tight">
-        Explore the possibilities
-      </h2>
-      <p className="text-base text-foreground/60 text-center max-w-2xl mx-auto mb-16">
-        Discover how Eikon transforms your creative workflow with powerful AI-driven tools.
-      </p>
-
-      {/* Feature 1: AI Image Generation - Left aligned */}
-      <div className="grid md:grid-cols-2 gap-12 items-center mb-24">
-        {/* Visual */}
-        <div className="relative">
-          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
-            {/* Prompt input mockup */}
-            <div className="mb-4">
-              <div className="text-xs text-foreground/50 uppercase tracking-wider mb-2">Prompt</div>
-              <div className="bg-secondary/30 rounded-xl p-3 text-sm text-foreground/70">
-                A serene Japanese garden with cherry blossoms <span className="text-emerald-500">/watercolor</span>
+    <>
+      <section className="grid border-b border-foreground/15 lg:grid-cols-[1.28fr_0.72fr]">
+        <div className="border-b border-foreground/15 p-4 sm:p-7 lg:border-b-0 lg:border-r">
+          <div className="grid min-h-[520px] grid-cols-1 gap-px bg-foreground/15 sm:grid-cols-3 sm:grid-rows-2">
+            {images.map((image, index) => (
+              <div
+                key={image.src}
+                className={`group relative min-h-[230px] overflow-hidden bg-background ${image.className}`}
+              >
+                <Image
+                  src={image.src}
+                  alt={image.alt}
+                  fill
+                  sizes={index === 0 ? "(max-width: 1024px) 100vw, 55vw" : "30vw"}
+                  className="object-cover grayscale-[18%] transition-transform duration-500 [transition-timing-function:var(--ease-ui-out)] group-hover:scale-[1.02]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-4 text-white">
+                  <div>
+                    <p className="text-[7px] uppercase tracking-[0.16em] text-white/55">
+                      Output {String(index + 1).padStart(2, "0")}
+                    </p>
+                    <p className="mt-1 font-sans text-sm font-medium">
+                      {image.label}
+                    </p>
+                  </div>
+                  <span className="text-[7px] uppercase tracking-[0.14em] text-white/60">
+                    {image.ratio}
+                  </span>
+                </div>
               </div>
-            </div>
-            {/* Art style chips */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              <span className="px-2 py-1 bg-emerald-500/10 text-emerald-600 text-xs rounded-lg">Watercolor</span>
-              <span className="px-2 py-1 bg-secondary text-foreground/60 text-xs rounded-lg">Renaissance</span>
-              <span className="px-2 py-1 bg-secondary text-foreground/60 text-xs rounded-lg">Anime</span>
-              <span className="px-2 py-1 bg-secondary text-foreground/60 text-xs rounded-lg">+14 more</span>
-            </div>
-            {/* Result mockup */}
-            <div className="relative aspect-video overflow-hidden rounded-xl">
-              <Image
-                src="/ai-image-japanese-garden.png"
-                alt="AI-generated Japanese garden scene with cherry blossoms and koi pond"
-                fill
-                className="object-cover"
-              />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-4">
-                <span className="inline-flex rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-black">
-                  Generated
-                </span>
-              </div>
-            </div>
+            ))}
           </div>
-          {/* Decorative element */}
-          <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
         </div>
 
-        {/* Content */}
-        <div>
-          <div className="inline-flex items-center gap-2 mb-4">
-            <span className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-              <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-              </svg>
-            </span>
-            <span className="text-xs uppercase tracking-wider text-emerald-600 font-medium">AI Image Generation</span>
+        <div className="flex flex-col justify-between px-6 py-12 sm:px-10 lg:p-12">
+          <div>
+            <p className="text-[8px] uppercase tracking-[0.18em] text-emerald-500">
+              One connected library
+            </p>
+            <h2 className="mt-6 font-sans text-4xl font-medium leading-[0.98] tracking-[-0.055em]">
+              Make it.
+              <br />
+              Keep it in reach.
+            </h2>
+            <p className="mt-6 font-sans text-sm leading-6 text-foreground/50">
+              Every useful generation lands in a gallery built for iteration.
+              Sort it, rename it, or reference it in the next idea without
+              breaking your flow.
+            </p>
           </div>
-          <h3 className="text-2xl font-semibold mb-4 tracking-tight">
-            Create stunning images with Gemini 3 Pro or GPT Image 2
-          </h3>
-          <p className="text-foreground/60 mb-6 leading-relaxed">
-            Generate images from text or transform existing ones. Switch between Google&apos;s Gemini 3 Pro and OpenAI&apos;s GPT Image 2 on the fly, and use skill presets like <code className="bg-secondary px-1.5 py-0.5 rounded text-sm">/technical</code> or <code className="bg-secondary px-1.5 py-0.5 rounded text-sm">/anime</code> for instant style application.
-          </p>
-          <ul className="space-y-3">
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">Choose your model: Gemini 3 Pro or GPT Image 2</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">17 art styles: Fresco, Renaissance, Watercolor, Digital Art, and more</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">13 skill presets: /technical, /anime, /cinematic, /portrait, and more</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">Multiple resolutions (1K, 2K, 4K) and aspect ratios</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">Edit up to 4 images together with AI-powered combining</span>
-            </li>
-          </ul>
+          <div className="mt-12 border-t border-foreground/15">
+            {[
+              "Folders that stay lightweight",
+              "Fast @mentions in new prompts",
+              "Generation history with metadata",
+              "Full-resolution exports",
+            ].map((feature) => (
+              <div
+                key={feature}
+                className="flex items-center gap-3 border-b border-foreground/15 py-3 text-[9px] text-foreground/58"
+              >
+                <Check className="size-3 text-emerald-500" strokeWidth={1.6} />
+                {feature}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Feature 2: Video Generation - Right aligned */}
-      <div className="grid md:grid-cols-2 gap-12 items-center mb-24">
-        {/* Content */}
-        <div className="md:order-2">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <span className="w-8 h-8 bg-violet-500/10 rounded-lg flex items-center justify-center">
-              <svg className="w-4 h-4 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
-              </svg>
-            </span>
-            <span className="text-xs uppercase tracking-wider text-violet-600 font-medium">Video Generation</span>
+      <section className="grid border-b border-foreground/15 lg:grid-cols-[0.72fr_1.28fr]">
+        <div className="flex flex-col justify-between border-b border-foreground/15 px-6 py-12 sm:px-10 lg:border-b-0 lg:border-r lg:p-12">
+          <div>
+            <p className="text-[8px] uppercase tracking-[0.18em] text-emerald-500">
+              Developer interface
+            </p>
+            <h2 className="mt-6 font-sans text-4xl font-medium leading-[0.98] tracking-[-0.055em]">
+              The engine,
+              <br />
+              wherever you build.
+            </h2>
+            <p className="mt-6 max-w-[350px] font-sans text-sm leading-6 text-foreground/50">
+              A clean REST endpoint gives your product the same image system
+              used inside the studio.
+            </p>
           </div>
-          <h3 className="text-2xl font-semibold mb-4 tracking-tight">
-            Generate videos with Google Veo 3.1
-          </h3>
-          <p className="text-foreground/60 mb-6 leading-relaxed">
-            Create stunning videos from text prompts, animate still images, or generate smooth transitions between frames. 
-            Powered by Google&apos;s latest video generation model.
-          </p>
-          <ul className="space-y-3">
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-violet-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">Text-to-video: Describe your scene, get a video</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-violet-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">Image-to-video: Animate any still image with motion</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-violet-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">Frame interpolation: Smooth transitions between two images</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-violet-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">720p or 1080p resolution, 16:9 or 9:16 aspect ratio</span>
-            </li>
-          </ul>
-          <Link
-            href="/studio/create-video"
-            className="inline-flex items-center gap-2 mt-6 text-sm text-violet-600 font-medium hover:text-violet-700 transition-colors"
-          >
-            Try Video Generation
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
-          </Link>
-        </div>
-
-        {/* Visual */}
-        <div className="relative md:order-1">
-          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
-            <div className="relative mb-4 aspect-video overflow-hidden rounded-xl border border-violet-500/20">
-              <Image
-                src="/sunlit-mystic-forest.png"
-                alt="Cinematic forest scene used as a video generation preview"
-                fill
-                className="object-cover"
-              />
-              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/75 via-black/25 to-transparent p-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/60">Preview</p>
-                  <p className="text-sm font-medium text-white">Text to Video Output</p>
-                </div>
-                <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs text-white backdrop-blur">
-                  1080p
-                </span>
-              </div>
-            </div>
-            {/* Video generation modes */}
-            <div className="text-xs text-foreground/50 uppercase tracking-wider mb-4">Generation Modes</div>
-            <div className="space-y-3">
-              {/* Text to Video */}
-              <div className="flex items-center gap-3 p-3 bg-violet-500/5 rounded-xl border border-violet-500/20">
-                <div className="w-10 h-10 bg-violet-500/10 rounded-lg flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground">Text to Video</div>
-                  <div className="text-xs text-foreground/50 truncate">Describe a scene in words</div>
-                </div>
-              </div>
-              {/* Image to Video */}
-              <div className="flex items-center gap-3 p-3 bg-secondary/30 rounded-xl">
-                <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5 text-foreground/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground/80">Image to Video</div>
-                  <div className="text-xs text-foreground/50 truncate">Animate a still image</div>
-                </div>
-              </div>
-              {/* Frame to Frame */}
-              <div className="flex items-center gap-3 p-3 bg-secondary/30 rounded-xl">
-                <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5 text-foreground/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground/80">Frame to Frame</div>
-                  <div className="text-xs text-foreground/50 truncate">Interpolate between two images</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* Decorative element */}
-          <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl" />
-        </div>
-      </div>
-
-      {/* Feature 3: Developer API - Left aligned */}
-      <div className="grid md:grid-cols-2 gap-12 items-center">
-        {/* Visual */}
-        <div className="relative">
-          <div className="bg-[#1e1e1e] rounded-2xl overflow-hidden shadow-xl">
-            {/* Code editor header */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
-              <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-              <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
-              <div className="w-3 h-3 rounded-full bg-[#28c840]" />
-              <span className="ml-4 text-xs text-white/40 font-mono">generate.ts</span>
-            </div>
-            {/* Code content */}
-            <div className="p-5 font-mono text-sm overflow-x-auto">
-              <div className="text-white/50">
-                <span className="text-violet-400">const</span> <span className="text-blue-300">response</span> <span className="text-white/50">=</span> <span className="text-violet-400">await</span> <span className="text-yellow-300">fetch</span><span className="text-white/70">(</span>
-              </div>
-              <div className="pl-4 text-emerald-400">{`'/api/v1/generate'`}<span className="text-white/70">,</span></div>
-              <div className="pl-4 text-white/70">{"{"}</div>
-              <div className="pl-8"><span className="text-blue-300">method</span><span className="text-white/70">:</span> <span className="text-emerald-400">{`'POST'`}</span><span className="text-white/70">,</span></div>
-              <div className="pl-8"><span className="text-blue-300">body</span><span className="text-white/70">:</span> <span className="text-yellow-300">JSON</span><span className="text-white/70">.</span><span className="text-yellow-300">stringify</span><span className="text-white/70">({"{"}</span></div>
-              <div className="pl-12"><span className="text-blue-300">prompt</span><span className="text-white/70">:</span> <span className="text-emerald-400">{`'A mountain landscape'`}</span><span className="text-white/70">,</span></div>
-              <div className="pl-12"><span className="text-blue-300">imageSize</span><span className="text-white/70">:</span> <span className="text-emerald-400">{`'2K'`}</span><span className="text-white/70">,</span></div>
-              <div className="pl-12"><span className="text-blue-300">aspectRatio</span><span className="text-white/70">:</span> <span className="text-emerald-400">{`'landscape'`}</span></div>
-              <div className="pl-8 text-white/70">{"})"}</div>
-              <div className="pl-4 text-white/70">{"}"}</div>
-              <div className="text-white/70">);</div>
-              <div className="mt-2 text-white/40">{"// Returns { url, prompt, metadata }"}</div>
-            </div>
-          </div>
-          {/* Decorative element */}
-          <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl" />
-        </div>
-
-        {/* Content */}
-        <div>
-          <div className="inline-flex items-center gap-2 mb-4">
-            <span className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
-              <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-              </svg>
-            </span>
-            <span className="text-xs uppercase tracking-wider text-blue-600 font-medium">Developer API</span>
-          </div>
-          <h3 className="text-2xl font-semibold mb-4 tracking-tight">
-            Integrate with our REST API
-          </h3>
-          <p className="text-foreground/60 mb-6 leading-relaxed">
-            Build AI image generation into your applications with our simple REST API. 
-            Includes an interactive playground to test requests before coding.
-          </p>
-          <ul className="space-y-3">
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">Single endpoint: <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">/api/v1/generate</code></span>
-            </li>
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">Interactive API playground with live testing</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">Code examples for curl, JavaScript, and Python</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-foreground/70">JSON responses with base64-encoded images</span>
-            </li>
-          </ul>
           <Link
             href="/api-docs"
-            className="inline-flex items-center gap-2 mt-6 text-sm text-blue-600 font-medium hover:text-blue-700 transition-colors"
+            className="ui-pressable group mt-10 inline-flex w-fit items-center gap-8 border border-foreground/15 px-5 py-3 text-[8px] uppercase tracking-[0.15em] hover:bg-foreground/[0.035]"
           >
-            View API Documentation
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
+            Read API docs
+            <ArrowRight
+              className="size-3 transition-transform duration-200 group-hover:translate-x-0.5"
+              strokeWidth={1.5}
+            />
           </Link>
         </div>
-      </div>
-    </section>
+
+        <div className="bg-[#07110e] p-4 text-white sm:p-8 lg:p-12">
+          <div className="overflow-hidden border border-white/15 bg-[#030806]">
+            <div className="flex items-center justify-between border-b border-white/12 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="size-1.5 bg-emerald-400" />
+                <span className="text-[7px] uppercase tracking-[0.18em] text-white/45">
+                  POST /api/v1/generate
+                </span>
+              </div>
+              <Copy className="size-3 text-white/35" strokeWidth={1.5} />
+            </div>
+            <pre className="overflow-x-auto p-5 text-[10px] leading-6 text-white/62 sm:p-7 sm:text-xs">
+              <code>
+                <span className="text-emerald-400">const</span>{" "}
+                <span className="text-white">image</span> ={" "}
+                <span className="text-emerald-400">await</span> fetch(
+                <span className="text-[#d8f3e7]">
+                  &quot;/api/v1/generate&quot;
+                </span>
+                , {"{"}
+                {"\n  "}method:{" "}
+                <span className="text-[#d8f3e7]">&quot;POST&quot;</span>,
+                {"\n  "}body: JSON.stringify({"{"}
+                {"\n    "}prompt:{" "}
+                <span className="text-[#d8f3e7]">
+                  &quot;Editorial product study,
+                  {"\n      "}soft morning light&quot;
+                </span>
+                ,
+                {"\n    "}imageSize:{" "}
+                <span className="text-[#d8f3e7]">&quot;4K&quot;</span>,
+                {"\n    "}aspectRatio:{" "}
+                <span className="text-[#d8f3e7]">&quot;landscape&quot;</span>
+                {"\n  "}
+                {"})"}
+                {"\n"}
+                {"}"});
+              </code>
+            </pre>
+            <div className="grid grid-cols-3 border-t border-white/12">
+              {[
+                ["Status", "200 OK"],
+                ["Format", "JSON"],
+                ["Latency", "~4.2s"],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="border-r border-white/12 px-4 py-3 last:border-r-0"
+                >
+                  <p className="text-[6px] uppercase tracking-[0.14em] text-white/28">
+                    {label}
+                  </p>
+                  <p className="mt-1 text-[8px] uppercase tracking-[0.12em] text-emerald-400">
+                    {value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative overflow-hidden px-6 py-20 text-center sm:px-10 sm:py-28">
+        <div className="landing-radial absolute inset-0 opacity-50" aria-hidden="true" />
+        <div className="relative mx-auto max-w-[760px]">
+          <p className="text-[8px] uppercase tracking-[0.2em] text-emerald-500">
+            Your next frame starts here
+          </p>
+          <h2 className="mt-7 font-sans text-[clamp(2.7rem,6vw,5.8rem)] font-medium leading-[0.9] tracking-[-0.07em]">
+            Turn the idea into an image.
+          </h2>
+          <p className="mx-auto mt-7 max-w-[520px] font-sans text-sm leading-6 text-foreground/50">
+            Start with a prompt. Leave with something you can actually use.
+          </p>
+          <Link
+            href="/studio/create"
+            className="ui-pressable group mt-9 inline-flex h-12 items-center gap-10 bg-emerald-500 px-6 text-[9px] font-semibold uppercase tracking-[0.15em] text-emerald-950 hover:bg-emerald-400"
+          >
+            Launch Eikon
+            <ArrowRight
+              className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5"
+              strokeWidth={1.5}
+            />
+          </Link>
+        </div>
+      </section>
+    </>
   );
 }
