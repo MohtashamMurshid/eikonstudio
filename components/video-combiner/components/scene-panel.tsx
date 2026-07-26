@@ -134,12 +134,17 @@ export function ScenePanel({
               ]}
               onChange={onModeChange}
             />
-            {hasCharacterAvatars && (
+            {mode === "text-to-video" && hasCharacterAvatars && (
+              <p className="mt-1.5 text-[10px] text-foreground/40">
+                Text mode uses character descriptions. Switch to Image mode to send an avatar to Veo.
+              </p>
+            )}
+            {mode === "image-to-video" && hasCharacterAvatars && (
               <p className="mt-1.5 text-[10px] text-emerald-400/80 flex items-center gap-1">
                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
-                Soul Cast avatars will be sent as asset references
+                First avatar used as Veo image guidance
               </p>
             )}
           </div>

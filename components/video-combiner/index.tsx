@@ -82,7 +82,7 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
   const hasCharacterImages = characterAvatars.length > 0;
 
   // Text mode uses character descriptions in the prompt text.
-  // Image mode additionally sends avatar images as Veo style references.
+  // Image mode additionally sends the first avatar as Veo image guidance.
   const effectiveMode: VideoMode = mode;
 
   const canGenerate =

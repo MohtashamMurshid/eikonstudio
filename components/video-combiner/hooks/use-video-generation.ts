@@ -35,6 +35,8 @@ interface UseVideoGenerationOptions {
   onSaveError?: (message: string) => void;
 }
 
+const MAX_REFERENCE_IMAGES = 3;
+
 export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
   const [generatedVideo, setGeneratedVideo] = useState<GeneratedVideo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,7 +57,6 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
       generateUploadUrl,
     } = options;
 
-    // Validation
     if (!prompt.trim()) {
       onError?.("Please enter a prompt");
       return;
@@ -63,12 +64,12 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
 
     const hasCharacterAvatars = characterAvatars && characterAvatars.length > 0;
 
-    if ((mode === "image-to-video" || mode === "frame-to-video") && !referenceImages[0] && !hasCharacterAvatars) {
-      onError?.(`${mode} mode requires at least one reference image`);
+    if (mode === "image-to-video" && !referenceImages[0] && !hasCharacterAvatars) {
+      onError?.("image-to-video mode requires a reference image or character avatar");
       return;
     }
 
-    if (mode === "frame-to-video" && !referenceImages[1]) {
+    if (mode === "frame-to-video" && (!referenceImages[0] || !referenceImages[1])) {
       onError?.("frame-to-video mode requires two images (first and last frames)");
       return;
     }
@@ -78,44 +79,37 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
     setProgress(0);
     setProgressStage("Initializing...");
 
-    // Video generation takes longer, so progress is slower
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 95) {
-          return Math.min(prev + 0.05, 98);
-        } else if (prev >= 80) {
-          return prev + 0.2;
-        } else if (prev >= 60) {
-          return prev + 0.4;
-        } else if (prev >= 40) {
-          return prev + 0.6;
-        } else if (prev >= 20) {
-          return prev + 0.8;
-        } else {
-          return prev + 1.0;
-        }
+        if (prev >= 95) return Math.min(prev + 0.05, 98);
+        if (prev >= 80) return prev + 0.2;
+        if (prev >= 60) return prev + 0.4;
+        if (prev >= 40) return prev + 0.6;
+        if (prev >= 20) return prev + 0.8;
+        return prev + 1.0;
       });
-    }, 500); // Slower interval for videos
+    }, 500);
 
     try {
       setProgressStage("Preparing request...");
 
-      // Fetch character avatar images (sent as Veo 3.1 referenceImages in any mode)
+      // Veo 3.1 reference images are for a single subject (person/character/product).
+      // When the user selects multiple characters we only send the first one's avatar
+      // as a reference image and rely on the prompt for additional cast members.
       const avatarFiles: File[] = [];
-      if (hasCharacterAvatars) {
-        setProgressStage("Loading character avatars...");
-        for (const avatar of characterAvatars!) {
-          try {
-            const response = await fetch(avatar.url);
-            if (!response.ok) {
-              throw new Error(`Failed to fetch avatar for ${avatar.name}`);
-            }
-            const blob = await response.blob();
-            const ext = blob.type.split("/")[1] || "png";
-            avatarFiles.push(new File([blob], `${avatar.name}.${ext}`, { type: blob.type }));
-          } catch (err) {
-            console.warn(`Failed to fetch avatar for ${avatar.name}:`, err);
+      if (hasCharacterAvatars && mode === "image-to-video") {
+        setProgressStage("Loading character avatar...");
+        const avatar = characterAvatars![0];
+        try {
+          const response = await fetch(avatar.url);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch avatar for ${avatar.name}`);
           }
+          const blob = await response.blob();
+          const ext = blob.type.split("/")[1] || "png";
+          avatarFiles.push(new File([blob], `${avatar.name}.${ext}`, { type: blob.type }));
+        } catch (err) {
+          console.warn(`Failed to fetch avatar for ${avatar.name}:`, err);
         }
       }
 
@@ -128,18 +122,17 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
         formData.append("apiKey", apiKey);
       }
 
-      // Character avatars go as separate "characterImages" field (Veo 3.1 referenceImages)
       if (avatarFiles.length > 0) {
-        setProgressStage("Uploading character references...");
-        avatarFiles.forEach((file) => formData.append("characterImages", file));
+        setProgressStage("Uploading character reference...");
+        formData.append("characterImages", avatarFiles[0]);
       }
 
-      // User-uploaded images for image-to-video / frame-to-video modes
       if (mode === "image-to-video") {
         setProgressStage("Uploading reference images...");
-        referenceImages.forEach((img) => {
-          if (img) formData.append("images", img);
-        });
+        referenceImages
+          .filter((image): image is File => image !== null)
+          .slice(0, MAX_REFERENCE_IMAGES)
+          .forEach((image) => formData.append("images", image));
       } else if (mode === "frame-to-video") {
         setProgressStage("Uploading frame images...");
         if (referenceImages[0]) formData.append("images", referenceImages[0]);
@@ -172,26 +165,21 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
       setProgress(100);
       setProgressStage("Complete!");
 
-      // Set the generated video immediately and stop loading
       setGeneratedVideo(data);
       setIsLoading(false);
       setProgress(0);
       setProgressStage("");
 
-      // Save video generation to Convex storage
       if (options.onSaveVideoGeneration) {
         setIsSaving(true);
         setProgressStage("Saving to history...");
 
         try {
-          // Convert video data URL to blob
           const videoBlob = await dataUrlToBlob(data.url);
 
-          // Extract first frame as thumbnail
           setProgressStage("Creating thumbnail...");
           const thumbnailBlob = await extractVideoFrame(data.url, 0, 250);
 
-          // Upload reference images if any (for image-to-video or frame-to-video)
           let referenceImageStorageIds: Id<"_storage">[] | undefined;
           if (mode === "image-to-video" || mode === "frame-to-video") {
             setProgressStage("Uploading reference images...");
@@ -210,14 +198,12 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
             }
           }
 
-          // Upload video and thumbnail to Convex storage
           setProgressStage("Uploading to cloud storage...");
           const [videoStorageId, thumbnailStorageId] = await Promise.all([
             uploadVideoToStorage(videoBlob, generateUploadUrl),
             uploadVideoToStorage(thumbnailBlob, generateUploadUrl),
           ]);
 
-          // Save the video generation with storage IDs
           await options.onSaveVideoGeneration!({
             prompt,
             videoStorageId,
