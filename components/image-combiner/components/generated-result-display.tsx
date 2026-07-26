@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import { ProgressBar } from "./progress-bar"
 import type { GeneratedImage } from "../types"
 
@@ -32,6 +33,14 @@ export function GeneratedResultDisplay({
   onDownload,
   onFullscreen,
 }: GeneratedResultDisplayProps) {
+  const [imageReady, setImageReady] = useState(false)
+
+  useEffect(() => {
+    if (generatedImage?.url) {
+      setImageReady(false)
+    }
+  }, [generatedImage?.url])
+
   if (!isLoading && !isConvertingHeic && !generatedImage) {
     return null
   }
@@ -135,13 +144,23 @@ export function GeneratedResultDisplay({
 
             {/* Image Display */}
             <div
-              className="relative flex items-center justify-center cursor-pointer group"
+              className="relative flex items-center justify-center cursor-pointer group min-h-[200px] sm:min-h-[280px] w-full"
               onClick={onFullscreen}
             >
+              {!imageReady && (
+                <div
+                  className="absolute inset-0 mx-auto max-w-full max-h-[300px] sm:max-h-[500px] rounded-lg sm:rounded-xl bg-muted animate-pulse"
+                  aria-hidden
+                />
+              )}
               <img
                 src={generatedImage.url || "/placeholder.svg"}
                 alt="Generated"
-                className="max-w-full max-h-[300px] sm:max-h-[500px] object-contain rounded-lg sm:rounded-xl"
+                onLoad={() => setImageReady(true)}
+                onError={() => setImageReady(true)}
+                className={`relative z-[1] max-w-full max-h-[300px] sm:max-h-[500px] object-contain rounded-lg sm:rounded-xl transition-opacity duration-300 ${
+                  imageReady ? "opacity-100" : "opacity-0"
+                }`}
               />
             </div>
 

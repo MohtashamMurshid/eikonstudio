@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { GeneratedVideo, VideoMode } from "../types";
 import type { Id } from "@/convex/_generated/dataModel";
 import { extractVideoFrame, dataUrlToBlob, uploadVideoToStorage } from "@/lib/video-utilities";
+import { getUserFacingErrorMessage } from "@/lib/error-utils";
 
 interface SaveVideoGenerationParams {
   prompt: string;
@@ -63,12 +64,12 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
 
     const hasCharacterAvatars = characterAvatars && characterAvatars.length > 0;
 
-    if ((mode === "image-to-video" || mode === "frame-to-video") && !referenceImages[0] && !hasCharacterAvatars) {
-      onError?.(`${mode} mode requires at least one reference image`);
+    if (mode === "image-to-video" && !referenceImages[0] && !hasCharacterAvatars) {
+      onError?.("image-to-video mode requires a reference image or character avatar");
       return;
     }
 
-    if (mode === "frame-to-video" && !referenceImages[1]) {
+    if (mode === "frame-to-video" && (!referenceImages[0] || !referenceImages[1])) {
       onError?.("frame-to-video mode requires two images (first and last frames)");
       return;
     }
@@ -101,6 +102,9 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
         const avatar = characterAvatars![0];
         try {
           const response = await fetch(avatar.url);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch avatar for ${avatar.name}`);
+          }
           const blob = await response.blob();
           const ext = blob.type.split("/")[1] || "png";
           avatarFiles.push(new File([blob], `${avatar.name}.${ext}`, { type: blob.type }));
@@ -118,21 +122,17 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
         formData.append("apiKey", apiKey);
       }
 
+      if (avatarFiles.length > 0) {
+        setProgressStage("Uploading character reference...");
+        formData.append("characterImages", avatarFiles[0]);
+      }
+
       if (mode === "image-to-video") {
         setProgressStage("Uploading reference images...");
-        let imageCount = 0;
-        avatarFiles.forEach((file) => {
-          if (imageCount < MAX_REFERENCE_IMAGES + 1) {
-            formData.append("images", file);
-            imageCount++;
-          }
-        });
-        referenceImages.forEach((img) => {
-          if (img && imageCount < MAX_REFERENCE_IMAGES + 1) {
-            formData.append("images", img);
-            imageCount++;
-          }
-        });
+        referenceImages
+          .filter((image): image is File => image !== null)
+          .slice(0, MAX_REFERENCE_IMAGES)
+          .forEach((image) => formData.append("images", image));
       } else if (mode === "frame-to-video") {
         setProgressStage("Uploading frame images...");
         if (referenceImages[0]) formData.append("images", referenceImages[0]);
@@ -223,8 +223,11 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
           setIsSaving(false);
           setProgressStage("");
           options.onSaveError?.(
-            "Failed to save to history. Please download the video manually."
-          );
+            getUserFacingErrorMessage(
+              saveError,
+              "Failed to save to history. Please download the video manually.",
+            ),
+          )
         }
       }
     } catch (error) {
@@ -233,9 +236,12 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
       setProgressStage("");
       console.error("Error generating video:", error);
 
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      onError?.(`Error generating video: ${errorMessage}`);
+      onError?.(
+        getUserFacingErrorMessage(
+          error,
+          "Unable to generate a video right now. Please try again.",
+        ),
+      )
       setIsLoading(false);
     }
   };

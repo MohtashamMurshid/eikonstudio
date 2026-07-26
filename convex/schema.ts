@@ -15,6 +15,10 @@ export default defineSchema({
     // Analytics fields (added for dashboard)
     estimatedCost: v.optional(v.number()), // Cost in USD
     model: v.optional(v.string()), // Model name used for generation
+    /** User-selected image model for this generation (set when job is created) */
+    imageModel: v.optional(
+      v.union(v.literal("gemini-3.1-flash-image-preview"), v.literal("gpt-image-2"))
+    ),
     // Background generation status (optional for backward compatibility with existing records)
     status: v.optional(v.union(
       v.literal("pending"),
@@ -53,19 +57,52 @@ export default defineSchema({
   // Secure API key storage
   apiKeys: defineTable({
     userId: v.string(),
+    provider: v.optional(
+      v.union(v.literal("gemini"), v.literal("openai"))
+    ),
     encryptedKey: v.string(), // AES-GCM encrypted API key
     iv: v.string(), // Initialization vector for decryption
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_user_provider", ["userId", "provider"]),
+
+  platformApiKeys: defineTable({
+    userId: v.string(),
+    keyHash: v.string(),
+    keyPrefix: v.string(),
+    createdAt: v.number(),
+    revokedAt: v.optional(v.number()),
+    lastUsedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_key_hash", ["keyHash"]),
 
   // User custom skills for /skillname slash commands
   skills: defineTable({
     userId: v.string(),
     name: v.string(), // Skill name (lowercase, no spaces)
     description: v.string(), // Short description
-    promptText: v.string(), // The prompt text to append
+    category: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    promptText: v.optional(v.string()), // Legacy single-block prompt text
+    freeformInstructions: v.optional(v.string()),
+    sections: v.optional(v.object({
+      styleOverview: v.optional(v.string()),
+      visualHallmarks: v.optional(v.string()),
+      composition: v.optional(v.string()),
+      lighting: v.optional(v.string()),
+      palette: v.optional(v.string()),
+      materialsAndTextures: v.optional(v.string()),
+      mustInclude: v.optional(v.string()),
+      avoid: v.optional(v.string()),
+      negativePrompt: v.optional(v.string()),
+    })),
+    builtInSkillKey: v.optional(v.string()),
+    isBuiltIn: v.optional(v.boolean()),
+    isEditable: v.optional(v.boolean()),
+    sortOrder: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])

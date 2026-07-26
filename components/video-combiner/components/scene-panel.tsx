@@ -32,15 +32,15 @@ function SegmentedControl<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="flex bg-secondary/30 rounded-lg p-0.5 gap-0.5">
+    <div className="flex bg-secondary/20 rounded-xl p-0.5 gap-0.5">
       {options.map((opt) => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className={`flex-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${
+          className={`flex-1 px-2 py-1.5 rounded-[10px] text-[11px] font-medium transition-all duration-200 ${
             value === opt.value
               ? "bg-foreground text-background shadow-sm"
-              : "text-foreground/50 hover:text-foreground/70"
+              : "text-foreground/40 hover:text-foreground/60"
           }`}
         >
           {opt.label}
@@ -68,7 +68,7 @@ export function ScenePanel({
   const hasCharacterAvatars = selectedCharacters.some((c) => c.avatarUrl);
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto space-y-5 p-3">
+      <div className="flex-1 overflow-y-auto space-y-5 p-4">
         {/* Cast */}
         <CharacterLibrary
           selectedCharacters={selectedCharacters}
@@ -76,16 +76,16 @@ export function ScenePanel({
         />
 
         {/* Divider */}
-        <div className="h-px bg-border" />
+        <div className="h-px bg-border/50" />
 
         {/* Scene */}
         <div className="space-y-3">
-          <h3 className="text-[11px] font-medium text-foreground/50 uppercase tracking-wider">
+          <h3 className="text-[11px] font-medium text-foreground/40 uppercase tracking-wider">
             Scene
           </h3>
 
           <div>
-            <label className="text-[10px] text-foreground/40 mb-1 flex items-center gap-1">
+            <label className="text-[10px] text-foreground/35 mb-1 flex items-center gap-1">
               <MapPin className="w-3 h-3" /> Location
             </label>
             <textarea
@@ -93,16 +93,16 @@ export function ScenePanel({
               onChange={(e) => onLocationChange(e.target.value)}
               placeholder="A rain-soaked Tokyo alley at midnight, neon signs reflecting in puddles..."
               rows={2}
-              className="w-full px-2.5 py-2 bg-secondary/20 border border-border/50 rounded-lg text-xs text-foreground placeholder:text-foreground/25 focus:outline-none focus:ring-1 focus:ring-foreground/20 resize-none"
+              className="w-full px-3 py-2 bg-secondary/15 border border-border/40 rounded-xl text-xs text-foreground placeholder:text-foreground/25 focus:outline-none focus:ring-1 focus:ring-foreground/15 resize-none transition-colors duration-200"
             />
           </div>
 
           <div>
-            <label className="text-[10px] text-foreground/40 mb-1 flex items-center gap-1">
+            <label className="text-[10px] text-foreground/35 mb-1 flex items-center gap-1">
               <Palette className="w-3 h-3" /> Mood
             </label>
             <Select value={mood} onValueChange={onMoodChange}>
-              <SelectTrigger className="h-8 bg-secondary/20 border-border/50 text-xs w-full">
+              <SelectTrigger className="h-8 bg-secondary/15 border-border/40 rounded-xl text-xs w-full">
                 <SelectValue placeholder="Select mood..." />
               </SelectTrigger>
               <SelectContent>
@@ -115,16 +115,16 @@ export function ScenePanel({
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-border" />
+        <div className="h-px bg-border/50" />
 
         {/* Settings */}
         <div className="space-y-3">
-          <h3 className="text-[11px] font-medium text-foreground/50 uppercase tracking-wider">
+          <h3 className="text-[11px] font-medium text-foreground/40 uppercase tracking-wider">
             Settings
           </h3>
 
           <div>
-            <label className="text-[10px] text-foreground/40 mb-1.5 block">Mode</label>
+            <label className="text-[10px] text-foreground/35 mb-1.5 block">Mode</label>
             <SegmentedControl
               value={mode}
               options={[
@@ -136,7 +136,7 @@ export function ScenePanel({
             />
             {mode === "text-to-video" && hasCharacterAvatars && (
               <p className="mt-1.5 text-[10px] text-foreground/40">
-                Text mode uses character descriptions. Switch to Image mode to send avatar images to Veo.
+                Text mode uses character descriptions. Switch to Image mode to send an avatar to Veo.
               </p>
             )}
             {mode === "image-to-video" && hasCharacterAvatars && (
@@ -144,13 +144,13 @@ export function ScenePanel({
                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
-                First avatar used as Veo asset reference
+                First avatar used as Veo image guidance
               </p>
             )}
           </div>
 
           <div>
-            <label className="text-[10px] text-foreground/40 mb-1.5 block">Aspect Ratio</label>
+            <label className="text-[10px] text-foreground/35 mb-1.5 block">Aspect Ratio</label>
             <SegmentedControl
               value={aspectRatio}
               options={[
@@ -162,7 +162,7 @@ export function ScenePanel({
           </div>
 
           <div>
-            <label className="text-[10px] text-foreground/40 mb-1.5 block">Resolution</label>
+            <label className="text-[10px] text-foreground/35 mb-1.5 block">Resolution</label>
             <SegmentedControl
               value={resolution}
               options={[

@@ -1,6 +1,7 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
+import { createAppError } from "../lib/error-utils";
 
 // Cost calculation constants (mirrored from lib/video-cost-calculator.ts for server-side use)
 const VIDEO_COST_FACTORS = {
@@ -34,7 +35,9 @@ export const generateUploadUrl = mutation({
   handler: async (ctx) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new Error("Must be authenticated to upload videos");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to upload videos"),
+      );
     }
     return await ctx.storage.generateUploadUrl();
   },
@@ -62,7 +65,9 @@ export const saveVideoGeneration = mutation({
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new Error("Must be authenticated to save video generations");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to save video generations"),
+      );
     }
 
     // Calculate cost if not provided
@@ -145,16 +150,25 @@ export const deleteVideoGeneration = mutation({
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new Error("Must be authenticated to delete video generations");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to delete video generations"),
+      );
     }
 
     const videoGeneration = await ctx.db.get(args.videoGenerationId);
     if (!videoGeneration) {
-      throw new Error("Video generation not found");
+      throw new ConvexError(
+        createAppError("NOT_FOUND", "Video generation not found"),
+      );
     }
 
     if (videoGeneration.userId !== user._id) {
-      throw new Error("Cannot delete another user's video generation");
+      throw new ConvexError(
+        createAppError(
+          "FORBIDDEN",
+          "You can only delete your own video generations",
+        ),
+      );
     }
 
     // Delete the files from storage

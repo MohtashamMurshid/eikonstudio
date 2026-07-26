@@ -1,5 +1,6 @@
 import { downloadVideo } from "@/lib/video-utilities";
 import type { GeneratedVideo } from "../types";
+import { getUserFacingErrorMessage } from "@/lib/error-utils";
 
 interface UseVideoActionsOptions {
   generatedVideo: GeneratedVideo | null;
@@ -19,7 +20,7 @@ export const useVideoActions = (options: UseVideoActionsOptions) => {
       onSuccess?.("Video downloaded successfully");
     } catch (error) {
       console.error("Error downloading video:", error);
-      onError?.("Failed to download video");
+      onError?.(getUserFacingErrorMessage(error, "Failed to download video"));
     }
   };
 
@@ -31,7 +32,7 @@ export const useVideoActions = (options: UseVideoActionsOptions) => {
       onSuccess?.("Video URL copied to clipboard");
     } catch (error) {
       console.error("Error copying video URL:", error);
-      onError?.("Failed to copy video URL");
+      onError?.(getUserFacingErrorMessage(error, "Failed to copy the video URL"));
     }
   };
 

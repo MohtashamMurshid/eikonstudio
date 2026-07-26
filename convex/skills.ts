@@ -1,6 +1,33 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query, internalQuery } from "./_generated/server";
+import { internalQuery, mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
+import { createAppError } from "../lib/error-utils";
+
+const skillSectionsValidator = v.object({
+  styleOverview: v.optional(v.string()),
+  visualHallmarks: v.optional(v.string()),
+  composition: v.optional(v.string()),
+  lighting: v.optional(v.string()),
+  palette: v.optional(v.string()),
+  materialsAndTextures: v.optional(v.string()),
+  mustInclude: v.optional(v.string()),
+  avoid: v.optional(v.string()),
+  negativePrompt: v.optional(v.string()),
+});
+
+const skillInputValidator = {
+  name: v.string(),
+  description: v.string(),
+  category: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+  promptText: v.optional(v.string()),
+  freeformInstructions: v.optional(v.string()),
+  sections: v.optional(skillSectionsValidator),
+  builtInSkillKey: v.optional(v.string()),
+  isBuiltIn: v.optional(v.boolean()),
+  isEditable: v.optional(v.boolean()),
+  sortOrder: v.optional(v.number()),
+} as const;
 
 const skillValidator = v.object({
   _id: v.id("skills"),
@@ -8,135 +35,245 @@ const skillValidator = v.object({
   userId: v.string(),
   name: v.string(),
   description: v.string(),
-  promptText: v.string(),
+  category: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+  promptText: v.optional(v.string()),
+  freeformInstructions: v.optional(v.string()),
+  sections: v.optional(skillSectionsValidator),
+  builtInSkillKey: v.optional(v.string()),
+  isBuiltIn: v.optional(v.boolean()),
+  isEditable: v.optional(v.boolean()),
+  sortOrder: v.optional(v.number()),
   createdAt: v.number(),
 });
 
-// Create a new custom skill
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+}
+
+function cleanString(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function cleanTags(tags: string[] | undefined): string[] | undefined {
+  if (!tags) return undefined;
+  const cleaned = tags
+    .map((tag) => tag.trim().toLowerCase())
+    .filter(Boolean);
+  return cleaned.length > 0 ? Array.from(new Set(cleaned)) : undefined;
+}
+
+function cleanSections(
+  sections:
+    | {
+        styleOverview?: string;
+        visualHallmarks?: string;
+        composition?: string;
+        lighting?: string;
+        palette?: string;
+        materialsAndTextures?: string;
+        mustInclude?: string;
+        avoid?: string;
+        negativePrompt?: string;
+      }
+    | undefined,
+) {
+  if (!sections) return undefined;
+
+  const cleaned = {
+    styleOverview: cleanString(sections.styleOverview),
+    visualHallmarks: cleanString(sections.visualHallmarks),
+    composition: cleanString(sections.composition),
+    lighting: cleanString(sections.lighting),
+    palette: cleanString(sections.palette),
+    materialsAndTextures: cleanString(sections.materialsAndTextures),
+    mustInclude: cleanString(sections.mustInclude),
+    avoid: cleanString(sections.avoid),
+    negativePrompt: cleanString(sections.negativePrompt),
+  };
+
+  return Object.values(cleaned).some(Boolean) ? cleaned : undefined;
+}
+
+function buildStoredSkill(args: {
+  name: string;
+  description: string;
+  category?: string;
+  tags?: string[];
+  promptText?: string;
+  freeformInstructions?: string;
+  sections?: {
+    styleOverview?: string;
+    visualHallmarks?: string;
+    composition?: string;
+    lighting?: string;
+    palette?: string;
+    materialsAndTextures?: string;
+    mustInclude?: string;
+    avoid?: string;
+    negativePrompt?: string;
+  };
+  builtInSkillKey?: string;
+  isBuiltIn?: boolean;
+  isEditable?: boolean;
+  sortOrder?: number;
+}) {
+  const normalizedName = normalizeName(args.name);
+  if (!normalizedName) {
+    throw new ConvexError(
+      createAppError("VALIDATION_ERROR", "Skill name cannot be empty"),
+    );
+  }
+
+  const description = args.description.trim();
+  if (!description) {
+    throw new ConvexError(
+      createAppError("VALIDATION_ERROR", "Skill description cannot be empty"),
+    );
+  }
+
+  return {
+    name: normalizedName,
+    description,
+    category: cleanString(args.category),
+    tags: cleanTags(args.tags),
+    promptText: cleanString(args.promptText),
+    freeformInstructions: cleanString(args.freeformInstructions),
+    sections: cleanSections(args.sections),
+    builtInSkillKey: cleanString(args.builtInSkillKey),
+    isBuiltIn: args.isBuiltIn,
+    isEditable: args.isEditable,
+    sortOrder: args.sortOrder,
+  };
+}
+
 export const createSkill = mutation({
-  args: {
-    name: v.string(),
-    description: v.string(),
-    promptText: v.string(),
-  },
+  args: skillInputValidator,
   returns: v.id("skills"),
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new ConvexError("Must be authenticated to create skills");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to create skills"),
+      );
     }
 
-    // Normalize the skill name (lowercase, no spaces, alphanumeric and hyphens only)
-    const normalizedName = args.name
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
+    const storedSkill = buildStoredSkill(args);
 
-    if (!normalizedName) {
-      throw new ConvexError("Skill name cannot be empty");
-    }
-
-    // Check if user already has a skill with this name
     const existingSkill = await ctx.db
       .query("skills")
-      .withIndex("by_user_name", (q) => 
-        q.eq("userId", user._id).eq("name", normalizedName)
-      )
+      .withIndex("by_user_name", (q) => q.eq("userId", user._id).eq("name", storedSkill.name))
       .first();
 
     if (existingSkill) {
-      throw new ConvexError(`You already have a skill named "${normalizedName}"`);
+      throw new ConvexError(
+        createAppError(
+          "CONFLICT",
+          `You already have a skill named "${storedSkill.name}"`,
+        ),
+      );
     }
 
-    const skillId = await ctx.db.insert("skills", {
+    return await ctx.db.insert("skills", {
       userId: user._id,
-      name: normalizedName,
-      description: args.description.trim(),
-      promptText: args.promptText.trim(),
+      ...storedSkill,
       createdAt: Date.now(),
     });
-
-    return skillId;
   },
 });
 
-// Update an existing custom skill
 export const updateSkill = mutation({
   args: {
     skillId: v.id("skills"),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
+    category: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
     promptText: v.optional(v.string()),
+    freeformInstructions: v.optional(v.string()),
+    sections: v.optional(skillSectionsValidator),
+    builtInSkillKey: v.optional(v.string()),
+    isBuiltIn: v.optional(v.boolean()),
+    isEditable: v.optional(v.boolean()),
+    sortOrder: v.optional(v.number()),
   },
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new ConvexError("Must be authenticated to update skills");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to update skills"),
+      );
     }
 
     const skill = await ctx.db.get("skills", args.skillId);
     if (!skill) {
-      throw new ConvexError("Skill not found");
+      throw new ConvexError(createAppError("NOT_FOUND", "Skill not found"));
     }
 
     if (skill.userId !== user._id) {
-      throw new ConvexError("Cannot update another user's skill");
+      throw new ConvexError(
+        createAppError("FORBIDDEN", "You can only update your own skills"),
+      );
     }
 
-    const updates: Partial<{
-      name: string;
-      description: string;
-      promptText: string;
-    }> = {};
+    const nextName = args.name !== undefined ? normalizeName(args.name) : skill.name;
+    if (!nextName) {
+      throw new ConvexError(
+        createAppError("VALIDATION_ERROR", "Skill name cannot be empty"),
+      );
+    }
 
-    if (args.name !== undefined) {
-      const normalizedName = args.name
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, "-")
-        .replace(/[^a-z0-9-]/g, "");
+    if (args.description !== undefined && !args.description.trim()) {
+      throw new ConvexError(
+        createAppError("VALIDATION_ERROR", "Skill description cannot be empty"),
+      );
+    }
 
-      if (!normalizedName) {
-        throw new ConvexError("Skill name cannot be empty");
+    if (nextName !== skill.name) {
+      const existingSkill = await ctx.db
+        .query("skills")
+        .withIndex("by_user_name", (q) => q.eq("userId", user._id).eq("name", nextName))
+        .first();
+
+      if (existingSkill) {
+        throw new ConvexError(
+          createAppError(
+            "CONFLICT",
+            `You already have a skill named "${nextName}"`,
+          ),
+        );
       }
-
-      // Check if user already has another skill with this name
-      if (normalizedName !== skill.name) {
-        const existingSkill = await ctx.db
-          .query("skills")
-          .withIndex("by_user_name", (q) => 
-            q.eq("userId", user._id).eq("name", normalizedName)
-          )
-          .first();
-
-        if (existingSkill) {
-          throw new ConvexError(`You already have a skill named "${normalizedName}"`);
-        }
-      }
-
-      updates.name = normalizedName;
     }
 
-    if (args.description !== undefined) {
-      updates.description = args.description.trim();
-    }
-
-    if (args.promptText !== undefined) {
-      updates.promptText = args.promptText.trim();
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return { success: true };
-    }
+    const updates = {
+      name: nextName,
+      description: args.description !== undefined ? args.description.trim() : skill.description,
+      category: args.category !== undefined ? cleanString(args.category) : skill.category,
+      tags: args.tags !== undefined ? cleanTags(args.tags) : skill.tags,
+      promptText: args.promptText !== undefined ? cleanString(args.promptText) : skill.promptText,
+      freeformInstructions:
+        args.freeformInstructions !== undefined
+          ? cleanString(args.freeformInstructions)
+          : skill.freeformInstructions,
+      sections: args.sections !== undefined ? cleanSections(args.sections) : skill.sections,
+      builtInSkillKey:
+        args.builtInSkillKey !== undefined ? cleanString(args.builtInSkillKey) : skill.builtInSkillKey,
+      isBuiltIn: args.isBuiltIn !== undefined ? args.isBuiltIn : skill.isBuiltIn,
+      isEditable: args.isEditable !== undefined ? args.isEditable : skill.isEditable,
+      sortOrder: args.sortOrder !== undefined ? args.sortOrder : skill.sortOrder,
+    };
 
     await ctx.db.patch("skills", args.skillId, updates);
     return { success: true };
   },
 });
 
-// Delete a custom skill
 export const deleteSkill = mutation({
   args: {
     skillId: v.id("skills"),
@@ -145,16 +282,20 @@ export const deleteSkill = mutation({
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new ConvexError("Must be authenticated to delete skills");
+      throw new ConvexError(
+        createAppError("UNAUTHENTICATED", "Sign in to delete skills"),
+      );
     }
 
     const skill = await ctx.db.get("skills", args.skillId);
     if (!skill) {
-      throw new ConvexError("Skill not found");
+      throw new ConvexError(createAppError("NOT_FOUND", "Skill not found"));
     }
 
     if (skill.userId !== user._id) {
-      throw new ConvexError("Cannot delete another user's skill");
+      throw new ConvexError(
+        createAppError("FORBIDDEN", "You can only delete your own skills"),
+      );
     }
 
     await ctx.db.delete("skills", args.skillId);
@@ -162,7 +303,6 @@ export const deleteSkill = mutation({
   },
 });
 
-// Get all custom skills for the current user
 export const getMySkills = query({
   args: {},
   returns: v.array(skillValidator),
@@ -172,18 +312,13 @@ export const getMySkills = query({
       return [];
     }
 
-    const skills = await ctx.db
+    return await ctx.db
       .query("skills")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
-
-    return skills;
   },
 });
 
-// Search skills for autocomplete (combines predefined + user's custom skills)
-// This is called from the client but returns only user's custom skills
-// Predefined skills are handled client-side for instant loading
 export const searchCustomSkills = query({
   args: {
     searchTerm: v.string(),
@@ -196,27 +331,36 @@ export const searchCustomSkills = query({
       return [];
     }
 
+    const searchLower = args.searchTerm.toLowerCase().trim();
     const limit = args.limit ?? 10;
-    const searchLower = args.searchTerm.toLowerCase();
 
-    // Get all user's skills and filter by search term
     const allSkills = await ctx.db
       .query("skills")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 
-    const matchingSkills = allSkills
-      .filter((skill) => 
-        skill.name.includes(searchLower) || 
-        skill.description.toLowerCase().includes(searchLower)
-      )
-      .slice(0, limit);
+    return allSkills
+      .filter((skill) => {
+        if (!searchLower) return true;
+        const haystack = [
+          skill.name,
+          skill.description,
+          skill.category,
+          skill.freeformInstructions,
+          skill.promptText,
+          ...(skill.tags ?? []),
+          ...Object.values(skill.sections ?? {}),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-    return matchingSkills;
+        return haystack.includes(searchLower);
+      })
+      .slice(0, limit);
   },
 });
 
-// Get a skill by name for the current user (used for server-side prompt appending)
 export const getSkillByName = query({
   args: {
     name: v.string(),
@@ -228,19 +372,13 @@ export const getSkillByName = query({
       return null;
     }
 
-    const skill = await ctx.db
+    return await ctx.db
       .query("skills")
-      .withIndex("by_user_name", (q) => 
-        q.eq("userId", user._id).eq("name", args.name.toLowerCase())
-      )
+      .withIndex("by_user_name", (q) => q.eq("userId", user._id).eq("name", args.name.toLowerCase()))
       .first();
-
-    return skill;
   },
 });
 
-// Internal query to get a skill by name for a specific user
-// Used by background actions that don't have auth context
 export const getSkillByNameInternal = internalQuery({
   args: {
     userId: v.string(),
@@ -248,13 +386,9 @@ export const getSkillByNameInternal = internalQuery({
   },
   returns: v.union(v.null(), skillValidator),
   handler: async (ctx, args) => {
-    const skill = await ctx.db
+    return await ctx.db
       .query("skills")
-      .withIndex("by_user_name", (q) => 
-        q.eq("userId", args.userId).eq("name", args.name.toLowerCase())
-      )
+      .withIndex("by_user_name", (q) => q.eq("userId", args.userId).eq("name", args.name.toLowerCase()))
       .first();
-
-    return skill;
   },
 });

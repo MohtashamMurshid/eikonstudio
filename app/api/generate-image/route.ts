@@ -1,10 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { GoogleGenAI } from "@google/genai"
 import { calculateCost, getModelName } from "@/lib/cost-calculator"
+import { debug } from "@/lib/debug"
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("API: Starting image generation request")
+    debug("API: Starting image generation request")
 
     const formData = await request.formData()
     const mode = formData.get("mode") as string
@@ -13,14 +14,14 @@ export async function POST(request: NextRequest) {
     const imageSize = (formData.get("imageSize") as string) || "2K"
     const customApiKey = formData.get("apiKey") as string
 
-    console.log("API: Mode:", mode)
-    console.log("API: Prompt:", prompt)
-    console.log("API: Aspect Ratio:", aspectRatio)
-    console.log("API: Image Size:", imageSize)
-    console.log("API: Using custom API key:", customApiKey ? "Yes" : "No (using server default)")
+    debug("API: Mode:", mode)
+    debug("API: Prompt:", prompt)
+    debug("API: Aspect Ratio:", aspectRatio)
+    debug("API: Image Size:", imageSize)
+    debug("API: Using custom API key:", customApiKey ? "Yes" : "No (using server default)")
 
     if (!mode || !prompt) {
-      console.log("API: Missing required fields")
+      debug("API: Missing required fields")
       return NextResponse.json({ error: "Mode and prompt are required" }, { status: 400 })
     }
 
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     const apiKeyToUse = customApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
 
     if (!apiKeyToUse) {
-      console.log("API: No API key available")
+      debug("API: No API key available")
       return NextResponse.json({ 
         error: "No API key configured", 
         details: "Please add your Google Gemini API key in the settings or configure a server-side API key." 
@@ -59,8 +60,8 @@ export async function POST(request: NextRequest) {
     let resultDescription: string = ""
 
     if (mode === "text-to-image") {
-      console.log("API: Using text-to-image mode with Nano Banana 2")
-      console.log("API: Using aspect_ratio:", aspectRatioString)
+      debug("API: Using text-to-image mode with Nano Banana 2")
+      debug("API: Using aspect_ratio:", aspectRatioString)
 
       // Using Nano Banana 2 (Gemini 3.1 Flash Image Preview)
       const response = await ai.models.generateContent({
@@ -103,8 +104,8 @@ export async function POST(request: NextRequest) {
         throw new Error("No image data found in response parts")
       }
     } else if (mode === "image-editing") {
-      console.log("API: Using image-editing mode")
-      console.log("API: Using aspect_ratio:", aspectRatioString)
+      debug("API: Using image-editing mode")
+      debug("API: Using aspect_ratio:", aspectRatioString)
 
       const image1 = formData.get("image1") as File
       const image2 = formData.get("image2") as File
@@ -122,11 +123,11 @@ export async function POST(request: NextRequest) {
       const hasImage4 = image4 || image4Url
 
       if (!hasImage1) {
-        console.log("API: Missing first image for editing mode")
+        debug("API: Missing first image for editing mode")
         return NextResponse.json({ error: "At least one image is required for editing mode" }, { status: 400 })
       }
 
-      console.log("API: Converting images to base64")
+      debug("API: Converting images to base64")
 
       const imageUrls: string[] = []
 
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
         const image1Base64 = `data:${image1.type};base64,${Buffer.from(image1Buffer).toString("base64")}`
 
         if (image1Base64.length > 1500000) {
-          console.log(
+          debug(
             "API: WARNING - Image1 base64 is very large:",
             image1Base64.length,
             "bytes. This may cause issues.",
@@ -144,10 +145,10 @@ export async function POST(request: NextRequest) {
         }
 
         imageUrls.push(image1Base64)
-        console.log("API: Image1 base64 length:", image1Base64.length)
+        debug("API: Image1 base64 length:", image1Base64.length)
       } else if (image1Url) {
         imageUrls.push(image1Url)
-        console.log("API: Using Image1 URL:", image1Url)
+        debug("API: Using Image1 URL:", image1Url)
       }
 
       // Process second image if present
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
         const image2Base64 = `data:${image2.type};base64,${Buffer.from(image2Buffer).toString("base64")}`
 
         if (image2Base64.length > 1500000) {
-          console.log(
+          debug(
             "API: WARNING - Image2 base64 is very large:",
             image2Base64.length,
             "bytes. This may cause issues.",
@@ -164,10 +165,10 @@ export async function POST(request: NextRequest) {
         }
 
         imageUrls.push(image2Base64)
-        console.log("API: Image2 base64 length:", image2Base64.length)
+        debug("API: Image2 base64 length:", image2Base64.length)
       } else if (image2Url) {
         imageUrls.push(image2Url)
-        console.log("API: Using Image2 URL:", image2Url)
+        debug("API: Using Image2 URL:", image2Url)
       }
 
       // Process third image if present
@@ -176,7 +177,7 @@ export async function POST(request: NextRequest) {
         const image3Base64 = `data:${image3.type};base64,${Buffer.from(image3Buffer).toString("base64")}`
 
         if (image3Base64.length > 1500000) {
-          console.log(
+          debug(
             "API: WARNING - Image3 base64 is very large:",
             image3Base64.length,
             "bytes. This may cause issues.",
@@ -184,10 +185,10 @@ export async function POST(request: NextRequest) {
         }
 
         imageUrls.push(image3Base64)
-        console.log("API: Image3 base64 length:", image3Base64.length)
+        debug("API: Image3 base64 length:", image3Base64.length)
       } else if (image3Url) {
         imageUrls.push(image3Url)
-        console.log("API: Using Image3 URL:", image3Url)
+        debug("API: Using Image3 URL:", image3Url)
       }
 
       // Process fourth image if present
@@ -196,7 +197,7 @@ export async function POST(request: NextRequest) {
         const image4Base64 = `data:${image4.type};base64,${Buffer.from(image4Buffer).toString("base64")}`
 
         if (image4Base64.length > 1500000) {
-          console.log(
+          debug(
             "API: WARNING - Image4 base64 is very large:",
             image4Base64.length,
             "bytes. This may cause issues.",
@@ -204,13 +205,13 @@ export async function POST(request: NextRequest) {
         }
 
         imageUrls.push(image4Base64)
-        console.log("API: Image4 base64 length:", image4Base64.length)
+        debug("API: Image4 base64 length:", image4Base64.length)
       } else if (image4Url) {
         imageUrls.push(image4Url)
-        console.log("API: Using Image4 URL:", image4Url)
+        debug("API: Using Image4 URL:", image4Url)
       }
 
-      console.log("API: Total images for editing:", imageUrls.length)
+      debug("API: Total images for editing:", imageUrls.length)
 
       // Build image parts (inlineData) for Gemini image model
       const toInlinePart = async (urlOrData: string): Promise<any> => {
@@ -232,7 +233,7 @@ export async function POST(request: NextRequest) {
         try {
           imageParts.push(await toInlinePart(u))
         } catch (e) {
-          console.log("API: Skipping invalid image reference:", u)
+          debug("API: Skipping invalid image reference:", u)
         }
       }
 
@@ -262,12 +263,12 @@ export async function POST(request: NextRequest) {
         throw new Error("No image returned from Google GenAI edit")
       }
     } else {
-      console.log("API: Invalid mode:", mode)
+      debug("API: Invalid mode:", mode)
       return NextResponse.json({ error: "Invalid mode. Must be 'text-to-image' or 'image-editing'" }, { status: 400 })
     }
 
     if (!resultUrl) {
-      console.log("API: No images in response")
+      debug("API: No images in response")
       throw new Error("No images generated")
     }
 
@@ -278,8 +279,8 @@ export async function POST(request: NextRequest) {
     const estimatedCost = calculateCost(imageSize, mode as "text-to-image" | "image-editing")
     const model = getModelName()
 
-    console.log("API: Generated image URL:", imageUrl)
-    console.log("API: Estimated cost:", estimatedCost)
+    debug("API: Generated image URL:", imageUrl)
+    debug("API: Estimated cost:", estimatedCost)
 
     return NextResponse.json({
       url: imageUrl,

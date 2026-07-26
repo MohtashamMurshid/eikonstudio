@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { LogoLoader } from "@/components/logo-icon"
 import { LazyImage } from "@/components/gallery/lazy-image"
+import { getUserFacingErrorMessage } from "@/lib/error-utils"
 
 interface Generation {
   _id: Id<"generations">
@@ -335,17 +336,23 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
   const [selectedImage, setSelectedImage] = useState<Generation | null>(null)
   const [deletingId, setDeletingId] = useState<Id<"generations"> | null>(null)
   const [copiedPromptId, setCopiedPromptId] = useState<Id<"generations"> | null>(null)
+  const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null)
 
   const handleDelete = useCallback(async (id: Id<"generations">) => {
     if (!confirm("Are you sure you want to delete this generation?")) return
     
     setDeletingId(id)
+    setFeedback(null)
     try {
       await deleteGeneration({ generationId: id })
       setSelectedImage((prev) => (prev?._id === id ? null : prev))
+      setFeedback({ kind: "success", message: "Generation deleted." })
     } catch (error) {
       console.error("Error deleting generation:", error)
-      alert("Failed to delete generation")
+      setFeedback({
+        kind: "error",
+        message: getUserFacingErrorMessage(error, "Failed to delete generation."),
+      })
     } finally {
       setDeletingId(null)
     }
@@ -355,9 +362,14 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
     try {
       await navigator.clipboard.writeText(generation.prompt)
       setCopiedPromptId(generation._id)
+      setFeedback({ kind: "success", message: "Prompt copied." })
       setTimeout(() => setCopiedPromptId(null), 2000)
     } catch (error) {
       console.error("Error copying prompt:", error)
+      setFeedback({
+        kind: "error",
+        message: getUserFacingErrorMessage(error, "Failed to copy prompt."),
+      })
     }
   }, [])
 
@@ -378,8 +390,13 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
       document.body.removeChild(link)
       
       URL.revokeObjectURL(url)
+      setFeedback({ kind: "success", message: "Image downloaded." })
     } catch (error) {
       console.error("Error downloading image:", error)
+      setFeedback({
+        kind: "error",
+        message: getUserFacingErrorMessage(error, "Failed to download image."),
+      })
     }
   }, [])
 
@@ -532,6 +549,15 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
             </span>
           )}
         </p>
+        {feedback && (
+          <p
+            className={`mt-2 text-sm ${
+              feedback.kind === "success" ? "text-emerald-600" : "text-red-600"
+            }`}
+          >
+            {feedback.message}
+          </p>
+        )}
       </div>
 
       {/* Date-grouped Grid */}
@@ -666,10 +692,12 @@ export function GenerationHistory({ onUseAsInput }: GenerationHistoryProps) {
                     <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">Aspect</p>
                     <p className="text-sm text-foreground capitalize">{selectedImage.aspectRatio}</p>
                   </div>
-                  <div className="bg-secondary/30 rounded-xl p-3">
-                    <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">Style</p>
-                    <p className="text-sm text-foreground">{selectedImage.artStyle || "None"}</p>
-                  </div>
+                  {selectedImage.artStyle ? (
+                    <div className="bg-secondary/30 rounded-xl p-3">
+                      <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">Legacy Style</p>
+                      <p className="text-sm text-foreground">{selectedImage.artStyle}</p>
+                    </div>
+                  ) : null}
                   <div className="bg-secondary/30 rounded-xl p-3">
                     <p className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-1">Est. Cost</p>
                     <p className="text-sm text-emerald-600 font-medium">

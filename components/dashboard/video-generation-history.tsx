@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { LogoLoader } from "@/components/logo-icon"
 import { VideoPlayer } from "@/components/ui/video-player"
+import { getUserFacingErrorMessage } from "@/lib/error-utils"
 
 interface VideoGeneration {
   _id: Id<"videoGenerations">
@@ -169,17 +170,23 @@ export function VideoGenerationHistory({ onUseAsReference }: VideoGenerationHist
   const [selectedVideo, setSelectedVideo] = useState<VideoGeneration | null>(null)
   const [deletingId, setDeletingId] = useState<Id<"videoGenerations"> | null>(null)
   const [copiedPromptId, setCopiedPromptId] = useState<Id<"videoGenerations"> | null>(null)
+  const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null)
 
   const handleDelete = useCallback(async (id: Id<"videoGenerations">) => {
     if (!confirm("Are you sure you want to delete this video?")) return
 
     setDeletingId(id)
+    setFeedback(null)
     try {
       await deleteGeneration({ videoGenerationId: id })
       setSelectedVideo((prev) => (prev?._id === id ? null : prev))
+      setFeedback({ kind: "success", message: "Video deleted." })
     } catch (error) {
       console.error("Error deleting video generation:", error)
-      alert("Failed to delete video")
+      setFeedback({
+        kind: "error",
+        message: getUserFacingErrorMessage(error, "Failed to delete video."),
+      })
     } finally {
       setDeletingId(null)
     }
@@ -189,9 +196,14 @@ export function VideoGenerationHistory({ onUseAsReference }: VideoGenerationHist
     try {
       await navigator.clipboard.writeText(generation.prompt)
       setCopiedPromptId(generation._id)
+      setFeedback({ kind: "success", message: "Prompt copied." })
       setTimeout(() => setCopiedPromptId(null), 2000)
     } catch (error) {
       console.error("Error copying prompt:", error)
+      setFeedback({
+        kind: "error",
+        message: getUserFacingErrorMessage(error, "Failed to copy prompt."),
+      })
     }
   }, [])
 
@@ -212,8 +224,13 @@ export function VideoGenerationHistory({ onUseAsReference }: VideoGenerationHist
       document.body.removeChild(link)
 
       URL.revokeObjectURL(url)
+      setFeedback({ kind: "success", message: "Video downloaded." })
     } catch (error) {
       console.error("Error downloading video:", error)
+      setFeedback({
+        kind: "error",
+        message: getUserFacingErrorMessage(error, "Failed to download video."),
+      })
     }
   }, [])
 
@@ -361,6 +378,15 @@ export function VideoGenerationHistory({ onUseAsReference }: VideoGenerationHist
         <p className="text-sm text-foreground/50 mt-1">
           {generations.length} video{generations.length !== 1 ? "s" : ""}
         </p>
+        {feedback && (
+          <p
+            className={`mt-2 text-sm ${
+              feedback.kind === "success" ? "text-emerald-600" : "text-red-600"
+            }`}
+          >
+            {feedback.message}
+          </p>
+        )}
       </div>
 
       {/* Date-grouped Grid */}

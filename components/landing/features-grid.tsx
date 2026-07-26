@@ -24,7 +24,7 @@ export function FeaturesGrid() {
           </div>
           <h3 className="text-lg font-semibold mb-2">AI Image Generation</h3>
           <p className="text-sm text-foreground/60 leading-relaxed">
-            Create and edit images with Gemini 3 Pro. 17 art styles and 13 skill presets included.
+            Create and edit images with Gemini 3 Pro or GPT Image 2. 17 art styles and 13 skill presets included.
           </p>
         </div>
 

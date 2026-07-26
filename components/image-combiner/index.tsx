@@ -21,9 +21,11 @@ import { FullscreenModal } from "./components/fullscreen-modal"
 import { ImagePreviewGrid } from "./components/image-preview-grid"
 import { PromptInputWithMentions } from "./components/prompt-input-with-mentions"
 import { ControlsBar } from "./components/controls-bar"
-import { ArtStyleSuggestions } from "./components/art-style-suggestions"
 import { GeneratedResultDisplay } from "./components/generated-result-display"
+import { getUserFacingErrorMessage } from "@/lib/error-utils"
+
 import { Logo } from "@/components/logo"
+import { IMAGE_MODEL_GPT_IMAGE_2, type ImageModelId } from "./constants"
 
 interface ExtendedImageCombinerProps extends ImageCombinerProps {
   pendingInputImage?: string | null
@@ -32,12 +34,12 @@ interface ExtendedImageCombinerProps extends ImageCombinerProps {
 
 const IMAGE_SLOTS: ImageSlot[] = [1, 2, 3, 4]
 
-export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }: ExtendedImageCombinerProps) {
+export function ImageCombiner({ providerApiKeys, pendingInputImage, onInputImageLoaded }: ExtendedImageCombinerProps) {
   const [prompt, setPrompt] = useState("")
   const [showFullscreen, setShowFullscreen] = useState(false)
+  const [imageModel, setImageModel] = useState<ImageModelId>(IMAGE_MODEL_GPT_IMAGE_2)
   const [aspectRatio, setAspectRatio] = useState<string>("square")
   const [imageSize, setImageSize] = useState<string>("2K")
-  const [selectedArtStyle, setSelectedArtStyle] = useState<string>("")
   const [activeGenerationId, setActiveGenerationId] = useState<Id<"generations"> | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -78,7 +80,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
   }, [generations])
 
   const imageGeneration = useImageGeneration({
-    apiKey,
+    providerApiKeys,
     currentMode,
     useUrls: imageUpload.useUrls,
     image1: imageUpload.image1,
@@ -92,7 +94,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
     prompt,
     aspectRatio,
     imageSize,
-    selectedArtStyle,
+    imageModel,
     onError: (message) => showToast(message, "error"),
     generateUploadUrl,
     startGeneration: async (params) => {
@@ -222,7 +224,13 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
         onInputImageLoaded?.()
       } catch (error) {
         console.error("Error loading image from history:", error)
-        showToast("Failed to load image from history", "error")
+        showToast(
+          getUserFacingErrorMessage(
+            error,
+            "Failed to load this image from history.",
+          ),
+          "error",
+        )
         onInputImageLoaded?.()
       }
     }
@@ -296,7 +304,10 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
       }
     } catch (error) {
       console.error("Error loading image as input:", error)
-      showToast("Error loading image", "error")
+      showToast(
+        getUserFacingErrorMessage(error, "Failed to load the generated image."),
+        "error",
+      )
     }
   }
 
@@ -328,6 +339,7 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
   const handleGenerate = () => {
     mentionHandler.handleGenerateWithMentions(() => imageGeneration.generateImage())
   }
+
 
   const isGenerating = imageGeneration.isLoading || imageUpload.isConvertingHeic || imageGeneration.generatedImage
 
@@ -399,27 +411,20 @@ export function ImageCombiner({ apiKey, pendingInputImage, onInputImageLoaded }:
 
             {/* Controls Bar */}
             <ControlsBar
+              imageModel={imageModel}
               aspectRatio={aspectRatio}
               imageSize={imageSize}
-              selectedArtStyle={selectedArtStyle}
               canGenerate={canGenerate}
               isLoading={imageGeneration.isLoading}
               isConvertingHeic={imageUpload.isConvertingHeic}
+              onImageModelChange={setImageModel}
               onAspectRatioChange={setAspectRatio}
               onImageSizeChange={setImageSize}
-              onArtStyleChange={setSelectedArtStyle}
               onGenerate={handleGenerate}
               onAddImages={() => document.getElementById("image-upload-multiple")?.click()}
             />
           </div>
 
-          {/* Art Style Suggestions */}
-          {!imageGeneration.isLoading && !imageUpload.isConvertingHeic && !imageGeneration.generatedImage && (
-            <ArtStyleSuggestions
-              selectedArtStyle={selectedArtStyle}
-              onArtStyleToggle={(style) => setSelectedArtStyle(selectedArtStyle === style ? "" : style)}
-            />
-          )}
 
           {/* Hidden file inputs for all 4 slots */}
           <input

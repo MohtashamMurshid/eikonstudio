@@ -51,16 +51,19 @@ export function useSkillHandler({
 
   const checkForSkillTrigger = useCallback(
     (text: string, cursor: number) => {
-      // Look backwards from cursor to find /
-      let hasSlash = false
+      let slashIndex = -1
       for (let i = cursor - 1; i >= 0; i--) {
         if (/\s/.test(text[i])) break
         if (text[i] === "/") {
-          hasSlash = true
+          slashIndex = i
           break
         }
       }
-      setShowSkillDropdown(hasSlash)
+
+      const isSlashCommand =
+        slashIndex >= 0 && (slashIndex === 0 || /\s/.test(text[slashIndex - 1] ?? ""))
+
+      setShowSkillDropdown(isSlashCommand)
     },
     []
   )

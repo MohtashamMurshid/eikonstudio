@@ -65,35 +65,28 @@ export function PromptBar({
   const maxImages = mode === "frame-to-video" ? 2 : 3;
   const showImageControls = mode === "image-to-video" || mode === "frame-to-video";
   const hasCharacterAvatars = characterAvatarPreviews.length > 0;
-  const avatarsActive = hasCharacterAvatars && mode === "image-to-video";
 
   return (
-    <div className="border-t border-border bg-card">
-      {/* Character avatar thumbnails (only shown when in image mode) */}
+    <div className="border-t border-border/50 bg-card/50">
+      {/* Character avatar thumbnails -- always active as Veo 3.1 referenceImages */}
       {hasCharacterAvatars && (
         <div className="px-4 pt-3 pb-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {characterAvatarPreviews.map((avatar, index) => (
-              <div key={`avatar-${index}`} className={`relative shrink-0 ${avatarsActive ? "" : "opacity-40"}`}>
+              <div key={`avatar-${index}`} className="relative shrink-0">
                 <img
                   src={avatar.url}
                   alt={avatar.name}
-                  className={`h-12 w-12 object-cover rounded-lg border ${avatarsActive ? "border-emerald-500/40" : "border-border"}`}
+                  className="h-12 w-12 object-cover rounded-xl border border-emerald-500/30"
                 />
-                <span className={`absolute bottom-0 left-0 right-0 text-[8px] text-center py-0.5 rounded-b-lg truncate px-0.5 ${avatarsActive ? "bg-emerald-900/80 text-emerald-200" : "bg-black/60 text-white/60"}`}>
+                <span className="absolute bottom-0 left-0 right-0 bg-emerald-900/80 text-emerald-200 text-[8px] text-center py-0.5 rounded-b-xl truncate px-0.5">
                   {avatar.name}
                 </span>
               </div>
             ))}
-            {avatarsActive ? (
-              <span className="text-[10px] text-emerald-400/70 bg-emerald-400/10 px-2 py-1 rounded-md border border-emerald-400/20">
-                Sent as references
-              </span>
-            ) : (
-              <span className="text-[10px] text-foreground/30">
-                Text descriptions only
-              </span>
-            )}
+            <span className="text-[10px] text-emerald-400/60 bg-emerald-400/8 px-2.5 py-1 rounded-xl border border-emerald-400/15">
+              Asset references
+            </span>
           </div>
         </div>
       )}
@@ -101,22 +94,22 @@ export function PromptBar({
       {/* Reference image thumbnails */}
       {showImageControls && hasAnyImages && (
         <div className="px-4 pt-3 pb-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {referenceImages.slice(0, maxImages).map((img, index) =>
               img.preview ? (
                 <div key={index} className="relative shrink-0 group">
                   <img
                     src={img.preview}
                     alt={`Reference ${index + 1}`}
-                    className="h-12 w-12 object-cover rounded-lg border border-border"
+                    className="h-12 w-12 object-cover rounded-xl border border-border/40"
                   />
                   <button
                     onClick={() => onClearImage(index)}
-                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute -top-1.5 -right-1.5 bg-red-500/90 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-all duration-200"
                   >
                     ×
                   </button>
-                  <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[8px] text-center py-0.5 rounded-b-lg">
+                  <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[8px] text-center py-0.5 rounded-b-xl">
                     {mode === "frame-to-video" ? (index === 0 ? "First" : "Last") : `Ref ${index + 1}`}
                   </span>
                 </div>
@@ -127,7 +120,7 @@ export function PromptBar({
       )}
 
       {/* Prompt input row */}
-      <div className="flex items-end gap-2 p-3">
+      <div className="flex items-end gap-2.5 p-4">
         {/* Image upload button */}
         {showImageControls && (
           <button
@@ -137,7 +130,7 @@ export function PromptBar({
                 fileInputRefs[nextSlot].current?.click();
               }
             }}
-            className="shrink-0 p-2.5 rounded-xl bg-secondary/40 hover:bg-secondary/60 text-foreground/50 hover:text-foreground transition-colors"
+            className="shrink-0 p-2.5 rounded-2xl bg-secondary/25 hover:bg-secondary/40 text-foreground/40 hover:text-foreground transition-all duration-200"
             title="Add reference image"
           >
             <ImagePlus className="w-4 h-4" />
@@ -158,20 +151,20 @@ export function PromptBar({
                 : "Describe the transition between frames..."
             }
             rows={1}
-            className="w-full min-h-[44px] max-h-[120px] px-4 py-2.5 bg-secondary/20 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-1 focus:ring-foreground/20 resize-none"
+            className="w-full min-h-[44px] max-h-[120px] px-4 py-2.5 bg-secondary/15 border border-border/40 rounded-2xl text-sm text-foreground placeholder:text-foreground/25 focus:outline-none focus:ring-1 focus:ring-foreground/15 resize-none transition-colors duration-200"
             style={{ fontSize: "14px", lineHeight: "1.5" }}
           />
         </div>
 
         {/* Generate button */}
-        <div className="shrink-0 flex items-center gap-2">
-          <span className="text-[11px] text-foreground/30 hidden sm:block tabular-nums">
+        <div className="shrink-0 flex items-center gap-2.5">
+          <span className="text-[11px] text-foreground/25 hidden sm:block tabular-nums">
             ~${estimatedCost.toFixed(3)}
           </span>
           <Button
             onClick={onGenerate}
             disabled={!canGenerate || isLoading}
-            className="h-[44px] w-[44px] rounded-xl bg-foreground text-background hover:bg-foreground/90 p-0"
+            className="h-[44px] w-[44px] rounded-2xl bg-foreground text-background hover:bg-foreground/90 p-0 transition-all duration-200"
           >
             {isLoading ? (
               <div className="w-4 h-4 border-2 border-background/30 border-t-background rounded-full animate-spin" />

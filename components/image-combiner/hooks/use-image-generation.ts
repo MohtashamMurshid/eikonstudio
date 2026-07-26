@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import type { GeneratedImage } from "../types"
+import { IMAGE_MODEL_GPT_IMAGE_2, type ImageModelId } from "../constants"
 import type { Id } from "@/convex/_generated/dataModel"
+import { getUserFacingErrorMessage } from "@/lib/error-utils"
 
 /**
  * Upload blob to Convex storage
@@ -15,6 +17,9 @@ const uploadToStorage = async (
     headers: { "Content-Type": blob.type },
     body: blob,
   })
+  if (!response.ok) {
+    throw new Error("Failed to upload the image to storage")
+  }
   const { storageId } = await response.json()
   return storageId
 }
@@ -31,8 +36,8 @@ interface StartGenerationParams {
   mode: "text-to-image" | "image-editing"
   aspectRatio: string
   imageSize: string
-  artStyle?: string
   apiKey?: string
+  imageModel: ImageModelId
   referenceImageIds?: Id<"_storage">[]
 }
 
@@ -45,7 +50,10 @@ interface GenerationRecord {
 }
 
 interface UseImageGenerationOptions {
-  apiKey: string
+  providerApiKeys: {
+    gemini: string
+    openai: string
+  }
   currentMode: "text-to-image" | "image-editing"
   useUrls: boolean
   image1: File | null
@@ -59,7 +67,7 @@ interface UseImageGenerationOptions {
   prompt: string
   aspectRatio: string
   imageSize: string
-  selectedArtStyle: string
+  imageModel: ImageModelId
   onError?: (message: string) => void
   generateUploadUrl: () => Promise<string>
   startGeneration: (params: StartGenerationParams) => Promise<Id<"generations">>
@@ -148,7 +156,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       currentMode, useUrls, 
       image1, image1Url, image2, image2Url, 
       image3, image3Url, image4, image4Url,
-      prompt, aspectRatio, imageSize, selectedArtStyle, apiKey, 
+      prompt, aspectRatio, imageSize, imageModel, providerApiKeys, 
       onError, generateUploadUrl, startGeneration 
     } = options
 
@@ -182,6 +190,11 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       })
     }, 100)
 
+    const providerApiKey =
+      imageModel === IMAGE_MODEL_GPT_IMAGE_2
+        ? providerApiKeys.openai
+        : providerApiKeys.gemini
+
     try {
       // Upload reference images first if in image-editing mode
       let referenceImageIds: Id<"_storage">[] | undefined
@@ -213,6 +226,9 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
             } else if (img.url) {
               // Fetch URL and convert to blob
               const response = await fetch(img.url)
+              if (!response.ok) {
+                throw new Error("Failed to fetch a reference image")
+              }
               blob = await response.blob()
             } else {
               continue
@@ -237,8 +253,8 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
         mode: currentMode,
         aspectRatio,
         imageSize,
-        artStyle: selectedArtStyle || undefined,
-        apiKey: apiKey || undefined,
+        apiKey: providerApiKey || undefined,
+        imageModel,
         referenceImageIds,
       })
 
@@ -271,8 +287,12 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       setIsSaving(false)
       console.error("Error starting generation:", error)
 
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
-      onError?.(`Error starting generation: ${errorMessage}`)
+      onError?.(
+        getUserFacingErrorMessage(
+          error,
+          "Unable to start generation right now. Please try again.",
+        ),
+      )
     }
   }
 
