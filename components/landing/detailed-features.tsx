@@ -8,56 +8,43 @@ const images = [
     alt: "AI generated Japanese garden",
     className: "sm:col-span-2 sm:row-span-2",
     label: "Watercolor study",
-    ratio: "16:9",
   },
   {
     src: "/neon-city-rain.png",
     alt: "AI generated neon city",
     className: "",
     label: "Night system",
-    ratio: "1:1",
   },
   {
     src: "/ocean-cliffs-aerial.png",
     alt: "AI generated ocean cliffs",
     className: "",
     label: "Aerial frame",
-    ratio: "4:3",
   },
 ];
 
 export function DetailedFeatures() {
   return (
     <>
-      <section className="grid border-b border-foreground/15 lg:grid-cols-[1.28fr_0.72fr]">
-        <div className="border-b border-foreground/15 p-4 sm:p-7 lg:border-b-0 lg:border-r">
-          <div className="grid min-h-[520px] grid-cols-1 gap-px bg-foreground/15 sm:grid-cols-3 sm:grid-rows-2">
+      <section className="grid border-b border-foreground/10 lg:grid-cols-[1.28fr_0.72fr]">
+        <div className="border-b border-foreground/10 p-4 sm:p-6 lg:border-b-0 lg:border-r">
+          <div className="grid min-h-[480px] grid-cols-1 gap-px bg-foreground/10 sm:grid-cols-3 sm:grid-rows-2">
             {images.map((image, index) => (
               <div
                 key={image.src}
-                className={`group relative min-h-[230px] overflow-hidden bg-background ${image.className}`}
+                className={`group relative min-h-[220px] overflow-hidden bg-background ${image.className}`}
               >
                 <Image
                   src={image.src}
                   alt={image.alt}
                   fill
                   sizes={index === 0 ? "(max-width: 1024px) 100vw, 55vw" : "30vw"}
-                  className="object-cover grayscale-[18%] transition-transform duration-500 [transition-timing-function:var(--ease-ui-out)] group-hover:scale-[1.02]"
+                  className="object-cover grayscale-[12%] transition-transform duration-500 [transition-timing-function:var(--ease-ui-out)] group-hover:scale-[1.02]"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-4 text-white">
-                  <div>
-                    <p className="text-[7px] uppercase tracking-[0.16em] text-white/55">
-                      Output {String(index + 1).padStart(2, "0")}
-                    </p>
-                    <p className="mt-1 font-sans text-sm font-medium">
-                      {image.label}
-                    </p>
-                  </div>
-                  <span className="text-[7px] uppercase tracking-[0.14em] text-white/60">
-                    {image.ratio}
-                  </span>
-                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                <p className="absolute inset-x-0 bottom-0 p-4 font-sans text-sm font-medium text-white">
+                  {image.label}
+                </p>
               </div>
             ))}
           </div>
@@ -79,7 +66,7 @@ export function DetailedFeatures() {
               breaking your flow.
             </p>
           </div>
-          <div className="mt-12 border-t border-foreground/15">
+          <div className="mt-10 space-y-3">
             {[
               "Folders that stay lightweight",
               "Fast @mentions in new prompts",
@@ -88,9 +75,9 @@ export function DetailedFeatures() {
             ].map((feature) => (
               <div
                 key={feature}
-                className="flex items-center gap-3 border-b border-foreground/15 py-3 text-[9px] text-foreground/58"
+                className="flex items-center gap-3 text-[12px] text-foreground/55"
               >
-                <Check className="size-3 text-emerald-500" strokeWidth={1.6} />
+                <Check className="size-3.5 text-emerald-500" strokeWidth={1.6} />
                 {feature}
               </div>
             ))}
@@ -98,8 +85,8 @@ export function DetailedFeatures() {
         </div>
       </section>
 
-      <section className="grid border-b border-foreground/15 lg:grid-cols-[0.72fr_1.28fr]">
-        <div className="flex flex-col justify-between border-b border-foreground/15 px-6 py-12 sm:px-10 lg:border-b-0 lg:border-r lg:p-12">
+      <section className="grid border-b border-foreground/10 lg:grid-cols-[0.72fr_1.28fr]">
+        <div className="flex flex-col justify-between border-b border-foreground/10 px-6 py-12 sm:px-10 lg:border-b-0 lg:border-r lg:p-12">
           <div>
             <p className="text-[8px] uppercase tracking-[0.18em] text-emerald-500">
               Developer interface
@@ -116,7 +103,7 @@ export function DetailedFeatures() {
           </div>
           <Link
             href="/api-docs"
-            className="ui-pressable group mt-10 inline-flex w-fit items-center gap-8 border border-foreground/15 px-5 py-3 text-[8px] uppercase tracking-[0.15em] hover:bg-foreground/[0.035]"
+            className="ui-pressable group mt-10 inline-flex w-fit items-center gap-3 text-[9px] uppercase tracking-[0.15em] text-foreground/50 hover:text-foreground"
           >
             Read API docs
             <ArrowRight
@@ -126,16 +113,13 @@ export function DetailedFeatures() {
           </Link>
         </div>
 
-        <div className="bg-[#07110e] p-4 text-white sm:p-8 lg:p-12">
-          <div className="overflow-hidden border border-white/15 bg-[#030806]">
-            <div className="flex items-center justify-between border-b border-white/12 px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span className="size-1.5 bg-emerald-400" />
-                <span className="text-[7px] uppercase tracking-[0.18em] text-white/45">
-                  POST /api/v1/generate
-                </span>
-              </div>
-              <Copy className="size-3 text-white/35" strokeWidth={1.5} />
+        <div className="bg-[#07110e] p-5 text-white sm:p-8 lg:p-12">
+          <div className="overflow-hidden border border-white/10 bg-[#030806]">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <span className="text-[8px] uppercase tracking-[0.18em] text-white/40">
+                POST /api/v1/generate
+              </span>
+              <Copy className="size-3 text-white/30" strokeWidth={1.5} />
             </div>
             <pre className="overflow-x-auto p-5 text-[10px] leading-6 text-white/62 sm:p-7 sm:text-xs">
               <code>
@@ -165,25 +149,6 @@ export function DetailedFeatures() {
                 {"}"});
               </code>
             </pre>
-            <div className="grid grid-cols-3 border-t border-white/12">
-              {[
-                ["Status", "200 OK"],
-                ["Format", "JSON"],
-                ["Latency", "~4.2s"],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="border-r border-white/12 px-4 py-3 last:border-r-0"
-                >
-                  <p className="text-[6px] uppercase tracking-[0.14em] text-white/28">
-                    {label}
-                  </p>
-                  <p className="mt-1 text-[8px] uppercase tracking-[0.12em] text-emerald-400">
-                    {value}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </section>

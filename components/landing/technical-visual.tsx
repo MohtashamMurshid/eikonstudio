@@ -1,45 +1,12 @@
 import { LogoIcon } from "@/components/logo-icon";
 
-function Callout({
-  className,
-  label,
-  align = "left",
-}: {
-  className: string;
-  label: string;
-  align?: "left" | "right";
-}) {
-  return (
-    <div
-      className={`absolute hidden items-center gap-2 text-[7px] uppercase tracking-[0.14em] text-foreground/45 sm:flex ${className}`}
-    >
-      {align === "right" && <span className="h-px w-8 bg-foreground/20" />}
-      <span>{label}</span>
-      {align === "left" && <span className="h-px w-8 bg-foreground/20" />}
-    </div>
-  );
-}
-
 export function TechnicalVisual() {
   return (
-    <div className="relative flex min-h-[480px] items-center justify-center overflow-hidden px-5 py-16 sm:min-h-[620px] sm:px-10">
-      <div className="absolute inset-0 opacity-[0.035] dark:opacity-[0.07] landing-dots" />
+    <div className="relative flex min-h-[420px] items-center justify-center overflow-hidden px-6 py-14 sm:min-h-[520px] sm:px-10 sm:py-16">
+      <div className="absolute inset-0 opacity-[0.025] dark:opacity-[0.05] landing-dots" />
 
-      <div className="absolute left-6 top-5 text-[7px] uppercase tracking-[0.16em] text-foreground/40">
-        Fig. 01 — generation engine
-      </div>
-      <div className="absolute right-6 top-5 flex items-center gap-2 text-[7px] uppercase tracking-[0.16em] text-foreground/40">
-        <span>Live render</span>
-        <span className="size-1.5 rounded-full bg-emerald-500" />
-      </div>
-
-      <Callout className="left-[4%] top-[32%]" label="Prompt input" />
-      <Callout className="right-[3%] top-[38%]" label="Model array" align="right" />
-      <Callout className="left-[3%] bottom-[28%]" label="Asset library" />
-      <Callout className="right-[4%] bottom-[22%]" label="Export bus" align="right" />
-
-      <div className="relative w-full max-w-[480px]">
-        <div className="absolute -inset-10 bg-emerald-500/[0.055] blur-3xl" />
+      <div className="relative w-full max-w-[440px]">
+        <div className="absolute -inset-10 bg-emerald-500/[0.04] blur-3xl" />
         <svg
           viewBox="0 0 520 520"
           className="relative h-auto w-full text-foreground"
@@ -204,24 +171,7 @@ export function TechnicalVisual() {
 
           <path d="M238 67V37" stroke="currentColor" strokeOpacity=".35" />
           <circle cx="238" cy="32" r="3" fill="#34d399" />
-          <text
-            x="238"
-            y="20"
-            textAnchor="middle"
-            fill="currentColor"
-            opacity=".42"
-            fontSize="7"
-            letterSpacing="1.2"
-          >
-            EIKON CORE
-          </text>
         </svg>
-      </div>
-
-      <div className="absolute bottom-5 right-6 text-right text-[7px] uppercase leading-relaxed tracking-[0.14em] text-foreground/35">
-        Rev 01 / Build 2026
-        <br />
-        Models: Gemini + GPT Image
       </div>
     </div>
   );
