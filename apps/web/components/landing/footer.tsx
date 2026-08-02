@@ -13,6 +13,12 @@ export function LandingFooter() {
       </div>
       <div className="flex items-center border-t border-foreground/10 sm:border-l sm:border-t-0">
         <Link
+          href="/models"
+          className="ui-pressable border-r border-foreground/10 px-5 py-4 text-[8px] uppercase tracking-[0.15em] text-foreground/45 hover:text-foreground"
+        >
+          Models
+        </Link>
+        <Link
           href="/api-docs"
           className="ui-pressable border-r border-foreground/10 px-5 py-4 text-[8px] uppercase tracking-[0.15em] text-foreground/45 hover:text-foreground"
         >

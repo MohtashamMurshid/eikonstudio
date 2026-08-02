@@ -6,6 +6,7 @@ import OpenAI from "openai";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
+import { IMAGE_MODEL_GEMINI_FLASH, IMAGE_MODEL_GEMINI_PRO, IMAGE_MODEL_GPT_IMAGE_2 } from "./imageModels";
 
 const providerValidator = v.union(v.literal("gemini"), v.literal("openai"));
 
@@ -27,8 +28,7 @@ const gatewayResponseValidator = v.object({
   }),
 });
 
-const GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image-preview" as const;
-const OPENAI_IMAGE_MODEL = "gpt-image-2" as const;
+const GEMINI_IMAGE_MODELS = [IMAGE_MODEL_GEMINI_FLASH, IMAGE_MODEL_GEMINI_PRO] as const;
 
 type CreatePlatformApiKeyResult = {
   apiKey: string;
@@ -226,8 +226,8 @@ export const generateGatewayImage = action({
     let model = args.model;
 
     if (args.provider === "gemini") {
-      model = model || GEMINI_IMAGE_MODEL;
-      if (model !== GEMINI_IMAGE_MODEL) {
+      model = model || IMAGE_MODEL_GEMINI_FLASH;
+      if (!(GEMINI_IMAGE_MODELS as readonly string[]).includes(model)) {
         throw new Error(`Unsupported Gemini model: ${model}`);
       }
 
@@ -257,8 +257,8 @@ export const generateGatewayImage = action({
         }
       }
     } else {
-      model = model || OPENAI_IMAGE_MODEL;
-      if (model !== OPENAI_IMAGE_MODEL) {
+      model = model || IMAGE_MODEL_GPT_IMAGE_2;
+      if (model !== IMAGE_MODEL_GPT_IMAGE_2) {
         throw new Error(`Unsupported OpenAI model: ${model}`);
       }
 

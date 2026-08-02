@@ -9,8 +9,9 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const navigation = [
   ["Workbench", "/studio"],
-  ["Capabilities", "#capabilities"],
-  ["Process", "#process"],
+  ["Models", "/models"],
+  ["Capabilities", "/#capabilities"],
+  ["Process", "/#process"],
   ["API", "/api-docs"],
 ] as const;
 
@@ -86,7 +87,7 @@ export function LandingHeader() {
       {menuOpen && (
         <nav
           id="landing-mobile-nav"
-          className="absolute inset-x-0 top-full grid grid-cols-2 border-b border-foreground/10 bg-background shadow-[0_18px_40px_rgba(0,0,0,0.12)] sm:grid-cols-4 lg:hidden"
+          className="absolute inset-x-0 top-full grid grid-cols-2 border-b border-foreground/10 bg-background shadow-[0_18px_40px_rgba(0,0,0,0.12)] sm:grid-cols-5 lg:hidden"
           aria-label="Compact navigation"
         >
           {navigation.map(([label, href]) => (

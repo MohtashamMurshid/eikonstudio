@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useConvexAuth } from "convex/react"
 import { Logo } from "@/components/logo"
 import { LogoLoader } from "@/components/logo-icon"
+import { IMAGE_MODEL_GEMINI_FLASH, IMAGE_MODEL_GPT_IMAGE_2 } from "@/lib/image-models"
 
 type CodeLanguage = "curl" | "javascript" | "python"
 type Provider = "gemini" | "openai"
@@ -27,8 +28,8 @@ interface ApiResponse {
 }
 
 const providerModels: Record<Provider, string> = {
-  gemini: "gemini-3.1-flash-image-preview",
-  openai: "gpt-image-2",
+  gemini: IMAGE_MODEL_GEMINI_FLASH,
+  openai: IMAGE_MODEL_GPT_IMAGE_2,
 }
 
 export default function ApiDocsPage() {
@@ -228,7 +229,7 @@ print(data["url"])`,
             {[
               ["prompt", "required", "string", "Text description of the image to generate."],
               ["provider", "required", "string", "One of `gemini` or `openai`."],
-              ["model", "optional", "string", "Current models: `gemini-3.1-flash-image-preview`, `gpt-image-2`."],
+              ["model", "optional", "string", "Current models: `gemini-3.1-flash-image`, `gemini-3-pro-image`, `gpt-image-2`. Provider and model must match."],
               ["imageSize", "optional", "string", "One of `1K`, `2K`, or `4K`. Default: `2K`."],
               ["aspectRatio", "optional", "string", "One of `square`, `portrait`, `landscape`, or `wide`. Default: `square`."],
             ].map(([name, required, type, description]) => (

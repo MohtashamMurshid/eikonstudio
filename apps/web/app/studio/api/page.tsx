@@ -205,7 +205,7 @@ export default function StudioApiPage() {
             <div className="mt-4 space-y-3 text-sm text-muted-foreground">
               <p><code className="rounded bg-secondary px-1.5 py-0.5 text-xs">Authorization: Bearer &lt;platform-api-key&gt;</code></p>
               <p><code className="rounded bg-secondary px-1.5 py-0.5 text-xs">provider</code> must be <code className="rounded bg-secondary px-1.5 py-0.5 text-xs">gemini</code> or <code className="rounded bg-secondary px-1.5 py-0.5 text-xs">openai</code>.</p>
-              <p><code className="rounded bg-secondary px-1.5 py-0.5 text-xs">model</code> currently supports <code className="rounded bg-secondary px-1.5 py-0.5 text-xs">gemini-3.1-flash-image-preview</code> and <code className="rounded bg-secondary px-1.5 py-0.5 text-xs">gpt-image-2</code>.</p>
+              <p><code className="rounded bg-secondary px-1.5 py-0.5 text-xs">model</code> currently supports <code className="rounded bg-secondary px-1.5 py-0.5 text-xs">gemini-3.1-flash-image</code>, <code className="rounded bg-secondary px-1.5 py-0.5 text-xs">gemini-3-pro-image</code>, and <code className="rounded bg-secondary px-1.5 py-0.5 text-xs">gpt-image-2</code>.</p>
             </div>
 
             <pre className={`mt-4 ${codeBlockClass}`}>

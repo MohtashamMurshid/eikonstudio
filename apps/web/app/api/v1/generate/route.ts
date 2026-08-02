@@ -1,6 +1,7 @@
 import { fetchAction } from "convex/nextjs";
 import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
+import { getImageModelProvider, isImageModelId } from "@/lib/image-models";
 
 type GenerateApiRequest = {
   prompt?: string;
@@ -56,6 +57,16 @@ export async function POST(request: NextRequest) {
         {
           error: "Invalid provider",
           details: "provider must be one of: gemini, openai",
+        },
+        { status: 400, headers: CORS_HEADERS },
+      );
+    }
+
+    if (body.model && (!isImageModelId(body.model) || getImageModelProvider(body.model) !== provider)) {
+      return NextResponse.json(
+        {
+          error: "Invalid model",
+          details: "model must be an Eikon-ready image model owned by the selected provider",
         },
         { status: 400, headers: CORS_HEADERS },
       );

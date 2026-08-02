@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import type { GeneratedImage } from "../types"
-import { IMAGE_MODEL_GPT_IMAGE_2, type ImageModelId } from "../constants"
+import { type ImageModelId } from "../constants"
+import { getImageModelProvider } from "@/lib/image-models"
 import type { Id } from "@/convex/_generated/dataModel"
 import { getUserFacingErrorMessage } from "@/lib/error-utils"
 
@@ -190,10 +191,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       })
     }, 100)
 
-    const providerApiKey =
-      imageModel === IMAGE_MODEL_GPT_IMAGE_2
-        ? providerApiKeys.openai
-        : providerApiKeys.gemini
+    const providerApiKey = providerApiKeys[getImageModelProvider(imageModel)]
 
     try {
       // Upload reference images first if in image-editing mode

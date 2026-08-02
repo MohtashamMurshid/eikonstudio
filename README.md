@@ -12,7 +12,8 @@ one place.
 ## Features
 
 - Text-to-image and image-editing modes
-- Multiple image models: **Google Gemini 3 Pro** and **OpenAI GPT Image 2** — switch per generation
+- Three integrated image variants: **Nano Banana 2**, **Nano Banana Pro**, and **OpenAI GPT Image 2** — switch per generation
+- Public, source-backed [`/models`](https://eikonstudio.xyz/models) catalog spanning all ten Eikon model families
 - Personal gallery with folder organization
 - Usage analytics dashboard
 - Google OAuth authentication (via Better Auth + Convex)
@@ -24,8 +25,20 @@ one place.
 - **Frontend:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4
 - **Backend:** Convex (real-time database + serverless functions)
 - **Auth:** Better Auth with the `@convex-dev/better-auth` component (Google OAuth)
-- **AI:** Google Gemini (`gemini-3.1-flash-image-preview`) and OpenAI (`gpt-image-2`)
+- **AI:** Google Gemini (`gemini-3.1-flash-image`, `gemini-3-pro-image`) and OpenAI (`gpt-image-2`)
 - **UI:** Radix UI + shadcn/ui patterns
+
+## Model catalog and execution readiness
+
+The canonical registry in `@eikonstudio/core` is checked against first-party provider documentation as of **2026-08-02**. It records every verified variant, including preview, deprecated, entitlement-restricted, and not-yet-executable models. A provider listing a model does **not** mean Eikon can execute it.
+
+Only these catalog entries are currently marked **Eikon ready** and appear in the image creator:
+
+- `gemini-3.1-flash-image` — Nano Banana 2
+- `gemini-3-pro-image` — Nano Banana Pro
+- `gpt-image-2` — GPT Image 2
+
+All other entries remain visible at `/models` as discovered metadata and are excluded from generation selectors until a provider adapter is actually integrated.
 
 ---
 
