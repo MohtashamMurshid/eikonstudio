@@ -1,8 +1,18 @@
-/** Must match convex/imageGeneration.ts and convex/schema generations.imageModel */
-export const IMAGE_MODEL_GEMINI = "gemini-3.1-flash-image-preview" as const;
-export const IMAGE_MODEL_GPT_IMAGE_2 = "gpt-image-2" as const;
+import { EXECUTABLE_IMAGE_MODELS } from "@eikonstudio/core";
+import {
+  IMAGE_MODEL_GEMINI,
+  IMAGE_MODEL_GEMINI_PRO,
+  IMAGE_MODEL_GPT_IMAGE_2,
+  type ImageModelId,
+} from "@/lib/image-models";
 
-export type ImageModelId = typeof IMAGE_MODEL_GEMINI | typeof IMAGE_MODEL_GPT_IMAGE_2;
+export { IMAGE_MODEL_GEMINI, IMAGE_MODEL_GEMINI_PRO, IMAGE_MODEL_GPT_IMAGE_2 };
+export type { ImageModelId };
+
+const logoForProvider = {
+  openai: { logo: "/logos/gpt-image.svg", logoClassName: "dark:invert" },
+  google: { logo: "/logos/gemini.svg" },
+} as const;
 
 export const IMAGE_MODEL_OPTIONS: {
   id: ImageModelId;
@@ -10,15 +20,14 @@ export const IMAGE_MODEL_OPTIONS: {
   logo: string;
   /** Extra classes for the logo <img> (e.g. invert black mark to white in dark mode) */
   logoClassName?: string;
-}[] = [
-  {
-    id: IMAGE_MODEL_GPT_IMAGE_2,
-    label: "GPT Image 2",
-    logo: "/logos/gpt-image.svg",
-    logoClassName: "dark:invert",
-  },
-  { id: IMAGE_MODEL_GEMINI, label: "Gemini 3.1 Flash", logo: "/logos/gemini.svg" },
-];
+}[] = EXECUTABLE_IMAGE_MODELS.map((model) => {
+  const providerLogo = logoForProvider[model.providerId as keyof typeof logoForProvider];
+  return {
+    id: model.nativeId as ImageModelId,
+    label: model.aliases[0] ? `${model.aliases[0]} · ${model.displayName}` : model.displayName,
+    ...providerLogo,
+  };
+});
 
 export const randomPrompts = [
   "A cyberpunk cityscape with neon lights reflecting on wet streets at midnight",

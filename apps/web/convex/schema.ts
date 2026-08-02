@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { storedImageModelValidator } from "./imageModels";
 
 export default defineSchema({
   generations: defineTable({
@@ -16,9 +17,7 @@ export default defineSchema({
     estimatedCost: v.optional(v.number()), // Cost in USD
     model: v.optional(v.string()), // Model name used for generation
     /** User-selected image model for this generation (set when job is created) */
-    imageModel: v.optional(
-      v.union(v.literal("gemini-3.1-flash-image-preview"), v.literal("gpt-image-2"))
-    ),
+    imageModel: v.optional(storedImageModelValidator),
     // Background generation status (optional for backward compatibility with existing records)
     status: v.optional(v.union(
       v.literal("pending"),

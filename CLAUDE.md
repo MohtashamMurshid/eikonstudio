@@ -8,6 +8,8 @@ Eikon Studio (formerly Nano Banana Starter) is an AI image generation platform b
 
 **Live deployment:** https://eikonstudio.xyz
 
+The public `/models` route renders the canonical, first-party-source-backed model registry. Catalog availability and Eikon execution readiness are separate fields; never expose discovered-only entries in creator selectors.
+
 ## Development Commands
 
 ```bash
@@ -47,14 +49,14 @@ pnpm typecheck
 - **Frontend:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4
 - **Backend:** Convex (real-time database + serverless functions)
 - **Authentication:** Better Auth + Convex integration (Google OAuth)
-- **AI:** Google Gemini 3 Pro Image Preview API
+- **AI:** Google Gemini stable image APIs (`gemini-3.1-flash-image`, `gemini-3-pro-image`) and OpenAI GPT Image 2 (`gpt-image-2`)
 - **UI Components:** Radix UI, shadcn/ui patterns
 - **State Management:** Convex React hooks with query caching (5-minute cache, 100 max idle entries)
 
 ### Key Architecture Patterns
 
 #### 0. Shared platform contracts
-- `packages/core`: canonical provider/model IDs, Zod schemas, model-family registry, and generation lifecycle
+- `packages/core`: canonical provider/model IDs, strict source-backed variant catalog (as of 2026-08-02), Zod schemas, model-family registry, and generation lifecycle
 - `packages/providers`: provider-adapter boundary and contract fixtures; no provider network implementations yet
 - Both packages build TypeScript output to `dist/` and are orchestrated from the repository root with Turbo
 
@@ -142,7 +144,7 @@ Required for development (see `apps/web/.env.local`):
 - **Production builds run TypeScript checking:** `next.config.mjs` does not bypass build errors
 - **Image domains allowed:** `*.convex.cloud`, `*.googleusercontent.com`
 - **Query caching:** Convex queries cached for 5 minutes (see `ConvexClientProvider.tsx`)
-- **Model used:** `gemini-3-pro-image-preview` for all image generation
+- **Executable image models:** `gemini-3.1-flash-image`, `gemini-3-pro-image`, and `gpt-image-2`; derive selectors from `@eikonstudio/core` and keep discovered-only catalog entries non-executable
 - **Aspect ratios:** Maps friendly names (`square`, `portrait`, `landscape`, `wide`) to ratios (`1:1`, `9:16`, `16:9`, `21:9`)
 
 ## Common Development Tasks

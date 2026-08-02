@@ -3,22 +3,8 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { authComponent } from "./auth";
 import { createAppError } from "../lib/error-utils";
-
-// Cost calculation constants (mirrored from lib/cost-calculator.ts for server-side use)
-const COST_FACTORS = {
-  basePrice: 0.0025,
-  sizeMultiplier: { "1K": 0.8, "2K": 1.0, "4K": 2.0 } as Record<string, number>,
-  modeMultiplier: { "text-to-image": 1.0, "image-editing": 1.2 } as Record<string, number>,
-};
-
-function calculateCost(imageSize: string = "2K", mode: string = "text-to-image"): number {
-  const size = ["1K", "2K", "4K"].includes(imageSize) ? imageSize : "2K";
-  const cost = 
-    COST_FACTORS.basePrice * 
-    (COST_FACTORS.sizeMultiplier[size] || 1.0) * 
-    (COST_FACTORS.modeMultiplier[mode] || 1.0);
-  return Math.round(cost * 10000) / 10000;
-}
+import { estimateImageGenerationCost, resolveStoredImageModel } from "../lib/image-costs";
+import { LEGACY_IMAGE_MODEL_GEMINI_PREVIEW, imageModelValidator } from "./imageModels";
 
 // Generate upload URL for uploading images to Convex storage
 export const generateUploadUrl = mutation({
@@ -46,10 +32,7 @@ export const startGeneration = mutation({
     aspectRatio: v.string(),
     imageSize: v.string(),
     apiKey: v.optional(v.string()),
-    imageModel: v.union(
-      v.literal("gemini-3.1-flash-image-preview"),
-      v.literal("gpt-image-2")
-    ),
+    imageModel: imageModelValidator,
     // Reference image storage IDs for image-editing mode
     referenceImageIds: v.optional(v.array(v.id("_storage"))),
   },
@@ -196,7 +179,11 @@ export const saveGeneration = mutation({
     }
 
     // Calculate cost if not provided
-    const estimatedCost = args.estimatedCost ?? calculateCost(args.imageSize, args.mode);
+    const estimatedCost = args.estimatedCost ?? estimateImageGenerationCost(
+      args.imageSize,
+      args.mode,
+      args.model ?? LEGACY_IMAGE_MODEL_GEMINI_PREVIEW,
+    );
 
     const generationId = await ctx.db.insert("generations", {
       userId: user._id,
@@ -209,7 +196,7 @@ export const saveGeneration = mutation({
       artStyle: args.artStyle,
       createdAt: Date.now(),
       estimatedCost,
-      model: args.model ?? "gemini-3.1-flash-image-preview",
+      model: args.model ?? LEGACY_IMAGE_MODEL_GEMINI_PREVIEW,
       status: "completed", // Legacy saves are already completed
     });
 
@@ -374,7 +361,11 @@ export const getUsageStats = query({
     let thisMonthTextToImage = 0;
     let thisMonthImageEditing = 0;
     for (const gen of thisMonthGenerations) {
-      thisMonthCost += gen.estimatedCost ?? calculateCost(gen.imageSize, gen.mode);
+      thisMonthCost += gen.estimatedCost ?? estimateImageGenerationCost(
+        gen.imageSize,
+        gen.mode,
+        gen.imageModel ?? gen.model ?? LEGACY_IMAGE_MODEL_GEMINI_PREVIEW,
+      );
       if (gen.mode === "text-to-image") {
         thisMonthTextToImage++;
       } else {
@@ -387,7 +378,11 @@ export const getUsageStats = query({
     let lastMonthTextToImage = 0;
     let lastMonthImageEditing = 0;
     for (const gen of lastMonthGenerations) {
-      lastMonthCost += gen.estimatedCost ?? calculateCost(gen.imageSize, gen.mode);
+      lastMonthCost += gen.estimatedCost ?? estimateImageGenerationCost(
+        gen.imageSize,
+        gen.mode,
+        gen.imageModel ?? gen.model ?? LEGACY_IMAGE_MODEL_GEMINI_PREVIEW,
+      );
       if (gen.mode === "text-to-image") {
         lastMonthTextToImage++;
       } else {
@@ -400,7 +395,11 @@ export const getUsageStats = query({
     let olderTextToImage = 0;
     let olderImageEditing = 0;
     for (const gen of olderGenerations) {
-      olderCost += gen.estimatedCost ?? calculateCost(gen.imageSize, gen.mode);
+      olderCost += gen.estimatedCost ?? estimateImageGenerationCost(
+        gen.imageSize,
+        gen.mode,
+        gen.imageModel ?? gen.model ?? LEGACY_IMAGE_MODEL_GEMINI_PREVIEW,
+      );
       if (gen.mode === "text-to-image") {
         olderTextToImage++;
       } else {
@@ -472,7 +471,11 @@ export const getDailyUsage = query({
       const dateStr = date.toISOString().split('T')[0];
       if (dailyData[dateStr]) {
         dailyData[dateStr].count++;
-        dailyData[dateStr].cost += gen.estimatedCost ?? calculateCost(gen.imageSize, gen.mode);
+        dailyData[dateStr].cost += gen.estimatedCost ?? estimateImageGenerationCost(
+          gen.imageSize,
+          gen.mode,
+          gen.imageModel ?? gen.model ?? LEGACY_IMAGE_MODEL_GEMINI_PREVIEW,
+        );
         if (gen.mode === "text-to-image") {
           dailyData[dateStr].textToImage++;
         } else {
@@ -525,7 +528,11 @@ export const getUsageTrends = query({
     let lastMonthCost = 0;
 
     for (const gen of generations) {
-      const cost = gen.estimatedCost ?? calculateCost(gen.imageSize, gen.mode);
+      const cost = gen.estimatedCost ?? estimateImageGenerationCost(
+        gen.imageSize,
+        gen.mode,
+        gen.imageModel ?? gen.model ?? LEGACY_IMAGE_MODEL_GEMINI_PREVIEW,
+      );
       
       if (gen.createdAt >= thisMonthStart) {
         thisMonthCount++;
@@ -570,15 +577,20 @@ export const backfillCosts = mutation({
     let updated = 0;
     for (const gen of generations) {
       const updates: Record<string, any> = {};
+      const sourceModel = resolveStoredImageModel(gen.imageModel, gen.model);
       
       // Backfill cost if missing
       if (gen.estimatedCost === undefined) {
-        updates.estimatedCost = calculateCost(gen.imageSize, gen.mode);
+        updates.estimatedCost = estimateImageGenerationCost(
+          gen.imageSize,
+          gen.mode,
+          sourceModel,
+        );
       }
       
       // Backfill model if missing
       if (!gen.model) {
-        updates.model = "gemini-3.1-flash-image-preview";
+        updates.model = sourceModel;
       }
       
       // Backfill status if missing (legacy records are completed)

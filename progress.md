@@ -6,10 +6,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 1 — Core contracts and registry
-- **Status:** First hardened foundation slice implemented, independently reviewed, and verified locally; awaiting PR
-- **Branch:** `feature/phase-1-core-contracts`
-- **Base:** `main` at `088a53f`
+- **Active phase:** Phase 1 — Canonical model catalog and creator integration
+- **Status:** Source-backed catalog slice implemented, locally verified, and independently reviewed on top of the Phase 1 contracts head; awaiting stacked PR checks
+- **Branch:** `feature/phase-1-model-catalog`
+- **Base:** Phase 1 contracts head `b8fa402`
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
@@ -61,21 +61,36 @@ Deliberately out of scope:
 - UI and public API integration
 - Secret/deployment configuration changes
 
+## Model catalog slice
+
+- Added a strict canonical catalog schema and registry in `@eikonstudio/core`, checked **2026-08-02**, covering every verified variant across all ten PRD families.
+- Kept provider lifecycle/availability distinct from Eikon readiness/execution support. Preview, deprecated, uncertain, regional, and entitlement-restricted entries remain publicly visible even when Eikon cannot execute them.
+- Added public `/models` search and provider/media/readiness filters with first-party source links.
+- Derived the image creator selector from the registry and limited it to the three actually integrated IDs: `gemini-3.1-flash-image`, `gemini-3-pro-image`, and `gpt-image-2`.
+- Updated Convex validators, generation routing, schema, public API documentation, and provider-key selection for those IDs.
+- Added source-backed, model-specific generation cost estimates with legacy-preview provenance preserved for historical rows.
+- Made direct web builds prebuild `@eikonstudio/core` so a clean install does not depend on stale `dist/` output.
+
 ## Verification evidence
 
-Fresh verification ran with Turbo cache bypass after the final contract fixes:
+Fresh verification ran with Turbo cache bypass after the model catalog integration:
 
 - `pnpm install --frozen-lockfile` — passed across all 4 workspace projects.
 - `pnpm turbo run test --force` — passed:
-  - Core: 33 tests across 3 files.
+  - Core: 39 tests across 4 files.
   - Providers: 9 tests across 1 file.
-  - Total: 42 tests.
+  - Web pricing/provenance: 5 tests across 1 file.
+  - Total: 53 tests.
 - `pnpm turbo run typecheck --force` — passed: 4 tasks.
 - `pnpm turbo run lint --force` — passed: 0 errors and 30 pre-existing web warnings.
 - Placeholder-environment `pnpm turbo run build --force` — passed:
   - Core package build.
   - Providers package build.
-  - Next.js production build with all 21 existing routes.
+  - Next.js production build with all 22 routes, including `/models`.
+- Removed package `dist` and web `.next`, then ran `pnpm --dir apps/web build` directly — passed; the web script rebuilt `@eikonstudio/core` from source before Next.js.
+- Started the production server and requested `/models` — HTTP 200; rendered the catalog title and canonical `gpt-image-2` content.
+- Browser QA verified the desktop catalog layout plus Nano Banana Pro search (1/93), deprecated readiness filtering (7/93), and filter reset behavior.
+- Independent Codex review completed after iterative clean-checkout, migration-provenance, and model-pricing repairs; final rereview found no correctness regression.
 - `git diff --check` — passed.
 
 Focused regressions cover:
@@ -101,18 +116,20 @@ Expected existing warnings remain:
 
 ## Next actions
 
-1. Clean generated package/web artifacts and verify the Git diff.
-2. Commit, push, and open the Phase 1 foundation PR.
-3. Inspect current-head CI and review comments; do not merge without explicit approval.
-4. Continue Phase 1 with registry merge/readiness rules and persistence integration only after this contract foundation lands.
+1. Commit, push, and open a stacked catalog PR against `feature/phase-1-core-contracts`.
+2. Inspect current-head CI and review comments; do not merge without explicit approval.
+3. After PR #11 lands, retarget/rebase the catalog slice onto `main` before merge.
 
 ## Phase roadmap
 
 - [x] Phase 0 monorepo migration merged via PR #10 (`088a53f`)
 - [x] Phase 1 foundation implementation: hardened shared contracts, lifecycle, registry vocabulary, and adapter boundary (local)
 - [x] Phase 1 foundation independent review
-- [ ] Phase 1 foundation PR
-- [ ] Phase 1 registry merge/readiness and persistence integration
+- [x] Phase 1 foundation PR opened as #11
+- [x] Phase 1 source-backed catalog and creator-ID integration implemented locally
+- [x] Phase 1 model catalog independent review
+- [ ] Phase 1 model catalog stacked PR
+- [ ] Phase 1 persistence integration
 - [ ] Phase 2: Provider adapters and durable jobs
 - [ ] Phase 3: Catalog, detail pages, and playground
 - [ ] Phase 4: Creator and Developer dashboards

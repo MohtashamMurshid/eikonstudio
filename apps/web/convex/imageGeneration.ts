@@ -8,28 +8,9 @@ import OpenAI, { toFile } from "openai";
 import type { Id } from "./_generated/dataModel";
 import { Jimp } from "jimp";
 import { builtInSkills, renderSkillPrompt } from "../lib/skill-library";
+import { estimateImageGenerationCost } from "../lib/image-costs";
+import { IMAGE_MODEL_GPT_IMAGE_2 as GPT_IMAGE_MODEL, imageModelValidator } from "./imageModels";
 
-const GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image-preview" as const;
-const GPT_IMAGE_MODEL = "gpt-image-2" as const;
-
-// Cost calculation constants
-const COST_FACTORS = {
-  basePrice: 0.0025,
-  sizeMultiplier: { "1K": 0.8, "2K": 1.0, "4K": 2.0 } as Record<string, number>,
-  modeMultiplier: { "text-to-image": 1.0, "image-editing": 1.2 } as Record<string, number>,
-};
-
-/** Rough multiplier so dashboard cost reflects pricier OpenAI image calls */
-const OPENAI_IMAGE_COST_MULTIPLIER = 1.5;
-
-function calculateCost(imageSize: string = "2K", mode: string = "text-to-image"): number {
-  const size = ["1K", "2K", "4K"].includes(imageSize) ? imageSize : "2K";
-  const cost =
-    COST_FACTORS.basePrice *
-    (COST_FACTORS.sizeMultiplier[size] || 1.0) *
-    (COST_FACTORS.modeMultiplier[mode] || 1.0);
-  return Math.round(cost * 10000) / 10000;
-}
 
 function getAspectRatioString(ratio: string): string {
   switch (ratio) {
@@ -161,10 +142,7 @@ export const generateImageBackground = internalAction({
     aspectRatio: v.string(),
     imageSize: v.string(),
     apiKey: v.optional(v.string()),
-    imageModel: v.union(
-      v.literal("gemini-3.1-flash-image-preview"),
-      v.literal("gpt-image-2")
-    ),
+    imageModel: imageModelValidator,
     referenceImageUrls: v.optional(v.array(v.string())),
     userId: v.optional(v.string()),
   },
@@ -304,7 +282,7 @@ export const generateImageBackground = internalAction({
 
         if (mode === "text-to-image") {
           const response = await ai.models.generateContent({
-            model: GEMINI_IMAGE_MODEL,
+            model: imageModel,
             contents: {
               parts: [{ text: finalPrompt }],
             },
@@ -359,7 +337,7 @@ export const generateImageBackground = internalAction({
           }
 
           const response = await ai.models.generateContent({
-            model: GEMINI_IMAGE_MODEL,
+            model: imageModel,
             contents: {
               parts: [...imageParts, { text: finalPrompt }],
             },
@@ -375,7 +353,7 @@ export const generateImageBackground = internalAction({
           }
         }
 
-        completedModel = GEMINI_IMAGE_MODEL;
+        completedModel = imageModel;
       }
 
       if (!resultBase64) {
@@ -391,10 +369,7 @@ export const generateImageBackground = internalAction({
       const thumbnailBlob = new Blob([new Uint8Array(thumbnailBuffer)], { type: "image/jpeg" });
       const thumbnailStorageId = await ctx.storage.store(thumbnailBlob);
 
-      let estimatedCost = calculateCost(imageSize, mode);
-      if (imageModel === GPT_IMAGE_MODEL) {
-        estimatedCost = Math.round(estimatedCost * OPENAI_IMAGE_COST_MULTIPLIER * 10000) / 10000;
-      }
+      const estimatedCost = estimateImageGenerationCost(imageSize, mode, imageModel);
 
       await ctx.runMutation(internal.generations.completeGeneration, {
         generationId,

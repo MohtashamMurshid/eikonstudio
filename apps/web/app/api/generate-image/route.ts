@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { GoogleGenAI } from "@google/genai"
 import { calculateCost, getModelName } from "@/lib/cost-calculator"
 import { debug } from "@/lib/debug"
+import { IMAGE_MODEL_GEMINI_FLASH, IMAGE_MODEL_GEMINI_PRO } from "@/lib/image-models"
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +14,11 @@ export async function POST(request: NextRequest) {
     const aspectRatio = formData.get("aspectRatio") as string
     const imageSize = (formData.get("imageSize") as string) || "2K"
     const customApiKey = formData.get("apiKey") as string
+    const requestedModel = (formData.get("model") as string) || IMAGE_MODEL_GEMINI_FLASH
+
+    if (requestedModel !== IMAGE_MODEL_GEMINI_FLASH && requestedModel !== IMAGE_MODEL_GEMINI_PRO) {
+      return NextResponse.json({ error: "This route supports the two integrated Gemini image models" }, { status: 400 })
+    }
 
     debug("API: Mode:", mode)
     debug("API: Prompt:", prompt)
@@ -63,9 +69,9 @@ export async function POST(request: NextRequest) {
       debug("API: Using text-to-image mode with Nano Banana 2")
       debug("API: Using aspect_ratio:", aspectRatioString)
 
-      // Using Nano Banana 2 (Gemini 3.1 Flash Image Preview)
+      // Use the selected stable Gemini image variant.
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-image-preview",
+        model: requestedModel,
         contents: {
           parts: [
             {
@@ -238,7 +244,7 @@ export async function POST(request: NextRequest) {
       }
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-image-preview",
+        model: requestedModel,
         contents: {
           parts: [
             ...imageParts,
@@ -276,8 +282,8 @@ export async function POST(request: NextRequest) {
     const description = resultDescription
 
     // Calculate cost for this generation
-    const estimatedCost = calculateCost(imageSize, mode as "text-to-image" | "image-editing")
-    const model = getModelName()
+    const estimatedCost = calculateCost(imageSize, mode as "text-to-image" | "image-editing", requestedModel)
+    const model = getModelName(requestedModel)
 
     debug("API: Generated image URL:", imageUrl)
     debug("API: Estimated cost:", estimatedCost)
