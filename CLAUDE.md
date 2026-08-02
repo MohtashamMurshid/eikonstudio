@@ -14,8 +14,14 @@ Eikon Studio (formerly Nano Banana Starter) is an AI image generation platform b
 # Install dependencies (uses pnpm)
 pnpm install
 
-# Run development server (Next.js dev + Convex dev in parallel)
+# Run workspace development tasks through Turbo (currently the Next.js app)
 pnpm dev
+
+# In a separate terminal, sync the Convex backend
+pnpm dev:convex
+
+# Regenerate Convex bindings without starting the watcher
+pnpm codegen
 
 # Build for production
 pnpm build
@@ -25,6 +31,9 @@ pnpm start
 
 # Lint code
 pnpm lint
+
+# Type-check workspace packages
+pnpm typecheck
 ```
 
 **Note:** This project uses `pnpm` as the package manager (version 10.18.3+).
@@ -42,7 +51,7 @@ pnpm lint
 ### Key Architecture Patterns
 
 #### 1. Convex Backend Structure
-All backend logic lives in the `convex/` directory:
+All backend logic lives in the `apps/web/convex/` directory:
 - **`schema.ts`**: Defines database tables (`generations`, `gallery`, `folders`, `apiKeys`)
 - **`generations.ts`**: Mutations/queries for AI image generation history and analytics
 - **`gallery.ts`**: Mutations/queries for user's personal image gallery with folder organization
@@ -70,13 +79,13 @@ All backend logic lives in the `convex/` directory:
 - Filename validation: alphanumeric + hyphens + underscores only (`/^[a-zA-Z0-9_-]+$/`)
 
 #### 4. Authentication Flow
-- Client: `lib/auth-client.ts` exports `authClient` (Better Auth React client)
-- Server: `lib/auth-server.ts` exports server-side auth instance
+- Client: `apps/web/lib/auth-client.ts` exports `authClient` (Better Auth React client)
+- Server: `apps/web/lib/auth-server.ts` exports server-side auth instance
 - Convex integration: Uses `@convex-dev/better-auth` component
 - Protected routes check `authComponent.safeGetAuthUser(ctx)` in mutations/queries
 
 #### 5. Cost Tracking
-- Formula in `lib/cost-calculator.ts` and mirrored in `convex/generations.ts`
+- Formula in `apps/web/lib/cost-calculator.ts` and mirrored in `apps/web/convex/generations.ts`
 - Base price: $0.0025
 - Multipliers: `1K` (0.8x), `2K` (1.0x), `4K` (2.0x); `text-to-image` (1.0x), `image-editing` (1.2x)
 - Analytics queries use compound indexes to avoid full table scans
@@ -90,38 +99,39 @@ All backend logic lives in the `convex/` directory:
 - CORS-enabled for all origins
 
 ### Directory Structure
-```
-app/                    # Next.js App Router pages
+```text
+apps/web/
+├── app/                # Next.js App Router pages
 ├── studio/            # Authenticated app pages (create, gallery, history, dashboard, settings)
 ├── auth/              # Authentication page
 ├── api/               # API routes (v1/generate)
 ├── api-docs/          # API documentation page
 ├── brand/             # Brand/marketing page
 ├── ConvexClientProvider.tsx  # Wraps app with Convex + auth providers
-convex/                # Convex backend (mutations, queries, schema)
-components/            # React components
+├── convex/            # Convex backend (mutations, queries, schema)
+├── components/        # React components
 ├── ui/               # Base UI components (shadcn/ui style)
 ├── image-combiner/   # Image generation interface
 ├── gallery/          # Gallery management UI
 ├── dashboard/        # Analytics dashboard
-lib/                   # Shared utilities
+├── lib/               # Shared utilities
 ├── auth-client.ts    # Client-side auth
 ├── auth-server.ts    # Server-side auth
 ├── secure-storage.ts # API key encryption utilities
 ├── cost-calculator.ts # Cost estimation logic
-utils/                 # Additional utilities
-hooks/                 # Custom React hooks
-styles/                # Global styles
+├── utils/             # Additional utilities
+├── hooks/             # Custom React hooks
+└── styles/            # Global styles
 ```
 
 ### Environment Variables
-Required for development (see `.env.local`):
+Required for development (see `apps/web/.env.local`):
 - `NEXT_PUBLIC_CONVEX_URL`: Convex deployment URL
 - `GEMINI_API_KEY` or `GOOGLE_API_KEY`: Google Gemini API key
 - Better Auth secrets (auto-configured by Convex component)
 
 ### Important Notes
-- **TypeScript errors ignored in build:** `next.config.mjs` sets `ignoreBuildErrors: true`
+- **Production builds run TypeScript checking:** `next.config.mjs` does not bypass build errors
 - **Image domains allowed:** `*.convex.cloud`, `*.googleusercontent.com`
 - **Query caching:** Convex queries cached for 5 minutes (see `ConvexClientProvider.tsx`)
 - **Model used:** `gemini-3-pro-image-preview` for all image generation
@@ -130,7 +140,7 @@ Required for development (see `.env.local`):
 ## Common Development Tasks
 
 ### Adding a New Convex Query/Mutation
-1. Define in appropriate file in `convex/` (e.g., `generations.ts`)
+1. Define in the appropriate file in `apps/web/convex/` (e.g., `generations.ts`)
 2. Use `query()` or `mutation()` from `./_generated/server`
 3. Validate user auth with `authComponent.safeGetAuthUser(ctx)`
 4. Use indexes for queries to avoid full table scans
@@ -143,7 +153,7 @@ Required for development (see `.env.local`):
 - Delete storage files when deleting database records
 
 ### Modifying Schema
-1. Edit `convex/schema.ts`
+1. Edit `apps/web/convex/schema.ts`
 2. Convex auto-detects schema changes
 3. Add indexes for any new query patterns
 4. Migration: Use mutations to backfill data if needed (see `backfillCosts` in `generations.ts`)

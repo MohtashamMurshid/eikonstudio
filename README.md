@@ -51,27 +51,28 @@ pnpm install
 ### 2. Configure environment variables
 
 ```bash
-cp .env.example .env.local
+touch apps/web/.env.local
 ```
 
-Fill in the values in `.env.local`. See `.env.example` for notes on each variable.
+Fill in the required values in `apps/web/.env.local`.
 
 ### 3. Set up Convex
 
 In a separate terminal, run:
 
 ```bash
-npx convex dev
+pnpm dev:convex
 ```
 
 This provisions a dev deployment, writes `CONVEX_DEPLOYMENT` / `NEXT_PUBLIC_CONVEX_URL`
-into `.env.local`, and keeps the backend in sync with your `convex/` folder.
+into `apps/web/.env.local`, and keeps the backend in sync with your
+`apps/web/convex/` folder.
 
 > **GPT Image 2 users:** `OPENAI_API_KEY` must be set on the **Convex deployment**
 > (not in `.env.local`), because image generation runs server-side in Convex:
 >
 > ```bash
-> npx convex env set OPENAI_API_KEY sk-...
+> pnpm --dir apps/web exec convex env set OPENAI_API_KEY sk-...
 > ```
 
 ### 4. Configure Google OAuth
@@ -96,27 +97,32 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Scripts
 
 
-| Command      | Description              |
-| ------------ | ------------------------ |
-| `pnpm dev`   | Start Next.js dev server |
-| `pnpm build` | Production build         |
-| `pnpm start` | Run the production build |
-| `pnpm lint`  | Lint with ESLint         |
+| Command          | Description                                  |
+| ---------------- | -------------------------------------------- |
+| `pnpm dev`       | Start workspace development tasks via Turbo  |
+| `pnpm dev:convex`| Sync the Convex backend in development       |
+| `pnpm codegen`   | Regenerate Convex TypeScript bindings        |
+| `pnpm build`     | Build all workspace packages via Turbo       |
+| `pnpm start`     | Run the web production build                 |
+| `pnpm lint`      | Lint all workspace packages via Turbo        |
+| `pnpm typecheck` | Type-check all workspace packages via Turbo  |
 
 
 ---
 
 ## Project Structure
 
-```
-app/          Next.js App Router pages
-  studio/     Authenticated app (create, gallery, history, dashboard, settings)
-  api/        API routes (including public v1/generate)
-convex/       Convex schema, queries, mutations, and auth wiring
-components/   React components (UI, gallery, image combiner, dashboard)
-lib/          Shared utilities (auth, cost calculation, secure storage)
-hooks/        Custom React hooks
-public/       Static assets
+```text
+apps/
+  web/
+    app/          Next.js App Router pages and API routes
+    convex/       Convex schema, queries, mutations, and auth wiring
+    components/   React components (UI, gallery, image combiner, dashboard)
+    lib/          Shared utilities (auth, cost calculation, secure storage)
+    hooks/        Custom React hooks
+    public/       Static assets
+pnpm-workspace.yaml
+turbo.json
 ```
 
 ---
@@ -180,10 +186,12 @@ deployment.
 Any platform that runs Next.js works. The live demo is deployed on Vercel:
 
 1. Push the repo to GitHub.
-2. Import the project into Vercel (or your platform of choice).
-3. Add the environment variables from `.env.example`.
-4. Run `npx convex deploy` to provision a production Convex deployment and use the
-  production `CONVEX_URL` / `CONVEX_SITE_URL` in your hosting environment.
+2. Import the project into Vercel with the repository root as the project root.
+3. Add the required web environment variables and `CONVEX_DEPLOY_KEY` to the
+   deployment. The root `vercel.json` installs the workspace, runs Convex and
+   the Next.js build from `apps/web`, and publishes `apps/web/.next`.
+4. Configure the production `CONVEX_URL` / `CONVEX_SITE_URL` and OAuth callback
+   origins for the deployed domain.
 
 ---
 

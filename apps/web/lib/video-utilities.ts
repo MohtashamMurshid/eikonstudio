@@ -210,7 +210,11 @@ export const getVideoDuration = async (videoUrl: string): Promise<number> => {
  */
 export const videoHasAudio = async (videoUrl: string): Promise<boolean> => {
   return new Promise((resolve) => {
-    const video = document.createElement("video");
+    const video = document.createElement("video") as HTMLVideoElement & {
+      mozHasAudio?: boolean;
+      webkitAudioDecodedByteCount?: number;
+      audioTracks?: { length: number };
+    };
     video.preload = "metadata";
 
     video.onloadedmetadata = () => {

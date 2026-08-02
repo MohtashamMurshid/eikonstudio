@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, memo, useLayoutEffect, useMemo } from "react"
 import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
-import { builtInSkills, matchesSkillSearch, type SkillCategory, type SkillDefinition } from "@/lib/skill-library"
+import { builtInSkills, matchesSkillSearch } from "@/lib/skill-library"
 
 interface SkillAutocompleteProps {
   inputValue: string
@@ -49,9 +49,8 @@ function getCaretCoordinates(
   mirror.style.width = `${textarea.clientWidth}px`
 
   for (const prop of properties) {
-    mirror.style[prop as string] = style.getPropertyValue(
-      prop.replace(/([A-Z])/g, "-$1").toLowerCase()
-    )
+    const cssProperty = prop.replace(/([A-Z])/g, "-$1").toLowerCase()
+    mirror.style.setProperty(cssProperty, style.getPropertyValue(cssProperty))
   }
 
   const textBefore = textarea.value.slice(0, position)
@@ -95,16 +94,7 @@ export const SkillAutocomplete = memo(function SkillAutocomplete({
     skillMatch !== null ? { searchTerm: skillMatch.searchTerm, limit: 50 } : "skip"
   )
 
-  const combinedResults = useMemo<
-    Array<{
-      type: "built-in" | "custom"
-      data: SkillDefinition & {
-        _id?: string
-        category?: SkillCategory | string
-        builtInSkillKey?: string
-      }
-    }>
-  >(() => {
+  const combinedResults = useMemo(() => {
     const matchingCustomSkills = (customSkills || []).filter((skill) =>
       matchesSkillSearch(skill, skillMatch?.searchTerm ?? ""),
     )
