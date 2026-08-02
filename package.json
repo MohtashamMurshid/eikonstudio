@@ -24,6 +24,7 @@
     "dev:convex": "pnpm --filter @eikonstudio/web dev:convex",
     "lint": "turbo run lint",
     "start": "pnpm --filter @eikonstudio/web start",
+    "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
