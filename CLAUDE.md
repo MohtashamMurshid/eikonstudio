@@ -140,6 +140,12 @@ Required for development (see `apps/web/.env.local`):
 - `GEMINI_API_KEY` or `GOOGLE_API_KEY`: Google Gemini API key
 - Better Auth secrets (auto-configured by Convex component)
 
+Required on the Convex deployment for saved provider credentials:
+- `CREDENTIAL_ENCRYPTION_SECRET`: exactly 32 random bytes encoded as canonical base64; no fallback exists
+- `LEGACY_CREDENTIAL_ENCRYPTION_SECRET`: temporary explicit old `ENCRYPTION_SECRET` value only while reading pre-v2 records
+
+Saved provider credentials are metadata-only in public APIs. Never add plaintext-key queries, browser persistence, generation/scheduler key arguments, or a default encryption secret. Resolve an owner/provider/handle binding only inside the server operation that calls the provider.
+
 ### Important Notes
 - **Production builds run TypeScript checking:** `next.config.mjs` does not bypass build errors
 - **Image domains allowed:** `*.convex.cloud`, `*.googleusercontent.com`

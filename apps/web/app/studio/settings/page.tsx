@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useQuery } from "convex-helpers/react/cache/hooks"
@@ -9,7 +9,7 @@ import { api } from "@/convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 import Image from "next/image"
 type SettingsSection = "profile" | "api-keys" | "account"
-type ProviderId = "gemini" | "openai"
+type ProviderId = "google" | "openai"
 
 const providerConfigs: {
   id: ProviderId
@@ -19,7 +19,7 @@ const providerConfigs: {
   helpText: string
 }[] = [
   {
-    id: "gemini",
+    id: "google",
     label: "Gemini",
     docsUrl: "https://aistudio.google.com/app/apikey",
     inputPlaceholder: "Enter your Gemini API key…",
@@ -72,27 +72,27 @@ export default function SettingsPage() {
   const router = useRouter()
   const [activeSection, setActiveSection] = useState<SettingsSection>("profile")
   const [pendingApiKeys, setPendingApiKeys] = useState<Record<ProviderId, string>>({
-    gemini: "",
+    google: "",
     openai: "",
   })
   const [isTestingProvider, setIsTestingProvider] = useState<Record<ProviderId, boolean>>({
-    gemini: false,
+    google: false,
     openai: false,
   })
   const [isSavingProvider, setIsSavingProvider] = useState<Record<ProviderId, boolean>>({
-    gemini: false,
+    google: false,
     openai: false,
   })
   const [isDeletingProvider, setIsDeletingProvider] = useState<Record<ProviderId, boolean>>({
-    gemini: false,
+    google: false,
     openai: false,
   })
   const [providerFeedback, setProviderFeedback] = useState<Record<ProviderId, { valid: boolean; message: string } | null>>({
-    gemini: null,
+    google: null,
     openai: null,
   })
   const [saveSuccessProvider, setSaveSuccessProvider] = useState<Record<ProviderId, boolean>>({
-    gemini: false,
+    google: false,
     openai: false,
   })
 
@@ -105,20 +105,10 @@ export default function SettingsPage() {
   const displayImage = user?.image || session?.user?.image
 
   // Secure provider API key storage
-  const storedProviderApiKeys = useQuery(api.apiKeys.getMyProviderApiKeys, {})
-  const saveProviderApiKeyMutation = useMutation(api.apiKeys.saveProviderApiKey)
-  const deleteProviderApiKeyMutation = useMutation(api.apiKeys.deleteProviderApiKey)
+  const storedProviderCredentials = useQuery(api.apiKeys.getMyProviderCredentials, {})
+  const saveProviderCredential = useAction(api.credentialActions.saveProviderCredential)
+  const disableProviderCredential = useMutation(api.apiKeys.disableProviderCredential)
   const testProviderApiKeyAction = useAction(api.apiKeyActions.testProviderApiKey)
-
-  // Initialize pending keys from stored keys
-  useEffect(() => {
-    if (!storedProviderApiKeys) return
-
-    setPendingApiKeys({
-      gemini: storedProviderApiKeys.gemini?.apiKey || "",
-      openai: storedProviderApiKeys.openai?.apiKey || "",
-    })
-  }, [storedProviderApiKeys])
 
   const handleTestKey = async (provider: ProviderId) => {
     const pendingApiKey = pendingApiKeys[provider]
@@ -135,7 +125,7 @@ export default function SettingsPage() {
     setSaveSuccessProvider((current) => ({ ...current, [provider]: false }))
 
     try {
-      const result = await testProviderApiKeyAction({ provider, apiKey: pendingApiKey })
+      const result = await testProviderApiKeyAction({ provider: provider === "google" ? "gemini" : "openai", apiKey: pendingApiKey })
       setProviderFeedback((current) => ({ ...current, [provider]: result }))
     } catch {
       setProviderFeedback((current) => ({
@@ -156,9 +146,9 @@ export default function SettingsPage() {
     setProviderFeedback((current) => ({ ...current, [provider]: null }))
 
     try {
-      await saveProviderApiKeyMutation({ provider, apiKey: pendingApiKey })
+      await saveProviderCredential({ provider, secretValue: pendingApiKey })
+      setPendingApiKeys((current) => ({ ...current, [provider]: "" }))
       setSaveSuccessProvider((current) => ({ ...current, [provider]: true }))
-      localStorage.setItem(provider === "gemini" ? "gemini-api-key" : "openai-api-key", pendingApiKey)
     } catch {
       setProviderFeedback((current) => ({
         ...current,
@@ -175,9 +165,8 @@ export default function SettingsPage() {
     setProviderFeedback((current) => ({ ...current, [provider]: null }))
 
     try {
-      await deleteProviderApiKeyMutation({ provider })
+      await disableProviderCredential({ provider })
       setPendingApiKeys((current) => ({ ...current, [provider]: "" }))
-      localStorage.removeItem(provider === "gemini" ? "gemini-api-key" : "openai-api-key")
     } catch {
       setProviderFeedback((current) => ({
         ...current,
@@ -208,9 +197,8 @@ export default function SettingsPage() {
       .slice(0, 2)
   }
 
-  const hasStoredKey = (provider: ProviderId) => Boolean(storedProviderApiKeys?.[provider]?.apiKey)
-  const hasChanges = (provider: ProviderId) =>
-    pendingApiKeys[provider] !== (storedProviderApiKeys?.[provider]?.apiKey || "")
+  const hasStoredKey = (provider: ProviderId) => Boolean(storedProviderCredentials?.[provider]?.configured)
+  const hasChanges = (provider: ProviderId) => pendingApiKeys[provider].trim().length > 0
 
   const navItemClass = (id: SettingsSection) =>
     activeSection === id

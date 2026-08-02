@@ -46,12 +46,6 @@ export default function ApiDocsPage() {
   const [playgroundResult, setPlaygroundResult] = useState<ApiResponse | null>(null)
   const [showResponseJson, setShowResponseJson] = useState(false)
 
-  useEffect(() => {
-    const savedApiKey = localStorage.getItem("eikon-platform-api-key")
-    if (savedApiKey) {
-      setPlatformApiKey(savedApiKey)
-    }
-  }, [])
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -59,13 +53,6 @@ export default function ApiDocsPage() {
     }
   }, [isAuthenticated, isLoading, router])
 
-  useEffect(() => {
-    if (platformApiKey) {
-      localStorage.setItem("eikon-platform-api-key", platformApiKey)
-    } else {
-      localStorage.removeItem("eikon-platform-api-key")
-    }
-  }, [platformApiKey])
 
   const handleGenerate = async () => {
     if (!playgroundPrompt.trim()) return

@@ -4,13 +4,6 @@ export interface GeneratedImage {
   description?: string
 }
 
-export interface ImageCombinerProps {
-  providerApiKeys: {
-    gemini: string
-    openai: string
-  }
-}
-
 export type ToastType = "success" | "error" | "warning"
 
 export interface Toast {

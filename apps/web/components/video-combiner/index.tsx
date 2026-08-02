@@ -5,7 +5,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Logo } from "@/components/logo";
 import { PanelLeftClose, PanelLeftOpen, SlidersHorizontal } from "lucide-react";
-import type { VideoCombinerProps, VideoMode, VideoResolution, VideoAspectRatio, Character } from "./types";
+import type { VideoMode, VideoResolution, VideoAspectRatio, Character } from "./types";
 import { useToast } from "./hooks/use-toast";
 import { useVideoUpload } from "./hooks/use-video-upload";
 import { useVideoGeneration } from "./hooks/use-video-generation";
@@ -16,7 +16,7 @@ import { ScenePanel } from "./components/scene-panel";
 import { StudioCanvas } from "./components/studio-canvas";
 import { PromptBar } from "./components/prompt-bar";
 
-export function VideoCombiner({ apiKey }: VideoCombinerProps) {
+export function VideoCombiner() {
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<VideoMode>("text-to-video");
   const [aspectRatio, setAspectRatio] = useState<VideoAspectRatio>("16:9");
@@ -44,7 +44,6 @@ export function VideoCombiner({ apiKey }: VideoCombinerProps) {
     .map((c) => ({ url: c.avatarUrl!, name: c.name }));
 
   const videoGeneration = useVideoGeneration({
-    apiKey,
     mode,
     referenceImages: videoUpload.getImageFiles(),
     prompt: buildVideoPrompt({

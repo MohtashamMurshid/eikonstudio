@@ -22,7 +22,6 @@ interface CharacterAvatar {
 }
 
 interface UseVideoGenerationOptions {
-  apiKey: string;
   mode: VideoMode;
   referenceImages: Array<File | null>;
   prompt: string;
@@ -51,7 +50,6 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
       prompt,
       aspectRatio,
       resolution,
-      apiKey,
       characterAvatars,
       onError,
       generateUploadUrl,
@@ -118,9 +116,6 @@ export const useVideoGeneration = (options: UseVideoGenerationOptions) => {
       formData.append("prompt", prompt);
       formData.append("aspectRatio", aspectRatio);
       formData.append("resolution", resolution);
-      if (apiKey) {
-        formData.append("apiKey", apiKey);
-      }
 
       if (avatarFiles.length > 0) {
         setProgressStage("Uploading character reference...");

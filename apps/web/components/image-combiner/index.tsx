@@ -5,7 +5,6 @@ import { useMutation } from "convex/react"
 import { useQuery } from "convex-helpers/react/cache/hooks"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import type { ImageCombinerProps } from "./types"
 import { useToast } from "./hooks/use-toast"
 import { useImageUpload, type ImageSlot } from "./hooks/use-image-upload"
 import { useImageGeneration } from "./hooks/use-image-generation"
@@ -27,14 +26,14 @@ import { getUserFacingErrorMessage } from "@/lib/error-utils"
 import { Logo } from "@/components/logo"
 import { IMAGE_MODEL_GPT_IMAGE_2, type ImageModelId } from "./constants"
 
-interface ExtendedImageCombinerProps extends ImageCombinerProps {
+interface ExtendedImageCombinerProps {
   pendingInputImage?: string | null
   onInputImageLoaded?: () => void
 }
 
 const IMAGE_SLOTS: ImageSlot[] = [1, 2, 3, 4]
 
-export function ImageCombiner({ providerApiKeys, pendingInputImage, onInputImageLoaded }: ExtendedImageCombinerProps) {
+export function ImageCombiner({ pendingInputImage, onInputImageLoaded }: ExtendedImageCombinerProps) {
   const [prompt, setPrompt] = useState("")
   const [showFullscreen, setShowFullscreen] = useState(false)
   const [imageModel, setImageModel] = useState<ImageModelId>(IMAGE_MODEL_GPT_IMAGE_2)
@@ -80,7 +79,6 @@ export function ImageCombiner({ providerApiKeys, pendingInputImage, onInputImage
   }, [generations])
 
   const imageGeneration = useImageGeneration({
-    providerApiKeys,
     currentMode,
     useUrls: imageUpload.useUrls,
     image1: imageUpload.image1,

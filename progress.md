@@ -6,10 +6,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 1 — Canonical model catalog and creator integration
-- **Status:** Source-backed catalog slice implemented, locally verified, and independently reviewed on top of the Phase 1 contracts head; awaiting stacked PR checks
-- **Branch:** `feature/phase-1-model-catalog`
-- **Base:** Phase 1 contracts head `b8fa402`
+- **Active phase:** Phase 2 — Provider credential boundary and durable jobs
+- **Status:** Credential-boundary hardening implemented, fully verified, and independently reviewed on merged Phase 1; awaiting PR checks
+- **Branch:** `feature/phase-2-durable-jobs`
+- **Base:** Merged Phase 1 catalog head `9eb1f62`
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
@@ -71,6 +71,19 @@ Deliberately out of scope:
 - Added source-backed, model-specific generation cost estimates with legacy-preview provenance preserved for historical rows.
 - Made direct web builds prebuild `@eikonstudio/core` so a clean install does not depend on stale `dist/` output.
 
+## Phase 2 credential-boundary slice
+
+- Replaced new provider-credential writes with versioned AES-256-GCM envelopes using cryptographic 96-bit nonces and AAD bound to owner, canonical provider, stable handle, encryption version, and key version.
+- Removed the production fallback secret. `CREDENTIAL_ENCRYPTION_SECRET` must be canonical base64 for exactly 32 bytes or operations fail closed.
+- Preserved read-only legacy compatibility behind an explicit `LEGACY_CREDENTIAL_ENCRYPTION_SECRET`; no destructive migration or production rewrite is performed by this slice.
+- Added atomic stable-handle reservation so concurrent credential saves cannot create AAD/handle mismatches.
+- Replaced public plaintext-key reads with metadata-only provider credential summaries and reversible disable operations.
+- Removed saved provider credentials and platform bearer tokens from browser persistence; newly typed values are cleared after save.
+- Bound image generations to authenticated owner/provider/credential handles and removed plaintext keys and transient URLs from scheduler arguments.
+- Routed studio image and platform API gateway provider calls through the same internal operation-scoped resolver.
+- Removed browser-provided keys from video generation; video temporarily uses server deployment configuration until the durable video-job cutover.
+- Added crypto, AAD isolation, metadata, resolution-policy, and source-boundary regressions. No real provider calls or production migration were performed.
+
 ## Verification evidence
 
 Fresh verification ran with Turbo cache bypass after the model catalog integration:
@@ -92,6 +105,18 @@ Fresh verification ran with Turbo cache bypass after the model catalog integrati
 - Browser QA verified the desktop catalog layout plus Nano Banana Pro search (1/93), deprecated readiness filtering (7/93), and filter reset behavior.
 - Independent Codex review completed after iterative clean-checkout, migration-provenance, and model-pricing repairs; final rereview found no correctness regression.
 - `git diff --check` — passed.
+
+Phase 2 credential-boundary exact-head verification:
+
+- Frozen workspace install passed with pnpm `10.18.3`.
+- `pnpm turbo run test --force` passed **70 tests**: 39 core, 9 providers, and 22 web tests across two files.
+- `pnpm turbo run typecheck --force` passed all 4 tasks.
+- `pnpm turbo run lint --force` passed with 0 errors and the same 30 existing web warnings.
+- Placeholder-environment `pnpm turbo run build --force` passed all 3 tasks and produced all 22 routes.
+- `git diff --check` passed.
+- Production browser smoke passed: `/auth` rendered without clipping/overflow, and unauthenticated `/studio/settings` showed only the sign-in boundary with no credential metadata or controls exposed.
+- Convex codegen could not run in the isolated worktree because no `CONVEX_DEPLOYMENT` is configured; the generated API module registration was updated minimally and must be regenerated against the deployment before release.
+- Independent Codex review found two legacy compatibility regressions; deterministic legacy metadata handles and exact historical-secret support were added, and the final rereview found no actionable correctness regressions.
 
 Focused regressions cover:
 
@@ -116,9 +141,9 @@ Expected existing warnings remain:
 
 ## Next actions
 
-1. Commit, push, and open a stacked catalog PR against `feature/phase-1-core-contracts`.
-2. Inspect current-head CI and review comments; do not merge without explicit approval.
-3. After PR #11 lands, retarget/rebase the catalog slice onto `main` before merge.
+1. Commit, push, and open the first Phase 2 PR against `main`.
+2. Inspect current-head CI and review comments; deploy only after configuring the required Convex secrets and regenerating bindings against the real deployment.
+3. Follow with the additive durable lifecycle/event/attempt/idempotency substrate before connecting new provider adapters.
 
 ## Phase roadmap
 
@@ -128,9 +153,11 @@ Expected existing warnings remain:
 - [x] Phase 1 foundation PR opened as #11
 - [x] Phase 1 source-backed catalog and creator-ID integration implemented locally
 - [x] Phase 1 model catalog independent review
-- [ ] Phase 1 model catalog stacked PR
-- [ ] Phase 1 persistence integration
-- [ ] Phase 2: Provider adapters and durable jobs
+- [x] Phase 1 model catalog merged via PR #12 (`9eb1f62`)
+- [x] Phase 2 credential-boundary implementation and independent review
+- [ ] Phase 2 credential-boundary PR
+- [ ] Phase 2 durable lifecycle persistence substrate
+- [ ] Phase 2 provider adapters and durable jobs
 - [ ] Phase 3: Catalog, detail pages, and playground
 - [ ] Phase 4: Creator and Developer dashboards
 - [ ] Phase 5: Public API and SDKs

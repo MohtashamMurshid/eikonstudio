@@ -81,12 +81,19 @@ This provisions a dev deployment, writes `CONVEX_DEPLOYMENT` / `NEXT_PUBLIC_CONV
 into `apps/web/.env.local`, and keeps the backend in sync with your
 `apps/web/convex/` folder.
 
-> **GPT Image 2 users:** `OPENAI_API_KEY` must be set on the **Convex deployment**
-> (not in `.env.local`), because image generation runs server-side in Convex:
+> **Provider credential encryption:** configure a unique 32-byte base64 secret on
+> the **Convex deployment** before saving or resolving provider credentials:
 >
 > ```bash
-> pnpm --dir apps/web exec convex env set OPENAI_API_KEY sk-...
+> openssl rand -base64 32
+> pnpm --dir apps/web exec convex env set CREDENTIAL_ENCRYPTION_SECRET '<generated-value>'
 > ```
+>
+> Existing pre-v2 records are read-only compatible only when
+> `LEGACY_CREDENTIAL_ENCRYPTION_SECRET` is explicitly set to the deployment's
+> former `ENCRYPTION_SECRET` value. There is no default/fallback secret. Re-save
+> each legacy credential to rewrite it as AES-256-GCM, then remove the legacy
+> secret after inventory confirms no legacy records remain.
 
 ### 4. Configure Google OAuth
 

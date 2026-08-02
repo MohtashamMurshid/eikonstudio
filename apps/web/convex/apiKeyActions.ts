@@ -123,12 +123,9 @@ export const testProviderApiKey = action({
           return { valid: true, message: "Gemini API key is valid" };
         }
 
-        const error = (await response.json()) as {
-          error?: { message?: string };
-        };
         return {
           valid: false,
-          message: error.error?.message || "Invalid Gemini API key",
+          message: "Gemini rejected this API key",
         };
       }
 
@@ -143,12 +140,9 @@ export const testProviderApiKey = action({
         return { valid: true, message: "OpenAI API key is valid" };
       }
 
-      const error = (await response.json()) as {
-        error?: { message?: string };
-      };
       return {
         valid: false,
-        message: error.error?.message || "Invalid OpenAI API key",
+        message: "OpenAI rejected this API key",
       };
     } catch {
       return {
@@ -212,15 +206,11 @@ export const generateGatewayImage = action({
       throw new Error("Invalid API key");
     }
 
-    const providerKey = await ctx.runQuery(internal.apiKeys.getProviderApiKeyInternal, {
-      userId: platformKey.userId,
+    const resolvedCredential = await ctx.runAction(internal.credentialActions.resolveConfiguredCredentialForOperation, {
+      ownerId: platformKey.userId,
       provider: args.provider,
     });
-
-    if (!providerKey) {
-      const providerLabel = args.provider === "gemini" ? "Gemini" : "OpenAI";
-      throw new Error(`${providerLabel} is not configured for this account`);
-    }
+    const providerKey = resolvedCredential.secretValue;
 
     let resultUrl: string | null = null;
     let model = args.model;
@@ -232,7 +222,7 @@ export const generateGatewayImage = action({
       }
 
       const ai = new GoogleGenAI({
-        apiKey: providerKey.apiKey,
+        apiKey: providerKey,
       });
 
       const response = await ai.models.generateContent({
@@ -262,7 +252,7 @@ export const generateGatewayImage = action({
         throw new Error(`Unsupported OpenAI model: ${model}`);
       }
 
-      const openai = new OpenAI({ apiKey: providerKey.apiKey });
+      const openai = new OpenAI({ apiKey: providerKey });
       const { size, quality } = openAiSizeAndQuality(args.aspectRatio, args.imageSize);
       const response = await openai.images.generate({
         model,
