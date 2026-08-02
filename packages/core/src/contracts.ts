@@ -211,7 +211,11 @@ export const NormalizedGenerationErrorSchema = PublicGenerationErrorSchema;
 export type NormalizedGenerationError = PublicGenerationError;
 export const PrivateNativeErrorEnvelopeSchema = z
   .object({ providerId: ProviderIdSchema, correlationId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/), capturedAt: z.string().datetime(), native: RedactedProviderDataSchema })
-  .strict();
+  .strict()
+  .refine((envelope) => envelope.providerId === envelope.native.providerId, {
+    message: "Native error provider must match the envelope provider",
+    path: ["native", "providerId"],
+  });
 export type PrivateNativeErrorEnvelope = z.infer<typeof PrivateNativeErrorEnvelopeSchema>;
 export const NormalizedErrorResultSchema = z.object({ publicError: PublicGenerationErrorSchema, privateError: PrivateNativeErrorEnvelopeSchema.optional() }).strict();
 export type NormalizedErrorResult = z.infer<typeof NormalizedErrorResultSchema>;
@@ -351,5 +355,5 @@ export const CompletionIdentitySchema = z.discriminatedUnion("outputIdentityKind
 export type CompletionIdentity = z.infer<typeof CompletionIdentitySchema>;
 export function completionIdentityKey(identity: CompletionIdentity): string {
   const output = identity.outputIdentityKind === "checksum" ? identity.outputChecksumSha256 : identity.assetId;
-  return `${identity.generationId}:${identity.providerId}:${identity.providerRequestId}:${identity.outputIdentityKind}:${output}`;
+  return JSON.stringify([identity.generationId, identity.providerId, identity.providerRequestId, identity.outputIdentityKind, output]);
 }

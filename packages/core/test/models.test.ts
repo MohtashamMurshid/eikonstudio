@@ -101,6 +101,10 @@ describe("canonical identifiers and executable model registry", () => {
       ...imageVariant,
       capabilities: [{ ...imageCapability, inputSchema: { ...imageCapability.inputSchema, revision: "schema_other_v1" } }],
     }).success).toBe(false);
+    expect(ModelVariantSchema.safeParse({
+      ...imageVariant,
+      capabilities: [imageCapability, { ...imageCapability }],
+    }).success).toBe(false);
     for (const inputRole of [
       { role: "reference", modality: "image", required: true, minCount: 0, maxCount: 1 },
       { role: "reference", modality: "image", required: false, minCount: 1, maxCount: 1 },

@@ -204,12 +204,18 @@ export const ModelVariantSchema = z
       context.addIssue({ code: z.ZodIssueCode.custom, message: "Executable variants require operation capabilities and input schemas", path: ["capabilities"] });
     }
     const familyMediaTypes = MODEL_FAMILY_REGISTRY[variant.familyId].mediaTypes;
+    const capabilityKeys = new Set<string>();
     for (const [index, mediaType] of variant.mediaTypes.entries()) {
       if (!familyMediaTypes.includes(mediaType)) {
         context.addIssue({ code: z.ZodIssueCode.custom, message: "Variant media type is not supported by its canonical family", path: ["mediaTypes", index] });
       }
     }
     for (const [index, capability] of (variant.capabilities ?? []).entries()) {
+      const capabilityKey = `${capability.task}:${capability.operation}`;
+      if (capabilityKeys.has(capabilityKey)) {
+        context.addIssue({ code: z.ZodIssueCode.custom, message: "Each task and operation pair must have one canonical capability", path: ["capabilities", index] });
+      }
+      capabilityKeys.add(capabilityKey);
       if (!variant.mediaTypes.includes(capability.outputMedia)) {
         context.addIssue({ code: z.ZodIssueCode.custom, message: "Capability output must be declared by the variant", path: ["capabilities", index, "outputMedia"] });
       }

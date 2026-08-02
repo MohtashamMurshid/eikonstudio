@@ -13,6 +13,7 @@ import {
   GenerationJobSchema,
   GenerationRequestSchema,
   PricingRuleIdSchema,
+  PrivateNativeErrorEnvelopeSchema,
   PublicGenerationErrorSchema,
   RedactedProviderDataSchema,
   RemoteMediaReferenceSchema,
@@ -148,6 +149,30 @@ describe("canonical generation boundary schemas", () => {
     expect(keys.size).toBe(1);
     const other = CompletionIdentitySchema.parse({ ...completion, outputChecksumSha256: "b".repeat(64) });
     expect(completionIdentityKey(other)).not.toBe(completionIdentityKey(completion));
+    const delimited = CompletionIdentitySchema.parse({ ...completion, providerRequestId: "req:tenant:123" });
+    expect(delimited.outputIdentityKind).toBe("checksum");
+    expect(JSON.parse(completionIdentityKey(delimited))).toEqual([
+      delimited.generationId,
+      delimited.providerId,
+      delimited.providerRequestId,
+      delimited.outputIdentityKind,
+      "a".repeat(64),
+    ]);
+  });
+
+  it("requires private native errors to preserve provider ownership", () => {
+    const native = RedactedProviderDataSchema.parse({
+      namespace: "provider:google",
+      providerId: "google",
+      redacted: true,
+      data: { code: "safe" },
+    });
+    expect(PrivateNativeErrorEnvelopeSchema.safeParse({
+      providerId: "openai",
+      correlationId: "corr_12345678",
+      capturedAt: "2026-08-02T12:00:00.000Z",
+      native,
+    }).success).toBe(false);
   });
 
   it("requires errors for failed jobs and outputs for completed jobs", () => {

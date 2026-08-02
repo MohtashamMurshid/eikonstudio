@@ -131,7 +131,10 @@ export interface ProviderOutput {
   readonly providerContext?: RedactedProviderData;
 }
 
-export const NormalizedWebhookHeadersSchema = z.record(z.array(z.string().max(8_192)).min(1).max(32).readonly()).readonly();
+const NormalizedWebhookHeaderNameSchema = z.string().min(1).max(256).regex(/^[!#$%&'*+\-.^_`|~0-9a-z]+$/);
+export const NormalizedWebhookHeadersSchema = z
+  .record(NormalizedWebhookHeaderNameSchema, z.array(z.string().max(8_192)).min(1).max(32).readonly())
+  .readonly();
 export type NormalizedWebhookHeaders = z.infer<typeof NormalizedWebhookHeadersSchema>;
 
 export const WebhookVerificationRequestSchema = z
@@ -242,5 +245,6 @@ export function safePublicProviderError(correlationId: string): PublicGeneration
 }
 
 export function privateRedactedError(providerId: ProviderId, correlationId: string, capturedAt: string, native: RedactedProviderData): PrivateNativeErrorEnvelope {
+  if (providerId !== native.providerId) throw new TypeError("Native error provider must match the envelope provider");
   return { providerId, correlationId, capturedAt, native };
 }
