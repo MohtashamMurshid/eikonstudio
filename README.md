@@ -186,10 +186,10 @@ deployment.
 Any platform that runs Next.js works. The live demo is deployed on Vercel:
 
 1. Push the repo to GitHub.
-2. Import the project into Vercel and set **Root Directory** to `apps/web`.
+2. Import the project into Vercel with the repository root as the project root.
 3. Add the required web environment variables and `CONVEX_DEPLOY_KEY` to the
-   deployment. The package-local `apps/web/vercel.json` runs Convex deployment
-   and the Next.js production build from the correct working directory.
+   deployment. The root `vercel.json` installs the workspace, runs Convex and
+   the Next.js build from `apps/web`, and publishes `apps/web/.next`.
 4. Configure the production `CONVEX_URL` / `CONVEX_SITE_URL` and OAuth callback
    origins for the deployed domain.
 
