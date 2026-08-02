@@ -32,6 +32,9 @@ pnpm start
 # Lint code
 pnpm lint
 
+# Run shared package contract tests
+pnpm test
+
 # Type-check workspace packages
 pnpm typecheck
 ```
@@ -49,6 +52,11 @@ pnpm typecheck
 - **State Management:** Convex React hooks with query caching (5-minute cache, 100 max idle entries)
 
 ### Key Architecture Patterns
+
+#### 0. Shared platform contracts
+- `packages/core`: canonical provider/model IDs, Zod schemas, model-family registry, and generation lifecycle
+- `packages/providers`: provider-adapter boundary and contract fixtures; no provider network implementations yet
+- Both packages build TypeScript output to `dist/` and are orchestrated from the repository root with Turbo
 
 #### 1. Convex Backend Structure
 All backend logic lives in the `apps/web/convex/` directory:

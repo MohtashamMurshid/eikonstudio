@@ -105,6 +105,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `pnpm build`     | Build all workspace packages via Turbo       |
 | `pnpm start`     | Run the web production build                 |
 | `pnpm lint`      | Lint all workspace packages via Turbo        |
+| `pnpm test`      | Run package contract tests via Turbo         |
 | `pnpm typecheck` | Type-check all workspace packages via Turbo  |
 
 
@@ -121,6 +122,9 @@ apps/
     lib/          Shared utilities (auth, cost calculation, secure storage)
     hooks/        Custom React hooks
     public/       Static assets
+packages/
+  core/           Shared IDs, schemas, model registry, and job lifecycle
+  providers/      Provider-adapter interfaces and contract fixtures
 pnpm-workspace.yaml
 turbo.json
 ```

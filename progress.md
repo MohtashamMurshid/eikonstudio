@@ -2,122 +2,117 @@
 
 _Last updated: August 2, 2026_
 
-This document records implementation progress against [`PRD.md`](./PRD.md). It is intended to make the current state, evidence, blockers, and next actions recoverable across development sessions.
+This document records implementation progress against [`PRD.md`](./PRD.md) so work can resume safely across development sessions.
 
 ## Current delivery state
 
-- **Active phase:** Phase 0 — Monorepo migration
-- **Status:** Implemented and submitted for review
-- **Pull request:** [#10 — chore: migrate web app to Turborepo](https://github.com/MohtashamMurshid/eikonstudio/pull/10)
-- **Branch:** `feature/phase-0-turborepo`
-- **Current reviewed head:** `a971167539031be87575dfff3c327b594b0df9f8`
-- **Merge status:** Not merged
+- **Active phase:** Phase 1 — Core contracts and registry
+- **Status:** First hardened foundation slice implemented, independently reviewed, and verified locally; awaiting PR
+- **Branch:** `feature/phase-1-core-contracts`
+- **Base:** `main` at `088a53f`
+- **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
-## Phase 0 completed work
+## Phase 1 foundation slice
 
-- Migrated the existing Next.js application into `apps/web`.
-- Moved the Convex backend intact into `apps/web/convex`.
-- Preserved existing routes, API routes, assets, aliases, generated Convex bindings, and UI source.
-- Added the root pnpm workspace definition in `pnpm-workspace.yaml`.
-- Added Turborepo task orchestration in `turbo.json`.
-- Split root workspace orchestration from the web package manifest.
-- Added root commands for development, Convex development, Convex code generation, builds, linting, type checking, and production start.
-- Regenerated the root `pnpm-lock.yaml` with importers for the workspace root and `apps/web`.
-- Pinned Turbo and previously floating `latest` dependencies to resolved versions to avoid migration-time upgrades.
-- Updated `.gitignore`, `README.md`, and `CLAUDE.md` for the monorepo layout.
-- Preserved the existing repository-root Vercel project shape through an explicit root `vercel.json`.
-- Removed `typescript.ignoreBuildErrors` from the Next.js configuration.
-- Fixed four pre-existing TypeScript errors without intentional product-behavior changes.
+Implemented locally in this slice:
+
+### `@eikonstudio/core`
+
+- Strict Zod 3 vocabulary for the six canonical providers and ten PRD model families.
+- Stable branded IDs for model variants, schema revisions, generations, jobs, attempts, events, assets, pricing rules, credential handles, and webhook handles.
+- Immutable Eikon model IDs separated from provider-native model, version, endpoint, and capture snapshots.
+- Operation-specific image/video capability records with typed input roles, limits, execution mode, webhook/poll/cancel support, and schema revisions.
+- Fail-closed model execution: discovered, deprecated, or disabled variants cannot be submitted as executable models.
+- Explicit generation state machine for `queued → submitting → processing → persisting → completed` and terminal alternatives.
+- Optimistic transition commands requiring expected status and revision; stale status/revision/generation updates are rejected.
+- Atomic create-and-schedule command/port contracts with idempotency, attempt, retry, poll, and maximum-age metadata.
+- Deterministic completion identities for duplicate webhook/poll completion protection.
+- Strict owned-storage, provider-transport, and untrusted remote-media reference schemas.
+- Remote media and webhook callback targets remain non-fetchable until policy approval evidence exists; URL-bearing contracts require HTTPS.
+- Safe public errors separated from private, explicitly redacted provider-native envelopes.
+- Public provider-credential metadata exposes opaque handles and masked hints only.
+- Immutable submitted-estimate and reported/synced actual-cost snapshots with pricing provenance and source-specific timestamps.
+- Legacy generation provenance for later image/video data migration.
+- Canonical persisted/public schemas avoid coercion, transforms, catches, and implicit defaults.
+
+### `@eikonstudio/providers`
+
+- Complete eleven-method PRD adapter boundary.
+- Focused credential, catalog, input, execution, output, and webhook operation interfaces rather than an optional-method inheritance tree.
+- Opaque credential references and server-only credential resolution boundary; plaintext key maps are absent from adapter DTOs.
+- Provider transport capabilities kept separate from model-variant operation capabilities.
+- Raw-byte webhook verification input with normalized multi-value headers, method/path/query, credential/webhook handles, and receipt time.
+- Verified/rejected webhook result union with delivery, signature/key version, replay-token, and bounded rejection reasons.
+- Safe public error fixture that does not copy arbitrary native error messages or stacks.
+- Runtime adapter shape assertion and tested mock adapter.
+
+### Workspace integration
+
+- Added root `pnpm test` orchestration through Turbo.
+- Added package build/typecheck/test scripts and valid `dist` exports.
+- Added package build dependency ordering and `dist/**` Turbo outputs.
+- Updated root documentation and regenerated the single pnpm lockfile.
+
+Deliberately out of scope:
+
+- Provider SDK/network implementations
+- Convex schema and data migration
+- Durable workers, polling, reconciliation, or webhook routes
+- UI and public API integration
+- Secret/deployment configuration changes
 
 ## Verification evidence
 
-### Workspace and source integrity
+Fresh verification ran with Turbo cache bypass after the final contract fixes:
 
-- `pnpm install --frozen-lockfile`: passed with pnpm `10.18.3`.
-- Move audit: 185 expected files checked.
-  - 180 files remained byte-identical.
-  - 5 files contain intentional type/configuration changes.
-  - 0 files were missing.
-  - 0 unexpected file changes were found.
-- `git diff --check`: passed.
+- `pnpm install --frozen-lockfile` — passed across all 4 workspace projects.
+- `pnpm turbo run test --force` — passed:
+  - Core: 33 tests across 3 files.
+  - Providers: 9 tests across 1 file.
+  - Total: 42 tests.
+- `pnpm turbo run typecheck --force` — passed: 4 tasks.
+- `pnpm turbo run lint --force` — passed: 0 errors and 30 pre-existing web warnings.
+- Placeholder-environment `pnpm turbo run build --force` — passed:
+  - Core package build.
+  - Providers package build.
+  - Next.js production build with all 21 existing routes.
+- `git diff --check` — passed.
 
-### Static and production gates
+Focused regressions cover:
 
-Executed without Turbo cache reuse:
+- complete legal/illegal lifecycle transition matrix and immutable terminal states;
+- stale status/revision/generation transition preconditions;
+- atomic scheduling constraints and deterministic completion identity;
+- stable IDs, model ownership, executable readiness, and operation capabilities;
+- canonical no-default request behavior;
+- opaque credentials and absence of recoverable secret maps;
+- public/private error separation;
+- pending/approved/rejected remote-media handling and HTTPS-only URLs;
+- immutable estimate vs reported/synced cost snapshots;
+- raw webhook bytes, multi-value headers, verified metadata, stale/replay/encoding rejection shapes;
+- all eleven required adapter methods and operation-specific mock execution.
 
-```bash
-NEXT_PUBLIC_CONVEX_URL=https://example.convex.cloud \
-NEXT_PUBLIC_CONVEX_SITE_URL=https://example.convex.site \
-pnpm turbo run typecheck lint build --force
-```
+Expected existing warnings remain:
 
-Results:
-
-- TypeScript: passed.
-- ESLint: passed with 0 errors and 30 pre-existing warnings.
-- Next.js production build: passed.
-- Existing routes generated by Next.js: 21.
-
-A build without `NEXT_PUBLIC_CONVEX_SITE_URL` fails during page collection with `CONVEX_SITE_URL is not set`. The same environment-dependent authentication initialization exists on the base branch, so this is an existing environment requirement rather than migration fallout.
-
-### Route and visual parity
-
-- Compared 19 page and API routes between `origin/main` and the migrated app.
-- Status and redirect mismatches: 0.
-- Desktop landing-page browser comparison found no layout, asset, typography, or spacing regression.
-- All CSS and public assets were included in the byte-level move audit.
-- A true mobile screenshot was not captured because the available remote browser fixes its internal viewport. Mobile visual evidence remains an explicit follow-up gate.
-
-### Deployment shape
-
-- `vercel.json` validates against Vercel's live JSON schema.
-- A frozen install succeeds when invoked from the `apps/web` package root.
-- The Convex CLI resolves from `apps/web` and exposes the expected `deploy --cmd` behavior.
-- A direct production Next.js build creates `apps/web/.next` successfully.
-
-### Review state
-
-- Independent architecture-risk review: completed.
-- Independent Codex review against `origin/main`: completed with no actionable regression.
-- Cursor Bugbot: passed on the current PR.
-- CodeRabbit: skipped because the structural migration exceeds its 100-file review limit.
-
-## Known blockers and warnings
-
-### Vercel Preview
-
-Vercel Preview reports a zero-duration deployment failure on PR #10. The same Vercel failure occurred on earlier PR #9, so it is not proven to be a Phase 0 regression.
-
-The deployment logs are private, and the current development VM does not have Vercel credentials. Likely project-side causes include:
-
-- `CONVEX_DEPLOY_KEY` is not configured for the Preview environment.
-- A Vercel dashboard build setting overrides the repository's `vercel.json`.
-
-Before merging, inspect the private deployment logs or configure Vercel CLI access, confirm the precise cause, and rerun the preview deployment.
-
-### Existing dependency/lint warnings
-
-- ESLint currently reports 30 warnings and no errors.
-- pnpm reports an existing `better-call` peer mismatch with Zod 3.
-- pnpm reports ignored dependency build scripts for packages including `sharp`, `esbuild`, and Tailwind's native package.
-- These warnings were not introduced as product changes during the structural migration.
+- pnpm reports the existing `better-call` / Zod peer mismatch and ignored dependency build scripts.
+- The web lint task reports 30 existing warnings.
+- Next.js reports stale `baseline-browser-mapping` data during build/lint.
+- Vercel Preview has a pre-existing private configuration failure also observed before Phase 1.
 
 ## Next actions
 
-1. Inspect the private Vercel Preview logs for PR #10.
-2. Configure Preview `CONVEX_DEPLOY_KEY` or remove any conflicting dashboard build override.
-3. Rerun Vercel Preview and require a successful deployment.
-4. Capture mobile screenshots at a real narrow viewport for the landing page and key public routes.
-5. Recheck PR comments and current-head checks after the final deployment run.
-6. Merge PR #10 only after explicit approval and required gates are satisfied.
-7. After merge, start PRD Phase 1 with shared core contracts, provider-adapter interfaces, and the model registry foundation.
+1. Clean generated package/web artifacts and verify the Git diff.
+2. Commit, push, and open the Phase 1 foundation PR.
+3. Inspect current-head CI and review comments; do not merge without explicit approval.
+4. Continue Phase 1 with registry merge/readiness rules and persistence integration only after this contract foundation lands.
 
 ## Phase roadmap
 
-- [x] Phase 0 implementation prepared in PR #10
-- [ ] Phase 0 preview deployment green
-- [ ] Phase 0 merged to `main`
-- [ ] Phase 1: Core contracts and registry
+- [x] Phase 0 monorepo migration merged via PR #10 (`088a53f`)
+- [x] Phase 1 foundation implementation: hardened shared contracts, lifecycle, registry vocabulary, and adapter boundary (local)
+- [x] Phase 1 foundation independent review
+- [ ] Phase 1 foundation PR
+- [ ] Phase 1 registry merge/readiness and persistence integration
 - [ ] Phase 2: Provider adapters and durable jobs
 - [ ] Phase 3: Catalog, detail pages, and playground
 - [ ] Phase 4: Creator and Developer dashboards
