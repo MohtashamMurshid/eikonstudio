@@ -9,7 +9,7 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 - **Active phase:** Phase 1 — Canonical model catalog and creator integration
 - **Status:** Source-backed catalog slice implemented, locally verified, and independently reviewed on top of the Phase 1 contracts head; awaiting stacked PR checks
 - **Branch:** `feature/phase-1-model-catalog`
-- **Base:** Phase 1 contracts head `3a8391a`
+- **Base:** Phase 1 contracts head `b8fa402`
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
