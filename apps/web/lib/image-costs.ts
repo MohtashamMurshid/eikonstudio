@@ -7,7 +7,11 @@ import {
 export type EstimatedImageSize = "1K" | "2K" | "4K";
 export type EstimatedGenerationMode = "text-to-image" | "image-editing";
 
-const LEGACY_GEMINI_PREVIEW = "gemini-3.1-flash-image-preview";
+export const LEGACY_GEMINI_PREVIEW = "gemini-3.1-flash-image-preview";
+
+export function resolveStoredImageModel(imageModel?: string, model?: string): string {
+  return imageModel ?? model ?? LEGACY_GEMINI_PREVIEW;
+}
 
 /**
  * Approximate output-image prices in USD, checked 2026-08-02.

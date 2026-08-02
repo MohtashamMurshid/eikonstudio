@@ -77,10 +77,10 @@ Fresh verification ran with Turbo cache bypass after the model catalog integrati
 
 - `pnpm install --frozen-lockfile` — passed across all 4 workspace projects.
 - `pnpm turbo run test --force` — passed:
-  - Core: 38 tests across 4 files.
+  - Core: 39 tests across 4 files.
   - Providers: 9 tests across 1 file.
-  - Web pricing: 4 tests across 1 file.
-  - Total: 51 tests.
+  - Web pricing/provenance: 5 tests across 1 file.
+  - Total: 53 tests.
 - `pnpm turbo run typecheck --force` — passed: 4 tasks.
 - `pnpm turbo run lint --force` — passed: 0 errors and 30 pre-existing web warnings.
 - Placeholder-environment `pnpm turbo run build --force` — passed:

@@ -3,7 +3,7 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { authComponent } from "./auth";
 import { createAppError } from "../lib/error-utils";
-import { estimateImageGenerationCost } from "../lib/image-costs";
+import { estimateImageGenerationCost, resolveStoredImageModel } from "../lib/image-costs";
 import { LEGACY_IMAGE_MODEL_GEMINI_PREVIEW, imageModelValidator } from "./imageModels";
 
 // Generate upload URL for uploading images to Convex storage
@@ -577,19 +577,20 @@ export const backfillCosts = mutation({
     let updated = 0;
     for (const gen of generations) {
       const updates: Record<string, any> = {};
+      const sourceModel = resolveStoredImageModel(gen.imageModel, gen.model);
       
       // Backfill cost if missing
       if (gen.estimatedCost === undefined) {
         updates.estimatedCost = estimateImageGenerationCost(
           gen.imageSize,
           gen.mode,
-          gen.model ?? LEGACY_IMAGE_MODEL_GEMINI_PREVIEW,
+          sourceModel,
         );
       }
       
       // Backfill model if missing
       if (!gen.model) {
-        updates.model = LEGACY_IMAGE_MODEL_GEMINI_PREVIEW;
+        updates.model = sourceModel;
       }
       
       // Backfill status if missing (legacy records are completed)
