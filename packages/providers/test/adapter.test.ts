@@ -224,6 +224,7 @@ describe("ProviderAdapter architecture and security contract", () => {
     expect(JSON.stringify(normalized)).not.toContain("sk-live-super-secret");
     expect(JSON.stringify(normalized)).not.toContain("bearer-token");
     expect(normalized.publicError).not.toHaveProperty("providerContext");
+    expect(() => privateRedactedError("google", "corr_private_123", now, redactedContext)).toThrow("provider");
   });
 
   it("preserves raw bytes and normalized multi-value headers for verified webhooks", async () => {
@@ -239,6 +240,8 @@ describe("ProviderAdapter architecture and security contract", () => {
       credential,
     });
     expect(WebhookVerificationRequestSchema.safeParse({ ...webhookRequest, rawBody: "{}" }).success).toBe(false);
+    expect(WebhookVerificationRequestSchema.safeParse({ ...webhookRequest, headers: { "X-Signature": ["v1=one"] } }).success).toBe(false);
+    expect(WebhookVerificationRequestSchema.safeParse({ ...webhookRequest, headers: { "x signature": ["v1=one"] } }).success).toBe(false);
     const result = await mockAdapter.verifyWebhook(webhookRequest);
     expect(WebhookVerificationResultSchema.safeParse(result).success).toBe(true);
     expect(rawBody).toEqual(new Uint8Array([0x7b, 0x7d]));
