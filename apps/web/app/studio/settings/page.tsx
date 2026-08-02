@@ -3,8 +3,7 @@
 import { useState, type ReactNode } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useQuery } from "convex-helpers/react/cache/hooks"
-import { useMutation, useAction } from "convex/react"
+import { useMutation, useAction, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 import Image from "next/image"
@@ -159,7 +158,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDeleteKey = async (provider: ProviderId) => {
+  const handleDisableKey = async (provider: ProviderId) => {
     setIsDeletingProvider((current) => ({ ...current, [provider]: true }))
     setSaveSuccessProvider((current) => ({ ...current, [provider]: false }))
     setProviderFeedback((current) => ({ ...current, [provider]: null }))
@@ -170,7 +169,7 @@ export default function SettingsPage() {
     } catch {
       setProviderFeedback((current) => ({
         ...current,
-        [provider]: { valid: false, message: "Failed to delete API key" },
+        [provider]: { valid: false, message: "Failed to disable API key" },
       }))
     } finally {
       setIsDeletingProvider((current) => ({ ...current, [provider]: false }))
@@ -440,11 +439,11 @@ export default function SettingsPage() {
                           {providerHasStoredKey && (
                             <button
                               type="button"
-                              onClick={() => handleDeleteKey(provider.id)}
+                              onClick={() => handleDisableKey(provider.id)}
                               disabled={isDeletingProvider[provider.id]}
                               className="inline-flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400"
                             >
-                              {isDeletingProvider[provider.id] ? "Deleting…" : "Delete key"}
+                              {isDeletingProvider[provider.id] ? "Disabling…" : "Disable key"}
                             </button>
                           )}
                         </div>
@@ -454,7 +453,7 @@ export default function SettingsPage() {
                 </div>
 
                 <p className="border-t border-border pt-6 text-xs text-muted-foreground">
-                  Provider keys are stored server-side for your authenticated account and only used when you trigger studio generations or authenticated API gateway requests.
+                  Provider keys are stored server-side for your authenticated account and only used when you trigger studio generations or authenticated API gateway requests. Disabling a key prevents further use while retaining its encrypted record for migration safety.
                 </p>
               </div>
             )}

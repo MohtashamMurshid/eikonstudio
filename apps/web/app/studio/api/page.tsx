@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { useAction, useMutation } from "convex/react"
-import { useQuery } from "convex-helpers/react/cache/hooks"
+import { useAction, useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
 const codeSample = (baseUrl: string, platformApiKey: string) => `curl -X POST "${baseUrl}/api/v1/generate" \\

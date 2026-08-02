@@ -2,7 +2,7 @@
 
 import { ConvexError, v } from "convex/values";
 import { api, internal } from "./_generated/api";
-import { action, internalAction } from "./_generated/server";
+import { action, internalAction, type ActionCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import {
   CREDENTIAL_ENCRYPTION_VERSION,
@@ -59,6 +59,7 @@ export const saveProviderCredential = action({
     if (!secretValue) throw new ConvexError("Credential cannot be empty");
 
     const provider = canonicalizeProvider(args.provider);
+    const encryptionSecret = readCredentialEncryptionSecret();
     const now = Date.now();
     const reserved: { handle: string; provider: "google" | "openai"; createdAt: number } = await ctx.runMutation(internal.apiKeys.reserveCredentialHandleInternal, {
       ownerId: user._id,
@@ -71,7 +72,7 @@ export const saveProviderCredential = action({
     const encrypted = await encryptCredentialV2(
       secretValue,
       { ownerId: user._id, provider, handle, keyVersion },
-      readCredentialEncryptionSecret(),
+      encryptionSecret,
     );
     const result: { updated: boolean } = await ctx.runMutation(internal.apiKeys.upsertCredentialEnvelopeInternal, {
       ownerId: user._id,
@@ -100,18 +101,13 @@ export const saveProviderCredential = action({
   },
 });
 
-/**
- * Returns plaintext only to an internal action for one provider operation.
- * Ownership, canonical provider, stable handle, health, and AEAD AAD are all checked.
- */
-export const resolveCredentialForOperation = internalAction({
-  args: {
-    ownerId: v.string(),
-    provider: providerInputValidator,
-    credentialHandle: v.string(),
-  },
-  returns: v.object({ secretValue: v.string() }),
-  handler: async (ctx, args): Promise<{ secretValue: string }> => {
+type CredentialResolutionArgs = {
+  ownerId: string;
+  provider: "google" | "gemini" | "openai";
+  credentialHandle: string;
+};
+
+async function resolveCredential(ctx: ActionCtx, args: CredentialResolutionArgs): Promise<{ secretValue: string }> {
     const record: Doc<"apiKeys"> | null = await ctx.runQuery(internal.apiKeys.getCredentialEnvelopeInternal, {
       credentialHandle: args.credentialHandle,
     });
@@ -149,7 +145,20 @@ export const resolveCredentialForOperation = internalAction({
     }
 
     throw new Error("Credential is unavailable for this operation");
+}
+
+/**
+ * Returns plaintext only to an internal action for one provider operation.
+ * Ownership, canonical provider, stable handle, health, and AEAD AAD are all checked.
+ */
+export const resolveCredentialForOperation = internalAction({
+  args: {
+    ownerId: v.string(),
+    provider: providerInputValidator,
+    credentialHandle: v.string(),
   },
+  returns: v.object({ secretValue: v.string() }),
+  handler: resolveCredential,
 });
 
 /** Gateway bridge: acquire/attach a handle, then pass through the exact resolver. */
@@ -171,7 +180,7 @@ export const resolveConfiguredCredentialForOperation = internalAction({
     }
     if (!binding) throw new Error("Credential is unavailable for this operation");
 
-    const resolved: { secretValue: string } = await ctx.runAction(internal.credentialActions.resolveCredentialForOperation, {
+    const resolved = await resolveCredential(ctx, {
       ownerId: args.ownerId,
       provider,
       credentialHandle: binding.handle,

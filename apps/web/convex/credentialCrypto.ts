@@ -1,4 +1,4 @@
-import { createHash, randomBytes, webcrypto } from "node:crypto";
+import { randomBytes, webcrypto } from "node:crypto";
 
 export const CREDENTIAL_ENCRYPTION_VERSION = 2 as const;
 export const CREDENTIAL_KEY_VERSION = "primary" as const;
@@ -174,8 +174,4 @@ export function decryptLegacyCredential(
     if (error instanceof CredentialCryptoError) throw error;
     throw new CredentialCryptoError("DECRYPTION");
   }
-}
-
-export function fakeSecret(seed: string): string {
-  return createHash("sha256").update(seed).digest("base64");
 }

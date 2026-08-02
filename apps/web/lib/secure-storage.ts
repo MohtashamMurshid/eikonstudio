@@ -52,10 +52,13 @@ export async function disableProviderCredential(convex: ConvexReactClient, provi
 /** Validation sends only the newly typed value over the authenticated TLS action; it is not persisted client-side. */
 export async function testProviderCredential(
   convex: ConvexReactClient,
-  provider: "gemini" | "openai",
+  provider: ProviderId,
   secretValue: string,
 ): Promise<TestResult> {
-  return convex.action(api.apiKeyActions.testProviderApiKey, { provider, apiKey: secretValue });
+  return convex.action(api.apiKeyActions.testProviderApiKey, {
+    provider: provider === "openai" ? "openai" : "gemini",
+    apiKey: secretValue,
+  });
 }
 
 export const secureStorageQueries = {

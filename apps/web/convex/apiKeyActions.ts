@@ -122,6 +122,9 @@ export const testProviderApiKey = action({
         if (response.ok) {
           return { valid: true, message: "Gemini API key is valid" };
         }
+        if (response.status === 429 || response.status >= 500) {
+          return { valid: false, message: "Gemini could not verify the key right now. Please try again." };
+        }
 
         return {
           valid: false,
@@ -138,6 +141,9 @@ export const testProviderApiKey = action({
 
       if (response.ok) {
         return { valid: true, message: "OpenAI API key is valid" };
+      }
+      if (response.status === 429 || response.status >= 500) {
+        return { valid: false, message: "OpenAI could not verify the key right now. Please try again." };
       }
 
       return {

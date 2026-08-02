@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import {
   type MutationCtx,
   type QueryCtx,
@@ -104,7 +105,8 @@ export const hasProviderCredential = query({
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return false;
-    return (await getProviderCredentialRecord(ctx, user._id, args.provider)) !== null;
+    const record = await getProviderCredentialRecord(ctx, user._id, args.provider);
+    return record !== null && ["active", "legacy"].includes(credentialHealth(record));
   },
 });
 
@@ -257,18 +259,21 @@ export const attachLegacyCredentialHandleInternal = internalMutation({
 
 /** Read-only rollout inventory; it never decrypts, rewrites, or deletes records. */
 export const inventoryLegacyCredentialRecordsInternal = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    const records = await ctx.db.query("apiKeys").collect();
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const result = await ctx.db.query("apiKeys").order("asc").paginate(args.paginationOpts);
+    const records = result.page;
     const legacy = records.filter((record) => record.encryptionVersion !== 2);
     return {
-      total: records.length,
+      scanned: records.length,
       legacy: legacy.length,
       missingHandle: records.filter((record) => !record.credentialHandle).length,
       byLegacyProvider: {
         gemini: legacy.filter((record) => record.provider === "gemini" || record.provider === undefined).length,
         openai: legacy.filter((record) => record.provider === "openai").length,
       },
+      continueCursor: result.continueCursor,
+      isDone: result.isDone,
     };
   },
 });

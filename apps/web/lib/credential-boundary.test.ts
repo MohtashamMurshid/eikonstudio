@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,7 +9,7 @@ import {
   decryptCredentialV2,
   decryptLegacyCredential,
   encryptCredentialV2,
-  fakeSecret,
+
   readCredentialEncryptionSecret,
 } from "../convex/credentialCrypto";
 import {
@@ -18,6 +20,8 @@ import {
   maskCredentialHint,
   toCredentialMetadata,
 } from "../convex/credentialPolicy";
+
+const fakeSecret = (seed: string) => createHash("sha256").update(seed).digest("base64");
 
 const secret = fakeSecret("credential-test-primary");
 const otherSecret = fakeSecret("credential-test-other");
@@ -81,6 +85,10 @@ describe("provider credential cryptography", () => {
     ["wrong secret", async () => {
       const encrypted = await encryptCredentialV2("test-provider-secret", aad, secret);
       return decryptCredentialV2(encrypted, aad, otherSecret);
+    }],
+    ["key version", async () => {
+      const encrypted = await encryptCredentialV2("test-provider-secret", aad, secret);
+      return decryptCredentialV2({ ...encrypted, keyVersion: "rotated" }, aad, secret);
     }],
   ])("rejects modified %s with one safe error", async (_name, operation) => {
     await expect(operation()).rejects.toMatchObject({
@@ -170,7 +178,7 @@ describe("provider credential boundary policy", () => {
 });
 
 describe("credential source boundary", () => {
-  const webRoot = resolve(process.cwd());
+  const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const source = (relativePath: string) => readFileSync(resolve(webRoot, relativePath), "utf8");
 
   it("does not expose plaintext-read APIs or browser provider-key persistence", () => {
@@ -202,5 +210,13 @@ describe("credential source boundary", () => {
       source("convex/credentialActions.ts"),
     ].join("\n");
     expect(credentialFiles).not.toContain("eikon-default-secret-change-in-prod");
+  });
+
+  it("validates encryption configuration before reserving storage and ignores invalid placeholders", () => {
+    const actions = source("convex/credentialActions.ts");
+    const apiKeys = source("convex/apiKeys.ts");
+    expect(actions.indexOf("const encryptionSecret = readCredentialEncryptionSecret()"))
+      .toBeLessThan(actions.indexOf("reserveCredentialHandleInternal"));
+    expect(apiKeys).toContain('["active", "legacy"].includes(credentialHealth(record))');
   });
 });

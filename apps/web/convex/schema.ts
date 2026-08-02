@@ -93,7 +93,6 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_provider", ["userId", "provider"])
-    .index("by_user_canonical_provider", ["userId", "canonicalProvider"])
     .index("by_credential_handle", ["credentialHandle"]),
 
   platformApiKeys: defineTable({

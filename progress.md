@@ -7,7 +7,7 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 ## Current delivery state
 
 - **Active phase:** Phase 2 — Provider credential boundary and durable jobs
-- **Status:** Credential-boundary hardening implemented, fully verified, and independently reviewed on merged Phase 1; awaiting PR checks
+- **Status:** Credential-boundary hardening passed local verification and independent review; real Convex deployment binding/code generation remains required before release
 - **Branch:** `feature/phase-2-durable-jobs`
 - **Base:** Merged Phase 1 catalog head `9eb1f62`
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
@@ -109,7 +109,7 @@ Fresh verification ran with Turbo cache bypass after the model catalog integrati
 Phase 2 credential-boundary exact-head verification:
 
 - Frozen workspace install passed with pnpm `10.18.3`.
-- `pnpm turbo run test --force` passed **70 tests**: 39 core, 9 providers, and 22 web tests across two files.
+- `pnpm turbo run test --force` passed **72 tests**: 39 core, 9 providers, and 24 web tests across two files.
 - `pnpm turbo run typecheck --force` passed all 4 tasks.
 - `pnpm turbo run lint --force` passed with 0 errors and the same 30 existing web warnings.
 - Placeholder-environment `pnpm turbo run build --force` passed all 3 tasks and produced all 22 routes.
@@ -117,6 +117,7 @@ Phase 2 credential-boundary exact-head verification:
 - Production browser smoke passed: `/auth` rendered without clipping/overflow, and unauthenticated `/studio/settings` showed only the sign-in boundary with no credential metadata or controls exposed.
 - Convex codegen could not run in the isolated worktree because no `CONVEX_DEPLOYMENT` is configured; the generated API module registration was updated minimally and must be regenerated against the deployment before release.
 - Independent Codex review found two legacy compatibility regressions; deterministic legacy metadata handles and exact historical-secret support were added, and the final rereview found no actionable correctness regressions.
+- CodeRabbit found four actionable PR issues; realtime metadata, honest disable semantics, fail-before-reservation ordering, health-aware configured checks, and transient key-test handling were repaired. Additional bounded inventory and resolver-boundary hardening was included, and the repair rereview was clean.
 
 Focused regressions cover:
 
