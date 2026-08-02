@@ -1,10 +1,12 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query, internalMutation } from "./_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { authComponent } from "./auth";
 import { createAppError } from "../lib/error-utils";
 import { estimateImageGenerationCost, resolveStoredImageModel } from "../lib/image-costs";
-import { LEGACY_IMAGE_MODEL_GEMINI_PREVIEW, imageModelValidator } from "./imageModels";
+import { LEGACY_IMAGE_MODEL_GEMINI_PREVIEW, IMAGE_MODEL_GPT_IMAGE_2, imageModelValidator } from "./imageModels";
+import { getProviderCredentialRecord } from "./apiKeys";
+import { credentialHealth, legacyCredentialHandle, recordCanonicalProvider } from "./credentialPolicy";
 
 // Generate upload URL for uploading images to Convex storage
 export const generateUploadUrl = mutation({
@@ -24,45 +26,48 @@ export const generateUploadUrl = mutation({
 // Background Generation System
 // ============================================
 
-// Start a new generation - creates a pending record and schedules the background action
+// Start a new generation. The browser submits request metadata only; the
+// authenticated credential handle is bound transactionally before scheduling.
 export const startGeneration = mutation({
   args: {
     prompt: v.string(),
     mode: v.union(v.literal("text-to-image"), v.literal("image-editing")),
     aspectRatio: v.string(),
     imageSize: v.string(),
-    apiKey: v.optional(v.string()),
     imageModel: imageModelValidator,
-    // Reference image storage IDs for image-editing mode
     referenceImageIds: v.optional(v.array(v.id("_storage"))),
   },
   handler: async (ctx, args) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) {
-      throw new ConvexError(
-        createAppError("UNAUTHENTICATED", "Sign in to start a generation"),
-      );
+      throw new ConvexError(createAppError("UNAUTHENTICATED", "Sign in to start a generation"));
     }
-
     if (!args.prompt.trim()) {
-      throw new ConvexError(
-        createAppError("VALIDATION_ERROR", "Prompt cannot be empty"),
-      );
+      throw new ConvexError(createAppError("VALIDATION_ERROR", "Prompt cannot be empty"));
+    }
+    if (args.mode === "image-editing" && (!args.referenceImageIds || args.referenceImageIds.length === 0)) {
+      throw new ConvexError(createAppError("VALIDATION_ERROR", "Add at least one reference image for image editing"));
     }
 
-    if (
-      args.mode === "image-editing" &&
-      (!args.referenceImageIds || args.referenceImageIds.length === 0)
-    ) {
-      throw new ConvexError(
-        createAppError(
-          "VALIDATION_ERROR",
-          "Add at least one reference image for image editing",
-        ),
-      );
+    const expectedProvider = args.imageModel === IMAGE_MODEL_GPT_IMAGE_2 ? "openai" : "google";
+    const credential = await getProviderCredentialRecord(ctx, user._id, expectedProvider);
+    if (!credential || !["active", "legacy"].includes(credentialHealth(credential))) {
+      throw new ConvexError(createAppError("VALIDATION_ERROR", "Configure an active provider credential in Settings"));
+    }
+    const credentialHandle = credential.credentialHandle ?? legacyCredentialHandle(credential._id);
+    if (!credential.credentialHandle) {
+      await ctx.db.patch(credential._id, {
+        credentialHandle,
+        canonicalProvider: expectedProvider,
+        health: credential.encryptionVersion === 2 ? "active" : "legacy",
+        keyVersion: credential.keyVersion ?? "legacy",
+        updatedAt: Date.now(),
+      });
+    }
+    if (recordCanonicalProvider(credential) !== expectedProvider) {
+      throw new ConvexError(createAppError("VALIDATION_ERROR", "Provider credential does not match the selected model"));
     }
 
-    // Create a pending generation record
     const generationId = await ctx.db.insert("generations", {
       userId: user._id,
       prompt: args.prompt,
@@ -70,37 +75,48 @@ export const startGeneration = mutation({
       aspectRatio: args.aspectRatio,
       imageSize: args.imageSize,
       imageModel: args.imageModel,
+      credentialHandle,
+      credentialProvider: expectedProvider,
       createdAt: Date.now(),
       status: "pending",
       referenceImageIds: args.referenceImageIds,
     });
 
-    // Get URLs for reference images if in image-editing mode
-    let referenceImageUrls: string[] | undefined;
-    if (args.mode === "image-editing" && args.referenceImageIds && args.referenceImageIds.length > 0) {
-      referenceImageUrls = [];
-      for (const storageId of args.referenceImageIds) {
-        const url = await ctx.storage.getUrl(storageId);
-        if (url) {
-          referenceImageUrls.push(url);
-        }
-      }
-    }
-
-    // Schedule the background action to run immediately
     await ctx.scheduler.runAfter(0, internal.imageGeneration.generateImageBackground, {
       generationId,
+      credentialHandle,
+      credentialProvider: expectedProvider,
       prompt: args.prompt,
       mode: args.mode,
       aspectRatio: args.aspectRatio,
       imageSize: args.imageSize,
-      apiKey: args.apiKey,
       imageModel: args.imageModel,
-      referenceImageUrls,
-      userId: user._id, // Pass userId for looking up custom skills
     });
-
     return generationId;
+  },
+});
+
+export const getGenerationExecutionContext = internalQuery({
+  args: {
+    generationId: v.id("generations"),
+    credentialHandle: v.string(),
+    credentialProvider: v.union(v.literal("google"), v.literal("openai")),
+  },
+  handler: async (ctx, args) => {
+    const generation = await ctx.db.get(args.generationId);
+    if (
+      !generation ||
+      generation.credentialHandle !== args.credentialHandle ||
+      generation.credentialProvider !== args.credentialProvider
+    ) {
+      throw new Error("Generation credential binding is invalid");
+    }
+    const referenceImageUrls: string[] = [];
+    for (const storageId of generation.referenceImageIds ?? []) {
+      const url = await ctx.storage.getUrl(storageId);
+      if (url) referenceImageUrls.push(url);
+    }
+    return { ownerId: generation.userId, referenceImageUrls };
   },
 });
 

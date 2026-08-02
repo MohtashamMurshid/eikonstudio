@@ -1,19 +1,26 @@
-/**
- * Secure Storage Client
- * 
- * Client-side wrapper for securely storing and retrieving API keys
- * via Convex backend with server-side encryption.
- */
-
+/** Metadata-only client helpers for provider credentials. Saved plaintext is never readable by clients. */
 import { api } from "@/convex/_generated/api";
 import { ConvexReactClient } from "convex/react";
 
-export type ProviderId = "gemini" | "openai";
+export type ProviderId = "google" | "gemini" | "openai";
+export type CanonicalProviderId = "google" | "openai";
 
-export interface ApiKeyInfo {
-  apiKey: string;
+export interface CredentialMetadata {
+  handle: string;
+  provider: CanonicalProviderId;
+  configured: boolean;
+  health: "active" | "legacy" | "disabled" | "invalid";
+  maskedHint: string;
+  encryptionVersion: number;
+  keyVersion: string;
   createdAt: number;
   updatedAt: number;
+  disabledAt?: number;
+}
+
+export interface ProviderCredentials {
+  google: CredentialMetadata | null;
+  openai: CredentialMetadata | null;
 }
 
 export interface TestResult {
@@ -21,112 +28,49 @@ export interface TestResult {
   message: string;
 }
 
-export interface ProviderApiKeys {
-  gemini: ApiKeyInfo | null;
-  openai: ApiKeyInfo | null;
-}
-
-/**
- * Save an API key securely to Convex
- * The key will be encrypted server-side before storage
- */
-export async function saveApiKey(
-  convex: ConvexReactClient,
-  apiKey: string
-): Promise<{ success: boolean; updated: boolean }> {
-  return await convex.mutation(api.apiKeys.saveApiKey, { apiKey });
-}
-
-export async function saveProviderApiKey(
+/** Plaintext exists in the browser only while the user submits this authenticated action. */
+export async function saveProviderCredential(
   convex: ConvexReactClient,
   provider: ProviderId,
-  apiKey: string
-): Promise<{ success: boolean; updated: boolean }> {
-  return await convex.mutation(api.apiKeys.saveProviderApiKey, { provider, apiKey });
+  secretValue: string,
+) {
+  return convex.action(api.credentialActions.saveProviderCredential, { provider, secretValue });
 }
 
-/**
- * Get the decrypted API key from Convex
- * Returns null if no key is stored
- */
-export async function getApiKey(
-  convex: ConvexReactClient
-): Promise<ApiKeyInfo | null> {
-  return await convex.query(api.apiKeys.getApiKey, {});
+export async function getProviderCredentials(convex: ConvexReactClient): Promise<ProviderCredentials> {
+  return convex.query(api.apiKeys.getMyProviderCredentials, {});
 }
 
-export async function getProviderApiKeys(
-  convex: ConvexReactClient
-): Promise<ProviderApiKeys> {
-  return await convex.query(api.apiKeys.getMyProviderApiKeys, {});
+export async function hasProviderCredential(convex: ConvexReactClient, provider: ProviderId): Promise<boolean> {
+  return convex.query(api.apiKeys.hasProviderCredential, { provider });
 }
 
-/**
- * Check if user has an API key stored (without retrieving it)
- */
-export async function hasApiKey(
-  convex: ConvexReactClient
-): Promise<boolean> {
-  return await convex.query(api.apiKeys.hasApiKey, {});
+export async function disableProviderCredential(convex: ConvexReactClient, provider: ProviderId) {
+  return convex.mutation(api.apiKeys.disableProviderCredential, { provider });
 }
 
-/**
- * Delete the stored API key
- */
-export async function deleteApiKey(
-  convex: ConvexReactClient
-): Promise<{ success: boolean; deleted: boolean }> {
-  return await convex.mutation(api.apiKeys.deleteApiKey, {});
-}
-
-export async function deleteProviderApiKey(
+/** Validation sends only the newly typed value over the authenticated TLS action; it is not persisted client-side. */
+export async function testProviderCredential(
   convex: ConvexReactClient,
-  provider: ProviderId
-): Promise<{ success: boolean; deleted: boolean }> {
-  return await convex.mutation(api.apiKeys.deleteProviderApiKey, { provider });
-}
-
-/**
- * Test if an API key is valid by making a test request to Gemini
- */
-export async function testApiKey(
-  convex: ConvexReactClient,
-  apiKey: string
+  provider: ProviderId,
+  secretValue: string,
 ): Promise<TestResult> {
-  return await convex.action(api.apiKeyActions.testProviderApiKey, {
-    provider: "gemini",
-    apiKey,
+  return convex.action(api.apiKeyActions.testProviderApiKey, {
+    provider: provider === "openai" ? "openai" : "gemini",
+    apiKey: secretValue,
   });
 }
 
-export async function testProviderApiKey(
-  convex: ConvexReactClient,
-  provider: ProviderId,
-  apiKey: string
-): Promise<TestResult> {
-  return await convex.action(api.apiKeyActions.testProviderApiKey, {
-    provider,
-    apiKey,
-  });
-}
-
-/**
- * Hook-friendly utilities for use with Convex React hooks
- */
 export const secureStorageQueries = {
-  getApiKey: api.apiKeys.getApiKey,
-  hasApiKey: api.apiKeys.hasApiKey,
-  getMyProviderApiKeys: api.apiKeys.getMyProviderApiKeys,
+  getMyProviderCredentials: api.apiKeys.getMyProviderCredentials,
+  hasProviderCredential: api.apiKeys.hasProviderCredential,
 };
 
 export const secureStorageMutations = {
-  saveApiKey: api.apiKeys.saveApiKey,
-  deleteApiKey: api.apiKeys.deleteApiKey,
-  saveProviderApiKey: api.apiKeys.saveProviderApiKey,
-  deleteProviderApiKey: api.apiKeys.deleteProviderApiKey,
+  disableProviderCredential: api.apiKeys.disableProviderCredential,
 };
 
 export const secureStorageActions = {
-  testApiKey: api.apiKeyActions.testProviderApiKey,
+  saveProviderCredential: api.credentialActions.saveProviderCredential,
+  testProviderCredential: api.apiKeyActions.testProviderApiKey,
 };
-

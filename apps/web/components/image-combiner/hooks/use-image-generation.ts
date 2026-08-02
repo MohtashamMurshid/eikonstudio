@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import type { GeneratedImage } from "../types"
 import { type ImageModelId } from "../constants"
-import { getImageModelProvider } from "@/lib/image-models"
 import type { Id } from "@/convex/_generated/dataModel"
 import { getUserFacingErrorMessage } from "@/lib/error-utils"
 
@@ -37,7 +36,6 @@ interface StartGenerationParams {
   mode: "text-to-image" | "image-editing"
   aspectRatio: string
   imageSize: string
-  apiKey?: string
   imageModel: ImageModelId
   referenceImageIds?: Id<"_storage">[]
 }
@@ -51,10 +49,6 @@ interface GenerationRecord {
 }
 
 interface UseImageGenerationOptions {
-  providerApiKeys: {
-    gemini: string
-    openai: string
-  }
   currentMode: "text-to-image" | "image-editing"
   useUrls: boolean
   image1: File | null
@@ -157,7 +151,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
       currentMode, useUrls, 
       image1, image1Url, image2, image2Url, 
       image3, image3Url, image4, image4Url,
-      prompt, aspectRatio, imageSize, imageModel, providerApiKeys, 
+      prompt, aspectRatio, imageSize, imageModel,
       onError, generateUploadUrl, startGeneration 
     } = options
 
@@ -190,8 +184,6 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
         }
       })
     }, 100)
-
-    const providerApiKey = providerApiKeys[getImageModelProvider(imageModel)]
 
     try {
       // Upload reference images first if in image-editing mode
@@ -251,7 +243,6 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
         mode: currentMode,
         aspectRatio,
         imageSize,
-        apiKey: providerApiKey || undefined,
         imageModel,
         referenceImageIds,
       })

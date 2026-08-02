@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { useAction, useMutation } from "convex/react"
-import { useQuery } from "convex-helpers/react/cache/hooks"
+import { useAction, useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
 const codeSample = (baseUrl: string, platformApiKey: string) => `curl -X POST "${baseUrl}/api/v1/generate" \\
@@ -18,7 +17,7 @@ const codeSample = (baseUrl: string, platformApiKey: string) => `curl -X POST "$
   }'`
 
 export default function StudioApiPage() {
-  const providerApiKeys = useQuery(api.apiKeys.getMyProviderApiKeys, {})
+  const providerCredentials = useQuery(api.apiKeys.getMyProviderCredentials, {})
   const platformKeySummary = useQuery(api.apiKeys.getPlatformApiKeySummary, {})
   const createPlatformApiKey = useAction(api.apiKeyActions.createPlatformApiKey)
   const revokePlatformApiKey = useMutation(api.apiKeys.revokePlatformApiKey)
@@ -35,15 +34,15 @@ export default function StudioApiPage() {
       {
         id: "gemini",
         label: "Gemini",
-        configured: Boolean(providerApiKeys?.gemini?.apiKey),
+        configured: Boolean(providerCredentials?.google?.configured),
       },
       {
         id: "openai",
         label: "OpenAI",
-        configured: Boolean(providerApiKeys?.openai?.apiKey),
+        configured: Boolean(providerCredentials?.openai?.configured),
       },
     ],
-    [providerApiKeys],
+    [providerCredentials],
   )
 
   const codeBlockClass =

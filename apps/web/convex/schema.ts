@@ -18,6 +18,9 @@ export default defineSchema({
     model: v.optional(v.string()), // Model name used for generation
     /** User-selected image model for this generation (set when job is created) */
     imageModel: v.optional(storedImageModelValidator),
+    /** Credential-boundary v2 fields are additive for legacy rows. */
+    credentialHandle: v.optional(v.string()),
+    credentialProvider: v.optional(v.union(v.literal("google"), v.literal("openai"))),
     // Background generation status (optional for backward compatibility with existing records)
     status: v.optional(v.union(
       v.literal("pending"),
@@ -56,16 +59,41 @@ export default defineSchema({
   // Secure API key storage
   apiKeys: defineTable({
     userId: v.string(),
+    /**
+     * Legacy fields remain optional during the non-destructive v2 rollout.
+     * They are read only by the internal compatibility resolver and are never
+     * populated by new writes.
+     */
     provider: v.optional(
       v.union(v.literal("gemini"), v.literal("openai"))
     ),
-    encryptedKey: v.string(), // AES-GCM encrypted API key
-    iv: v.string(), // Initialization vector for decryption
+    encryptedKey: v.optional(v.string()),
+    iv: v.optional(v.string()),
+    /** Stable opaque operation binding and metadata for v2 credentials. */
+    credentialHandle: v.optional(v.string()),
+    canonicalProvider: v.optional(
+      v.union(v.literal("google"), v.literal("openai"))
+    ),
+    ciphertext: v.optional(v.string()),
+    nonce: v.optional(v.string()),
+    authTag: v.optional(v.string()),
+    encryptionVersion: v.optional(v.number()),
+    keyVersion: v.optional(v.string()),
+    health: v.optional(v.union(
+      v.literal("active"),
+      v.literal("legacy"),
+      v.literal("disabled"),
+      v.literal("invalid")
+    )),
+    maskedHint: v.optional(v.string()),
+    disabledAt: v.optional(v.number()),
+    lastValidatedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
-    .index("by_user_provider", ["userId", "provider"]),
+    .index("by_user_provider", ["userId", "provider"])
+    .index("by_credential_handle", ["credentialHandle"]),
 
   platformApiKeys: defineTable({
     userId: v.string(),

@@ -98,7 +98,11 @@ function getGenerationFailureMessage(error: unknown): string {
 
   if (
     message.includes("openai api key not configured") ||
-    message.includes("no api key configured")
+    message.includes("no api key configured") ||
+    message.includes("credential") ||
+    message.includes("authentication") ||
+    message.includes("unauthorized") ||
+    message.includes("401")
   ) {
     return "Add a valid provider API key in Settings before generating images."
   }
@@ -123,43 +127,53 @@ function getGenerationFailureMessage(error: unknown): string {
     return "The request was blocked by the model's safety system. Try a different prompt."
   }
 
-  if (rawMessage.trim()) {
-    return rawMessage
-  }
-
   return "Image generation failed unexpectedly. Please try again."
 }
 
 /**
  * Background action to generate an image (Gemini or OpenAI GPT Image).
- * OpenAI requires OPENAI_API_KEY in Convex environment variables.
+ * Credentials are resolved server-side from the owner/provider/handle binding.
  */
 export const generateImageBackground = internalAction({
   args: {
     generationId: v.id("generations"),
+    credentialHandle: v.string(),
+    credentialProvider: v.union(v.literal("google"), v.literal("openai")),
     prompt: v.string(),
     mode: v.union(v.literal("text-to-image"), v.literal("image-editing")),
     aspectRatio: v.string(),
     imageSize: v.string(),
-    apiKey: v.optional(v.string()),
     imageModel: imageModelValidator,
-    referenceImageUrls: v.optional(v.array(v.string())),
-    userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const {
       generationId,
+      credentialHandle,
+      credentialProvider,
       prompt,
       mode,
       aspectRatio,
       imageSize,
-      apiKey,
       imageModel,
-      referenceImageUrls,
-      userId,
     } = args;
 
     try {
+      const execution = await ctx.runQuery(internal.generations.getGenerationExecutionContext, {
+        generationId,
+        credentialHandle,
+        credentialProvider,
+      });
+      const resolvedCredential = await ctx.runAction(
+        internal.credentialActions.resolveCredentialForOperation,
+        {
+          ownerId: execution.ownerId,
+          provider: credentialProvider,
+          credentialHandle,
+        },
+      );
+      const providerSecret = resolvedCredential.secretValue;
+      const userId = execution.ownerId;
+      const referenceImageUrls = execution.referenceImageUrls;
       await ctx.runMutation(internal.generations.updateGenerationStatus, {
         generationId,
         status: "generating",
@@ -190,8 +204,8 @@ export const generateImageBackground = internalAction({
             if (builtInSkill) {
               skillPromptMap[skillName] = renderSkillPrompt(builtInSkill);
             }
-          } catch (skillError) {
-            console.error(`[Image Generation] Failed to resolve skill /${skillName}:`, skillError);
+          } catch {
+            console.error(`[Image Generation] Failed to resolve skill /${skillName}`);
           }
         }
 
@@ -208,14 +222,10 @@ export const generateImageBackground = internalAction({
       let completedModel: string = imageModel;
 
       if (imageModel === GPT_IMAGE_MODEL) {
-        const openaiKey = apiKey || process.env.OPENAI_API_KEY;
-        if (!openaiKey) {
-          throw new Error(
-            "OpenAI API key not configured. Add your own key in Settings or set OPENAI_API_KEY in the Convex environment."
-          );
+        if (credentialProvider !== "openai") {
+          throw new Error("Credential provider does not match the selected model");
         }
-
-        const openai = new OpenAI({ apiKey: openaiKey });
+        const openai = new OpenAI({ apiKey: providerSecret });
         const { size: openAiSize, quality: openAiQuality } = openAiSizeAndQuality(aspectRatio, imageSize);
 
         if (mode === "text-to-image") {
@@ -242,8 +252,8 @@ export const generateImageBackground = internalAction({
           for (let i = 0; i < referenceImageUrls.length; i++) {
             try {
               files.push(await urlToOpenAiUploadable(referenceImageUrls[i], i));
-            } catch (e) {
-              console.error("Error processing reference image for OpenAI:", e);
+            } catch {
+              console.error("Error processing reference image for OpenAI");
             }
           }
 
@@ -268,14 +278,11 @@ export const generateImageBackground = internalAction({
           resultBase64 = b64;
         }
       } else {
-        const apiKeyToUse = apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-
-        if (!apiKeyToUse) {
-          throw new Error("No API key configured");
+        if (credentialProvider !== "google") {
+          throw new Error("Credential provider does not match the selected model");
         }
-
         const ai = new GoogleGenAI({
-          apiKey: apiKeyToUse,
+          apiKey: providerSecret,
         });
 
         const aspectRatioString = getAspectRatioString(aspectRatio);
@@ -327,8 +334,8 @@ export const generateImageBackground = internalAction({
               const b64 = buf.toString("base64");
               const mimeType = resp.headers.get("content-type") || "image/png";
               imageParts.push({ inlineData: { data: b64, mimeType } });
-            } catch (e) {
-              console.error("Error processing reference image:", e);
+            } catch {
+              console.error("Error processing reference image");
             }
           }
 
@@ -381,7 +388,7 @@ export const generateImageBackground = internalAction({
 
       console.log(`Generation ${generationId} completed successfully`);
     } catch (error) {
-      console.error(`Generation ${generationId} failed:`, error);
+      console.error(`Generation ${generationId} failed`);
 
       const errorMessage = getGenerationFailureMessage(error);
 
