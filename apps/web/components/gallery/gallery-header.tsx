@@ -17,7 +17,7 @@ interface GalleryHeaderProps {
   onUploadClick: () => void
   uploadProgress: string | null
   isUploading: boolean
-  fileInputRef: React.RefObject<HTMLInputElement>
+  fileInputRef: React.RefObject<HTMLInputElement | null>
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
 }
 

@@ -36,7 +36,7 @@ export interface SkillDefinition {
   builtInSkillKey?: string;
 }
 
-type SkillLike = Partial<SkillDefinition> & {
+type SkillLike = Omit<Partial<SkillDefinition>, "category"> & {
   name: string;
   description?: string;
   category?: string;
