@@ -1,3 +1,5 @@
+"use node";
+
 import { randomBytes, webcrypto } from "node:crypto";
 
 export const CREDENTIAL_ENCRYPTION_VERSION = 2 as const;

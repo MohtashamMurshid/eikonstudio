@@ -181,6 +181,10 @@ describe("credential source boundary", () => {
   const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const source = (relativePath: string) => readFileSync(resolve(webRoot, relativePath), "utf8");
 
+  it("marks the Node crypto helper for Convex's Node runtime", () => {
+    expect(source("convex/credentialCrypto.ts")).toMatch(/^"use node";/);
+  });
+
   it("does not expose plaintext-read APIs or browser provider-key persistence", () => {
     const apiKeys = source("convex/apiKeys.ts");
     const settings = source("app/studio/settings/page.tsx");
