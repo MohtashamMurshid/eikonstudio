@@ -6,10 +6,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 2 — Provider credential boundary and durable jobs
-- **Status:** Credential-boundary hardening passed local verification and independent review; real Convex deployment binding/code generation remains required before release
-- **Branch:** `feature/phase-2-durable-jobs`
-- **Base:** Merged Phase 1 catalog head `9eb1f62`
+- **Active phase:** Phase 2 — Additive durable job persistence core
+- **Status:** Internal-only additive durable job persistence core implemented, adversarially reviewed, and ready for PR
+- **Branch:** `feature/phase-2-durable-job-core`
+- **Base:** `origin/main@4ce0cc2` after credential-runtime and Vercel-path follow-ups
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
@@ -86,6 +86,17 @@ Deliberately out of scope:
 
 ## Verification evidence
 
+Phase 2 durable-core exact-head verification:
+
+- `pnpm turbo run test --force` passed **92 tests**: 39 core, 9 providers, and 44 web tests across four files.
+- `pnpm turbo run typecheck --force` passed all 4 tasks.
+- `pnpm turbo run lint --force` passed with 0 errors and the same 30 existing web warnings.
+- Placeholder-environment `pnpm turbo run build --force` passed all 3 tasks and produced all 22 routes.
+- `git diff --check` passed.
+- Independent Codex review iteratively repaired lease timing, ambiguous-submission, cancellation-race, terminal-state, storage-existence, completion/output-linkage, and idempotent-replay findings; the final rereview found no discrete correctness issue.
+- PR #14 review repairs added canonical request-metadata errors, replay-safe timestamp freshness, current-status reconciliation replays, live-lease failure fencing, bounded attempt reads, storage checksum verification, an expiry-sweep index, and independent transition/scheduler-boundary tests. Unsupported cancellation is recorded without falsely marking remote cancellation and does not strand provider work.
+- No provider calls, deployment, production migration, destructive legacy rewrite, or legacy execution-flow integration occurred.
+
 Fresh verification ran with Turbo cache bypass after the model catalog integration:
 
 - `pnpm install --frozen-lockfile` — passed across all 4 workspace projects.
@@ -142,9 +153,10 @@ Expected existing warnings remain:
 
 ## Next actions
 
-1. Commit, push, and open the first Phase 2 PR against `main`.
-2. Inspect current-head CI and review comments; deploy only after configuring the required Convex secrets and regenerating bindings against the real deployment.
-3. Follow with the additive durable lifecycle/event/attempt/idempotency substrate before connecting new provider adapters.
+1. Open and review the bounded durable-core PR.
+2. Keep legacy generation flows unchanged until the persistence primitives are merged.
+3. Regenerate Convex bindings against a configured deployment before release.
+4. Connect provider adapters only after both credential and durable-job boundaries are accepted.
 
 ## Phase roadmap
 
@@ -156,8 +168,8 @@ Expected existing warnings remain:
 - [x] Phase 1 model catalog independent review
 - [x] Phase 1 model catalog merged via PR #12 (`9eb1f62`)
 - [x] Phase 2 credential-boundary implementation and independent review
-- [ ] Phase 2 credential-boundary PR
-- [ ] Phase 2 durable lifecycle persistence substrate
+- [x] Phase 2 credential-boundary PR merged via PR #13 (`f00a9f8`)
+- [x] Phase 2 durable lifecycle persistence substrate implemented and independently reviewed
 - [ ] Phase 2 provider adapters and durable jobs
 - [ ] Phase 3: Catalog, detail pages, and playground
 - [ ] Phase 4: Creator and Developer dashboards
