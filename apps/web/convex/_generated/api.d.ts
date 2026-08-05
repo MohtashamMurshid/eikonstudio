@@ -13,6 +13,7 @@ import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
 import type * as characters from "../characters.js";
 import type * as credentialActions from "../credentialActions.js";
+import type * as durableJobs from "../durableJobs.js";
 import type * as gallery from "../gallery.js";
 import type * as generations from "../generations.js";
 import type * as http from "../http.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   characters: typeof characters;
   credentialActions: typeof credentialActions;
+  durableJobs: typeof durableJobs;
   gallery: typeof gallery;
   generations: typeof generations;
   http: typeof http;

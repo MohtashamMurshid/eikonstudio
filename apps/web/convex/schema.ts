@@ -159,6 +159,133 @@ export default defineSchema({
   })
     .index("by_user", ["userId"]),
 
+  // Phase 2 durable orchestration is additive and intentionally disconnected from legacy generations.
+  durableGenerationJobs: defineTable({
+    ownerId: v.string(),
+    jobKey: v.string(),
+    generationKey: v.string(),
+    idempotencyKey: v.string(),
+    requestFingerprint: v.string(),
+    provider: v.union(v.literal("openai"), v.literal("google"), v.literal("bfl"), v.literal("byteplus"), v.literal("kling"), v.literal("xai")),
+    credentialHandle: v.string(),
+    modelId: v.string(),
+    requestMetadataJson: v.string(),
+    status: v.union(v.literal("queued"), v.literal("submitting"), v.literal("processing"), v.literal("persisting"), v.literal("completed"), v.literal("failed"), v.literal("cancelled"), v.literal("expired")),
+    revision: v.number(),
+    submissionState: v.union(v.literal("not_started"), v.literal("in_flight"), v.literal("accepted"), v.literal("ambiguous"), v.literal("reconciled")),
+    providerRequestId: v.optional(v.string()),
+    completionIdentity: v.optional(v.string()),
+    cancellationRequested: v.boolean(),
+    cancellationRequestedAt: v.optional(v.number()),
+    cancellationObservedAt: v.optional(v.number()),
+    cancellationOutcome: v.optional(v.union(v.literal("accepted"), v.literal("unsupported"), v.literal("too_late"), v.literal("local"))),
+    leaseOwner: v.optional(v.string()),
+    leaseToken: v.optional(v.string()),
+    leaseEpoch: v.number(),
+    leaseExpiresAt: v.optional(v.number()),
+    publicErrorCategory: v.optional(v.string()),
+    publicErrorCode: v.optional(v.string()),
+    publicErrorMessage: v.optional(v.string()),
+    publicErrorRetryable: v.optional(v.boolean()),
+    publicErrorCorrelationId: v.optional(v.string()),
+    maxAgeSeconds: v.number(),
+    expiresAt: v.number(),
+    finalizedOutputIds: v.optional(v.array(v.id("durableGenerationOutputs"))),
+    terminalAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_owner_idempotency", ["ownerId", "idempotencyKey"])
+    .index("by_job_key", ["jobKey"])
+    .index("by_status", ["status"])
+    .index("by_lease_expiry", ["leaseExpiresAt"]),
+
+  durableGenerationAttempts: defineTable({
+    ownerId: v.string(),
+    jobId: v.id("durableGenerationJobs"),
+    jobKey: v.string(),
+    generationKey: v.string(),
+    attemptKey: v.string(),
+    attemptNumber: v.number(),
+    status: v.union(v.literal("queued"), v.literal("submitting"), v.literal("processing"), v.literal("persisting"), v.literal("completed"), v.literal("failed"), v.literal("cancelled"), v.literal("expired")),
+    submissionState: v.union(v.literal("not_started"), v.literal("in_flight"), v.literal("accepted"), v.literal("ambiguous"), v.literal("reconciled")),
+    providerRequestId: v.optional(v.string()),
+    leaseToken: v.optional(v.string()),
+    leaseEpoch: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_job", ["jobId"])
+    .index("by_attempt_key", ["attemptKey"]),
+
+  durableGenerationEvents: defineTable({
+    ownerId: v.string(),
+    eventId: v.string(),
+    jobId: v.id("durableGenerationJobs"),
+    jobKey: v.string(),
+    generationKey: v.string(),
+    eventType: v.union(v.literal("created"), v.literal("claimed"), v.literal("transitioned"), v.literal("submission_accepted"), v.literal("submission_ambiguous"), v.literal("submission_reconciled"), v.literal("cancellation_requested"), v.literal("cancellation_observed"), v.literal("provider_completed"), v.literal("output_persisted"), v.literal("finalized")),
+    eventFingerprint: v.string(),
+    revision: v.number(),
+    occurredAt: v.number(),
+    attemptId: v.optional(v.id("durableGenerationAttempts")),
+  })
+    .index("by_event_id", ["eventId"])
+    .index("by_job_revision", ["jobId", "revision"]),
+
+  durableProviderSubmissions: defineTable({
+    ownerId: v.string(),
+    jobId: v.id("durableGenerationJobs"),
+    generationKey: v.string(),
+    credentialHandle: v.string(),
+    attemptId: v.id("durableGenerationAttempts"),
+    submissionKey: v.string(),
+    provider: v.union(v.literal("openai"), v.literal("google"), v.literal("bfl"), v.literal("byteplus"), v.literal("kling"), v.literal("xai")),
+    state: v.union(v.literal("accepted"), v.literal("ambiguous"), v.literal("reconciled")),
+    providerRequestId: v.optional(v.string()),
+    reconciliationOutcome: v.optional(v.union(v.literal("accepted"), v.literal("failed"))),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_submission_key", ["submissionKey"])
+    .index("by_job", ["jobId"])
+    .index("by_provider_request", ["provider", "providerRequestId"]),
+
+  durableGenerationOutputs: defineTable({
+    ownerId: v.string(),
+    jobId: v.id("durableGenerationJobs"),
+    jobKey: v.string(),
+    generationKey: v.string(),
+    completionId: v.id("durableGenerationCompletions"),
+    outputKey: v.string(),
+    storageId: v.id("_storage"),
+    thumbnailStorageId: v.optional(v.id("_storage")),
+    mediaType: v.union(v.literal("image"), v.literal("video")),
+    contentType: v.string(),
+    byteSize: v.number(),
+    checksumSha256: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_output_key", ["outputKey"])
+    .index("by_job", ["jobId"])
+    .index("by_completion", ["completionId"]),
+
+  durableGenerationCompletions: defineTable({
+    ownerId: v.string(),
+    jobId: v.id("durableGenerationJobs"),
+    jobKey: v.string(),
+    generationKey: v.string(),
+    provider: v.union(v.literal("openai"), v.literal("google"), v.literal("bfl"), v.literal("byteplus"), v.literal("kling"), v.literal("xai")),
+    providerRequestId: v.string(),
+    completionKey: v.string(),
+    outputIdentityKind: v.union(v.literal("checksum"), v.literal("asset")),
+    outputIdentity: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_completion_key", ["completionKey"])
+    .index("by_job", ["jobId"])
+    .index("by_provider_request", ["provider", "providerRequestId"]),
+
   // Video generations
   videoGenerations: defineTable({
     userId: v.string(),
