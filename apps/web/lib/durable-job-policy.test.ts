@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertBoundedJsonObject,
   assertExpectedState,
   assertExpectedTransition,
   assertLeaseClaimable,
@@ -13,16 +14,31 @@ import {
   classifyIdempotentCreate,
   completionIdentityKey,
   DURABLE_JOB_STATUSES,
-  DURABLE_JOB_TRANSITIONS,
   mayAutomaticallySubmit,
   nextLeaseEpoch,
 } from "../convex/durableJobPolicy";
 
 describe("durable job policy", () => {
+  it("normalizes malformed and forbidden request metadata failures", () => {
+    expect(() => assertBoundedJsonObject("{")).toThrow("INVALID_REQUEST_METADATA");
+    expect(() => assertBoundedJsonObject('{"apiKey":"forbidden"}')).toThrow("INVALID_REQUEST_METADATA");
+    expect(() => assertBoundedJsonObject('{"prompt":"safe"}')).not.toThrow();
+  });
+
   it("enforces the complete transition matrix", () => {
+    const expected: Record<(typeof DURABLE_JOB_STATUSES)[number], readonly (typeof DURABLE_JOB_STATUSES)[number][]> = {
+      queued: ["submitting", "failed", "cancelled", "expired"],
+      submitting: ["processing", "failed", "cancelled", "expired"],
+      processing: ["persisting", "failed", "cancelled", "expired"],
+      persisting: ["completed", "failed", "cancelled", "expired"],
+      completed: [],
+      failed: [],
+      cancelled: [],
+      expired: [],
+    };
     for (const from of DURABLE_JOB_STATUSES) {
       for (const to of DURABLE_JOB_STATUSES) {
-        const allowed = (DURABLE_JOB_TRANSITIONS[from] as readonly (typeof DURABLE_JOB_STATUSES)[number][]).includes(to);
+        const allowed = expected[from].includes(to);
         if (allowed) expect(() => assertTransition(from, to)).not.toThrow();
         else expect(() => assertTransition(from, to)).toThrow();
       }

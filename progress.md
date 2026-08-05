@@ -88,12 +88,13 @@ Deliberately out of scope:
 
 Phase 2 durable-core exact-head verification:
 
-- `pnpm turbo run test --force` passed **91 tests**: 39 core, 9 providers, and 43 web tests across four files.
+- `pnpm turbo run test --force` passed **92 tests**: 39 core, 9 providers, and 44 web tests across four files.
 - `pnpm turbo run typecheck --force` passed all 4 tasks.
 - `pnpm turbo run lint --force` passed with 0 errors and the same 30 existing web warnings.
 - Placeholder-environment `pnpm turbo run build --force` passed all 3 tasks and produced all 22 routes.
 - `git diff --check` passed.
 - Independent Codex review iteratively repaired lease timing, ambiguous-submission, cancellation-race, terminal-state, storage-existence, completion/output-linkage, and idempotent-replay findings; the final rereview found no discrete correctness issue.
+- PR #14 review repairs added canonical request-metadata errors, replay-safe timestamp freshness, current-status reconciliation replays, live-lease failure fencing, bounded attempt reads, storage checksum verification, an expiry-sweep index, and independent transition/scheduler-boundary tests. Unsupported cancellation is recorded without falsely marking remote cancellation and does not strand provider work.
 - No provider calls, deployment, production migration, destructive legacy rewrite, or legacy execution-flow integration occurred.
 
 Fresh verification ran with Turbo cache bypass after the model catalog integration:

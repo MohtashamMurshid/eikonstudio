@@ -198,6 +198,7 @@ export default defineSchema({
     .index("by_owner_idempotency", ["ownerId", "idempotencyKey"])
     .index("by_job_key", ["jobKey"])
     .index("by_status", ["status"])
+    .index("by_status_expiry", ["status", "expiresAt"])
     .index("by_lease_expiry", ["leaseExpiresAt"]),
 
   durableGenerationAttempts: defineTable({

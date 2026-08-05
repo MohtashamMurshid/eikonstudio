@@ -183,7 +183,12 @@ export function assertSafePublicError(error: { category: string; code: string; m
 
 export function assertBoundedJsonObject(value: string, maxLength = 16_384): void {
   if (value.length < 2 || value.length > maxLength) throw new Error("INVALID_REQUEST_METADATA");
-  const parsed: unknown = JSON.parse(value);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error("INVALID_REQUEST_METADATA");
+  }
   if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error("INVALID_REQUEST_METADATA");
   const forbiddenName = /(?:secret|credential|authorization|token|api.?key|provider.?key|transport.?url|native.?payload)/i;
   const visit = (input: unknown, depth: number): void => {

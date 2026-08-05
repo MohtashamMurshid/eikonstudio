@@ -83,6 +83,12 @@ function opaque(value: string, max: number, code: string): void {
   if (value.length < 1 || value.length > max || !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value)) fail(code);
 }
 
+function trustedInstant(occurredAt: number, now = Date.now()): void {
+  if (!Number.isFinite(occurredAt) || occurredAt <= 0 || occurredAt < now - 604_800_000 || occurredAt > now + 60_000) {
+    fail("INVALID_OCCURRED_AT");
+  }
+}
+
 function validateSafeError(error: SafeError): void {
   try {
     assertSafePublicError(error);
@@ -141,7 +147,7 @@ async function patchJobAttemptsStatus(
   const attempts = await ctx.db
     .query("durableGenerationAttempts")
     .withIndex("by_job", (q) => q.eq("jobId", job._id))
-    .collect();
+    .take(101);
   if (attempts.length > 100) fail("ATTEMPT_LIMIT_EXCEEDED");
   for (const attempt of attempts) {
     if (attempt.ownerId !== job.ownerId || attempt.generationKey !== job.generationKey) fail("ATTEMPT_BINDING_INVALID");
@@ -292,7 +298,11 @@ export const createAndSchedule = internalMutation({
     bounded(args.requestFingerprint, 256, "INVALID_REQUEST_FINGERPRINT");
     bounded(args.modelId, 256, "INVALID_MODEL");
     opaque(args.credentialHandle, 256, "INVALID_CREDENTIAL_HANDLE");
-    assertBoundedJsonObject(args.requestMetadataJson);
+    try {
+      assertBoundedJsonObject(args.requestMetadataJson);
+    } catch {
+      fail("INVALID_REQUEST_METADATA");
+    }
     if (
       !Number.isInteger(args.maxAgeSeconds) ||
       args.maxAgeSeconds < 1 ||
@@ -329,6 +339,7 @@ export const createAndSchedule = internalMutation({
       .withIndex("by_job_key", (q) => q.eq("jobKey", args.jobKey))
       .unique();
     if (duplicateJobKey) fail("JOB_KEY_COLLISION");
+    trustedInstant(args.occurredAt, creationNow);
 
     const expiresAt = creationNow + args.maxAgeSeconds * 1000;
     const jobId = await ctx.db.insert("durableGenerationJobs", {
@@ -445,6 +456,7 @@ export const claim = internalMutation({
         leaseExpiresAt: job.leaseExpiresAt ?? args.occurredAt,
       };
     }
+    trustedInstant(args.occurredAt, leaseNow);
     expectState(job, args.expectedStatus, args.expectedRevision);
     if (TERMINAL_DURABLE_JOB_STATUSES.has(job.status) || job.cancellationRequested || job.expiresAt <= leaseNow) {
       fail("JOB_NOT_CLAIMABLE");
@@ -499,6 +511,9 @@ export const transition = internalMutation({
     jobId: v.id("durableGenerationJobs"),
     expectedStatus: statusValidator,
     expectedRevision: v.number(),
+    attemptKey: v.optional(v.string()),
+    leaseToken: v.optional(v.string()),
+    leaseEpoch: v.optional(v.number()),
     targetStatus: v.union(v.literal("failed"), v.literal("expired")),
     eventId: v.string(),
     eventFingerprint: v.string(),
@@ -510,6 +525,12 @@ export const transition = internalMutation({
     const job = await loadOwnedJob(ctx, args.ownerId, args.jobId);
     const replayRevision = await replayedRevision(ctx, args.eventId, job, "transitioned", args.eventFingerprint);
     if (replayRevision !== undefined) return { revision: replayRevision, replay: true };
+    trustedInstant(args.occurredAt);
+    if (args.targetStatus === "failed" && (job.leaseExpiresAt ?? 0) > Date.now()) {
+      if (!args.attemptKey || !args.leaseToken || args.leaseEpoch === undefined) fail("LEASE_FENCE_REQUIRED");
+      const attempt = await loadAttempt(ctx, job, args.attemptKey);
+      fenceWorker(job, attempt, args.leaseToken, args.leaseEpoch);
+    }
     try {
       assertMayTerminateWithoutReconciliation(job.submissionState);
     } catch {
@@ -563,6 +584,7 @@ export const beginSubmission = internalMutation({
     const attempt = await loadAttempt(ctx, job, args.attemptKey);
     const replayRevision = await replayedRevision(ctx, args.eventId, job, "transitioned", "queued:submitting");
     if (replayRevision !== undefined) return { revision: replayRevision };
+    trustedInstant(args.occurredAt);
     fenceWorker(job, attempt, args.leaseToken, args.leaseEpoch);
     if (job.cancellationRequested) fail("CANCELLATION_REQUESTED");
     expectTransition(job, "queued", args.expectedRevision, "submitting");
@@ -631,6 +653,7 @@ export const recordSubmissionAccepted = internalMutation({
       }
       fail("SUBMISSION_KEY_COLLISION");
     }
+    trustedInstant(args.occurredAt);
     try {
       assertSubmissionAcknowledgementAllowed(job.submissionState, attempt.submissionState);
     } catch {
@@ -705,6 +728,7 @@ export const recordSubmissionAmbiguous = internalMutation({
       }
       fail("SUBMISSION_KEY_COLLISION");
     }
+    trustedInstant(args.occurredAt);
     try {
       assertSubmissionAcknowledgementAllowed(job.submissionState, attempt.submissionState);
     } catch {
@@ -770,7 +794,7 @@ export const reconcileAmbiguousSubmission = internalMutation({
     ]);
     const replayRevision = await replayedRevision(ctx, args.eventId, job, "submission_reconciled", fingerprint);
     if (replayRevision !== undefined) {
-      return { revision: replayRevision, status: args.outcome === "accepted" ? "processing" : "failed" };
+      return { revision: replayRevision, status: job.status };
     }
     const submission = await ctx.db
       .query("durableProviderSubmissions")
@@ -795,11 +819,12 @@ export const reconcileAmbiguousSubmission = internalMutation({
         args.error?.retryable === job.publicErrorRetryable &&
         args.error?.correlationId === job.publicErrorCorrelationId;
       if (sameAccepted || sameFailed) {
-        return { revision: job.revision, status: args.outcome === "accepted" ? "processing" : "failed" };
+        return { revision: job.revision, status: job.status };
       }
       fail("RECONCILIATION_COLLISION");
     }
     if (submission.state !== "ambiguous") fail("SUBMISSION_NOT_FOUND");
+    trustedInstant(args.occurredAt);
     fenceWorker(job, attempt, args.leaseToken, args.leaseEpoch);
     expectState(job, "submitting", args.expectedRevision);
     if (job.submissionState !== "ambiguous") fail("SUBMISSION_NOT_AMBIGUOUS");
@@ -858,6 +883,7 @@ export const requestCancellation = internalMutation({
     const job = await loadOwnedJob(ctx, args.ownerId, args.jobId);
     const replayRevision = await replayedRevision(ctx, args.eventId, job, "cancellation_requested", "requested");
     if (replayRevision !== undefined) return { revision: replayRevision, status: job.status };
+    trustedInstant(args.occurredAt);
     expectState(job, args.expectedStatus, args.expectedRevision);
     if (TERMINAL_DURABLE_JOB_STATUSES.has(job.status)) fail("TERMINAL_IMMUTABLE");
     const queued = job.status === "queued";
@@ -869,7 +895,7 @@ export const requestCancellation = internalMutation({
       occurredAt: args.occurredAt,
     });
     await ctx.db.patch(job._id, {
-      cancellationRequested: true,
+      cancellationRequested: !queued,
       cancellationRequestedAt: args.occurredAt,
       ...(queued ? { status: "cancelled" as const, cancellationObservedAt: args.occurredAt, cancellationOutcome: "local" as const, terminalAt: args.occurredAt, leaseOwner: undefined, leaseToken: undefined, leaseExpiresAt: undefined } : {}),
       revision: job.revision + 1,
@@ -895,6 +921,7 @@ export const observeCancellation = internalMutation({
     const job = await loadOwnedJob(ctx, args.ownerId, args.jobId);
     const replayRevision = await replayedRevision(ctx, args.eventId, job, "cancellation_observed", args.outcome);
     if (replayRevision !== undefined) return { revision: replayRevision, status: job.status };
+    trustedInstant(args.occurredAt);
     if (TERMINAL_DURABLE_JOB_STATUSES.has(job.status)) fail("TERMINAL_IMMUTABLE");
     expectState(job, args.expectedStatus, args.expectedRevision);
     if (!job.cancellationRequested) fail("CANCELLATION_NOT_REQUESTED");
@@ -909,7 +936,7 @@ export const observeCancellation = internalMutation({
     });
     await ctx.db.patch(job._id, {
       ...(cancelled ? { status: "cancelled" as const, terminalAt: args.occurredAt, leaseOwner: undefined, leaseToken: undefined, leaseExpiresAt: undefined } : {}),
-      cancellationRequested: cancelled,
+      cancellationRequested: false,
       cancellationObservedAt: args.occurredAt,
       cancellationOutcome: args.outcome,
       revision: job.revision + 1,
@@ -968,6 +995,7 @@ export const recordProviderCompletion = internalMutation({
       }
       fail("COMPLETION_IDENTITY_COLLISION");
     }
+    trustedInstant(args.occurredAt);
     if (TERMINAL_DURABLE_JOB_STATUSES.has(job.status)) fail("TERMINAL_IMMUTABLE");
     const attempt = await loadAttempt(ctx, job, args.attemptKey);
     fenceWorker(job, attempt, args.leaseToken, args.leaseEpoch);
@@ -1054,6 +1082,7 @@ export const recordDurableOutput = internalMutation({
       const replayRevision = await replayedRevision(ctx, args.eventId, job, "output_persisted", args.outputKey);
       return { outputId: existing._id, revision: replayRevision ?? job.revision, replay: true };
     }
+    trustedInstant(args.occurredAt);
     fenceWorker(job, attempt, args.leaseToken, args.leaseEpoch);
     expectState(job, "persisting", args.expectedRevision);
     if (
@@ -1079,13 +1108,13 @@ export const recordDurableOutput = internalMutation({
     }
     const primaryMetadata = await ctx.db.system.get(args.storageId);
     const thumbnailMetadata = args.thumbnailStorageId ? await ctx.db.system.get(args.thumbnailStorageId) : null;
+    if (!primaryMetadata || (args.thumbnailStorageId && !thumbnailMetadata)) fail("DURABLE_STORAGE_NOT_FOUND");
+    if (primaryMetadata.sha256.toLowerCase() !== args.checksumSha256) fail("DURABLE_STORAGE_CHECKSUM_MISMATCH");
     if (
-      !primaryMetadata ||
       primaryMetadata.size !== args.byteSize ||
-      (primaryMetadata.contentType !== undefined && primaryMetadata.contentType !== args.contentType) ||
-      (args.thumbnailStorageId && !thumbnailMetadata)
+      (primaryMetadata.contentType !== undefined && primaryMetadata.contentType !== args.contentType)
     ) {
-      fail("DURABLE_STORAGE_NOT_FOUND");
+      fail("DURABLE_STORAGE_METADATA_MISMATCH");
     }
     const outputId = await ctx.db.insert("durableGenerationOutputs", {
       ownerId: job.ownerId,
@@ -1138,6 +1167,7 @@ export const finalize = internalMutation({
       if (existingFingerprint === eventFingerprint) return { revision: job.revision };
       fail("TERMINAL_IMMUTABLE");
     }
+    trustedInstant(args.occurredAt);
     const attempt = await loadAttempt(ctx, job, args.attemptKey);
     fenceWorker(job, attempt, args.leaseToken, args.leaseEpoch);
     if (job.cancellationRequested) fail("CANCELLATION_REQUIRES_OBSERVATION");

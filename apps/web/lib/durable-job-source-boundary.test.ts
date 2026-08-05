@@ -23,8 +23,11 @@ describe("durable persistence source boundary", () => {
   });
 
   it("schedules only the opaque Convex job id", () => {
-    expect(durableJobs).toContain("internal.durableJobs.inspectScheduledJob, { jobId }");
-    expect(durableJobs).not.toMatch(/inspectScheduledJob, \{[^}]+(?:credential|providerRequest|requestMetadata|submission)/);
+    const payloads = [...durableJobs.matchAll(/internal\.durableJobs\.inspectScheduledJob,\s*(\{[^}]*\})/g)].map((match) =>
+      match[1].replace(/\s+/g, " "),
+    );
+    expect(payloads.length).toBeGreaterThan(0);
+    expect(payloads.every((payload) => payload === "{ jobId }")).toBe(true);
   });
 
   it("persists owner, credential, lease fencing, provider identity, and completion linkage", () => {
@@ -44,23 +47,26 @@ describe("durable persistence source boundary", () => {
     expect(schema).toContain('completionId: v.id("durableGenerationCompletions")');
     expect(durableJobs).toContain("OUTPUT_COMPLETION_MISMATCH");
     expect(durableJobs).toContain("ctx.db.system.get(args.storageId)");
+    expect(durableJobs).toContain("DURABLE_STORAGE_CHECKSUM_MISMATCH");
+    expect(durableJobs).toContain("trustedInstant(args.occurredAt");
     expect(durableJobs).toContain("JSON.stringify([args.submissionKey, args.providerRequestId])");
   });
 
   it("cannot bypass completion, persistence, or cancellation through the generic transition", () => {
+    const cancellationObservation = durableJobs.split("export const observeCancellation")[1]?.split("export const recordProviderCompletion")[0] ?? "";
     expect(durableJobs).toContain('targetStatus: v.union(v.literal("failed"), v.literal("expired"))');
     expect(durableJobs).toContain("TERMINAL_DURABLE_JOB_STATUSES.has(job.status)");
     expect(durableJobs).toContain("job.cancellationRequested || job.expiresAt <= leaseNow");
     expect(durableJobs).toContain('status: "completed"');
     expect(durableJobs).toContain("DURABLE_OUTPUTS_REQUIRED");
-    expect(durableJobs).toContain("cancellationRequested: cancelled");
+    expect(cancellationObservation).toContain("TERMINAL_DURABLE_JOB_STATUSES.has(job.status)");
+    expect(cancellationObservation).toContain("cancellationRequested: false");
     expect(durableJobs).toContain("CANCELLATION_REQUIRES_OBSERVATION");
     expect(durableJobs).toContain("args.scheduleAt > creationNow + args.maxAgeSeconds * 1000");
     expect(durableJobs).toContain("job.expiresAt <= leaseNow");
     expect(durableJobs).toContain("if (job.expiresAt <= now) fail(\"JOB_EXPIRED\")");
     expect(durableJobs).toContain('args.targetStatus === "expired" && Date.now() < job.expiresAt');
-    const cancellationObservation = durableJobs.split("export const observeCancellation")[1]?.split("export const recordProviderCompletion")[0] ?? "";
-    expect(cancellationObservation).toContain("TERMINAL_DURABLE_JOB_STATUSES.has(job.status)");
+    expect(durableJobs).toContain("LEASE_FENCE_REQUIRED");
     const reconciliation = durableJobs.split("export const reconcileAmbiguousSubmission")[1]?.split("export const requestCancellation")[0] ?? "";
     expect(reconciliation).toContain("if (job.cancellationRequested) fail(\"CANCELLATION_REQUIRES_OBSERVATION\")");
   });
