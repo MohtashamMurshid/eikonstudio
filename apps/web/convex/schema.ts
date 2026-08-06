@@ -21,6 +21,10 @@ export default defineSchema({
     /** Credential-boundary v2 fields are additive for legacy rows. */
     credentialHandle: v.optional(v.string()),
     credentialProvider: v.optional(v.union(v.literal("google"), v.literal("openai"))),
+    /** Durable execution linkage is additive; historical rows remain unlinked. */
+    requestIdempotencyKey: v.optional(v.string()),
+    durableJobId: v.optional(v.id("durableGenerationJobs")),
+    durableGenerationKey: v.optional(v.string()),
     // Background generation status (optional for backward compatibility with existing records)
     status: v.optional(v.union(
       v.literal("pending"),
@@ -34,7 +38,9 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_created", ["userId", "createdAt"])
-    .index("by_user_status", ["userId", "status"]),
+    .index("by_user_status", ["userId", "status"])
+    .index("by_user_idempotency", ["userId", "requestIdempotencyKey"])
+    .index("by_durable_job", ["durableJobId"]),
 
   folders: defineTable({
     userId: v.string(),

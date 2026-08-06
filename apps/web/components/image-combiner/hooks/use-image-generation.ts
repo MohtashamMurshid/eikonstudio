@@ -32,6 +32,7 @@ const fileToBlob = async (file: File): Promise<Blob> => {
 }
 
 interface StartGenerationParams {
+  idempotencyKey: string
   prompt: string
   mode: "text-to-image" | "image-editing"
   aspectRatio: string
@@ -239,6 +240,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
 
       // Start the background generation
       const genId = await startGeneration({
+        idempotencyKey: `image_${crypto.randomUUID()}`,
         prompt,
         mode: currentMode,
         aspectRatio,

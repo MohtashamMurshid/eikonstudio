@@ -1,15 +1,21 @@
 "use node";
 
 import { v } from "convex/values";
-import { internalAction } from "./_generated/server";
+import { internalAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { GoogleGenAI } from "@google/genai";
 import OpenAI, { toFile } from "openai";
 import type { Id } from "./_generated/dataModel";
 import { Jimp } from "jimp";
+import { createHash, randomUUID } from "node:crypto";
 import { builtInSkills, renderSkillPrompt } from "../lib/skill-library";
 import { estimateImageGenerationCost } from "../lib/image-costs";
 import { IMAGE_MODEL_GPT_IMAGE_2 as GPT_IMAGE_MODEL, imageModelValidator } from "./imageModels";
+import {
+  durableExecutionDecision,
+  providerFailureDisposition,
+  requireProviderRequestIdentity,
+} from "./durableExecutionPolicy";
 
 
 function getAspectRatioString(ratio: string): string {
@@ -130,6 +136,166 @@ function getGenerationFailureMessage(error: unknown): string {
   return "Image generation failed unexpectedly. Please try again."
 }
 
+type ExistingImageProvider = "google" | "openai";
+
+type ProviderImageResult = {
+  imageBuffer: Buffer;
+  mimeType: string;
+  completedModel: string;
+  providerRequestId?: string;
+};
+
+async function executeExistingImageProvider(
+  ctx: ActionCtx,
+  args: {
+    userId: string;
+    providerSecret: string;
+    credentialProvider: ExistingImageProvider;
+    prompt: string;
+    mode: "text-to-image" | "image-editing";
+    aspectRatio: string;
+    imageSize: string;
+    imageModel: string;
+    referenceImageUrls: string[];
+  },
+): Promise<ProviderImageResult> {
+  let finalPrompt = args.prompt;
+  const skillNames = parseSkillsFromPrompt(args.prompt);
+  if (skillNames.length > 0) {
+    const skillPromptMap: Record<string, string> = {};
+    for (const skillName of skillNames) {
+      const builtInSkill = builtInSkillMap.get(skillName);
+      try {
+        const customSkill = await ctx.runQuery(internal.skills.getSkillByNameInternal, {
+          userId: args.userId,
+          name: skillName,
+        });
+        if (customSkill) {
+          skillPromptMap[skillName] = renderSkillPrompt({
+            ...customSkill,
+            category: customSkill.category as "style" | "composition" | "brand" | "lighting" | "mood" | "subject" | "other" | undefined,
+          });
+          continue;
+        }
+        if (builtInSkill) skillPromptMap[skillName] = renderSkillPrompt(builtInSkill);
+      } catch {
+        console.error(`[Image Generation] Failed to resolve skill /${skillName}`);
+      }
+    }
+    for (const [skillName, promptText] of Object.entries(skillPromptMap)) {
+      finalPrompt = finalPrompt.replace(new RegExp(`\\/${skillName}\\b`, "gi"), promptText);
+    }
+  }
+
+  let resultBase64: string | null = null;
+  let mimeType = "image/png";
+  let providerRequestId: string | undefined;
+
+  if (args.imageModel === GPT_IMAGE_MODEL) {
+    if (args.credentialProvider !== "openai") throw new Error("Credential provider does not match the selected model");
+    const openai = new OpenAI({ apiKey: args.providerSecret, maxRetries: 0, timeout: 240_000 });
+    const { size, quality } = openAiSizeAndQuality(args.aspectRatio, args.imageSize);
+    if (args.mode === "text-to-image") {
+      const wrapped = await openai.images.generate({
+        model: GPT_IMAGE_MODEL,
+        prompt: finalPrompt,
+        n: 1,
+        size,
+        quality,
+        stream: false,
+      }).withResponse();
+      resultBase64 = wrapped.data.data?.[0]?.b64_json ?? null;
+      providerRequestId = wrapped.request_id ?? undefined;
+    } else {
+      if (args.referenceImageUrls.length === 0) throw new Error("At least one reference image is required for image editing");
+      const files: Awaited<ReturnType<typeof toFile>>[] = [];
+      for (let index = 0; index < args.referenceImageUrls.length; index++) {
+        try {
+          files.push(await urlToOpenAiUploadable(args.referenceImageUrls[index], index));
+        } catch {
+          console.error("Error processing reference image for OpenAI");
+        }
+      }
+      if (files.length === 0) throw new Error("Failed to process reference images");
+      const wrapped = await openai.images.edit({
+        model: GPT_IMAGE_MODEL,
+        image: files.length === 1 ? files[0] : files,
+        prompt: finalPrompt,
+        n: 1,
+        size,
+        quality,
+        stream: false,
+      }).withResponse();
+      resultBase64 = wrapped.data.data?.[0]?.b64_json ?? null;
+      providerRequestId = wrapped.request_id ?? undefined;
+    }
+  } else {
+    if (args.credentialProvider !== "google") throw new Error("Credential provider does not match the selected model");
+    const ai = new GoogleGenAI({ apiKey: args.providerSecret, httpOptions: { timeout: 240_000 } });
+    if (args.mode === "text-to-image") {
+      const response = await ai.models.generateContent({
+        model: args.imageModel,
+        contents: { parts: [{ text: finalPrompt }] },
+        config: {
+          imageConfig: {
+            aspectRatio: getAspectRatioString(args.aspectRatio),
+            imageSize: args.imageSize,
+          } as any,
+        },
+      });
+      providerRequestId = response.responseId;
+      for (const part of response.candidates?.[0]?.content?.parts ?? []) {
+        if (part.inlineData?.data) {
+          resultBase64 = part.inlineData.data;
+          mimeType = part.inlineData.mimeType || "image/png";
+          break;
+        }
+      }
+    } else {
+      if (args.referenceImageUrls.length === 0) throw new Error("At least one reference image is required for image editing");
+      const imageParts: Array<{ inlineData: { data: string; mimeType: string } }> = [];
+      for (const url of args.referenceImageUrls) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) continue;
+          const buffer = Buffer.from(await response.arrayBuffer());
+          if (buffer.byteLength > 25_000_000) throw new Error("Reference image is too large");
+          imageParts.push({
+            inlineData: {
+              data: buffer.toString("base64"),
+              mimeType: response.headers.get("content-type") || "image/png",
+            },
+          });
+        } catch {
+          console.error("Error processing reference image");
+        }
+      }
+      if (imageParts.length === 0) throw new Error("Failed to process reference images");
+      const response = await ai.models.generateContent({
+        model: args.imageModel,
+        contents: { parts: [...imageParts, { text: finalPrompt }] },
+      });
+      providerRequestId = response.responseId;
+      for (const part of response.candidates?.[0]?.content?.parts ?? []) {
+        if (part.inlineData?.data) {
+          resultBase64 = part.inlineData.data;
+          mimeType = part.inlineData.mimeType || "image/png";
+          break;
+        }
+      }
+    }
+  }
+
+  if (!resultBase64) throw new Error("No image data in response");
+  if (resultBase64.length > 20_000_000) throw new Error("Provider image output is too large");
+  return {
+    imageBuffer: Buffer.from(resultBase64, "base64"),
+    mimeType,
+    completedModel: args.imageModel,
+    providerRequestId,
+  };
+}
+
 /**
  * Background action to generate an image (Gemini or OpenAI GPT Image).
  * Credentials are resolved server-side from the owner/provider/handle binding.
@@ -215,7 +381,6 @@ export const generateImageBackground = internalAction({
         }
       }
 
-      console.log("[Image Generation] Final prompt with skills:", finalPrompt);
 
       let resultBase64: string | null = null;
       let resultMimeType = "image/png";
@@ -225,7 +390,7 @@ export const generateImageBackground = internalAction({
         if (credentialProvider !== "openai") {
           throw new Error("Credential provider does not match the selected model");
         }
-        const openai = new OpenAI({ apiKey: providerSecret });
+        const openai = new OpenAI({ apiKey: providerSecret, maxRetries: 0, timeout: 240_000 });
         const { size: openAiSize, quality: openAiQuality } = openAiSizeAndQuality(aspectRatio, imageSize);
 
         if (mode === "text-to-image") {
@@ -283,6 +448,7 @@ export const generateImageBackground = internalAction({
         }
         const ai = new GoogleGenAI({
           apiKey: providerSecret,
+          httpOptions: { timeout: 240_000 },
         });
 
         const aspectRatioString = getAspectRatioString(aspectRatio);
@@ -397,5 +563,369 @@ export const generateImageBackground = internalAction({
         errorMessage,
       });
     }
+  },
+});
+
+function safeExecutionError(code: string, message: string, retryable = false) {
+  return {
+    category: "provider-unavailable" as const,
+    code,
+    message,
+    retryable,
+    correlationId: `corr_${randomUUID()}`,
+  };
+}
+
+function providerHttpStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const status = (error as { status?: unknown }).status;
+  return typeof status === "number" && Number.isInteger(status) ? status : undefined;
+}
+
+/** Durable image worker. Scheduler arguments contain only the opaque durable job ID. */
+export const generateDurableImageBackground = internalAction({
+  args: { jobId: v.id("durableGenerationJobs") },
+  returns: v.null(),
+  handler: async (ctx, { jobId }) => {
+    const initial = await ctx.runQuery(internal.durableJobs.getScheduledExecutionInternal, { jobId });
+    if (!initial) return null;
+    if (
+      !["completed", "failed", "cancelled", "expired"].includes(initial.job.status) &&
+      initial.job.expiresAt <= Date.now()
+    ) {
+      try {
+        await ctx.runMutation(internal.durableJobs.transition, {
+          ownerId: initial.job.ownerId,
+          jobId,
+          expectedStatus: initial.job.status,
+          expectedRevision: initial.job.revision,
+          targetStatus: "expired",
+          eventId: `expired_${randomUUID()}`,
+          eventFingerprint: "maximum-age-reached",
+          occurredAt: Date.now(),
+        });
+        await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
+          jobId,
+          errorMessage: "Image generation expired before it could complete.",
+        });
+      } catch {
+        // Ambiguous or cancellation-pending jobs require explicit resolution, but must not reschedule forever.
+      }
+      return null;
+    }
+    const decision = durableExecutionDecision({
+      status: initial.job.status,
+      submissionState: initial.job.submissionState,
+      durableOutputCount: initial.outputs.length,
+    });
+
+    if (decision === "mirror-completed") {
+      await ctx.runMutation(internal.generations.mirrorDurableGenerationCompleted, { jobId });
+      return null;
+    }
+    if (decision === "no-op") {
+      if (initial.job.status === "submitting" && initial.job.submissionState === "ambiguous") {
+        await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
+          jobId,
+          errorMessage: "The provider outcome is unknown. This request will not be submitted again automatically.",
+        });
+      } else if (["failed", "cancelled", "expired"].includes(initial.job.status)) {
+        await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
+          jobId,
+          errorMessage: initial.job.publicErrorMessage ?? "Image generation did not complete.",
+        });
+      }
+      return null;
+    }
+
+    await ctx.scheduler.runAfter(290_000, internal.imageGeneration.generateDurableImageBackground, { jobId });
+
+    const leaseOwner = "durable-image-worker";
+    const leaseToken = `lease_${randomUUID()}`;
+    const attemptKey = initial.attempt.attemptKey;
+    const submissionKey = `submission:${attemptKey}`;
+
+    const claim = async (status: typeof initial.job.status, revision: number) =>
+      await ctx.runMutation(internal.durableJobs.claim, {
+        ownerId: initial.job.ownerId,
+        jobId,
+        attemptKey,
+        expectedStatus: status,
+        expectedRevision: revision,
+        leaseOwner,
+        leaseToken,
+        leaseDurationMs: 300_000,
+        eventId: `claim_${randomUUID()}`,
+        occurredAt: Date.now(),
+      });
+
+    if (decision === "mark-ambiguous") {
+      try {
+        const claimed = await claim("submitting", initial.job.revision);
+        await ctx.runMutation(internal.durableJobs.recordSubmissionAmbiguous, {
+          ownerId: initial.job.ownerId,
+          jobId,
+          expectedRevision: claimed.revision,
+          attemptKey,
+          leaseToken,
+          leaseEpoch: claimed.leaseEpoch,
+          submissionKey,
+          eventId: `ambiguous_${randomUUID()}`,
+          occurredAt: Date.now(),
+        });
+        await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
+          jobId,
+          errorMessage: "The provider outcome is unknown. This request will not be submitted again automatically.",
+        });
+      } catch {
+        // Another live worker owns the lease or has already resolved the state.
+      }
+      return null;
+    }
+
+    if (decision === "fail-without-resubmit") {
+      try {
+        const claimed = await claim(initial.job.status, initial.job.revision);
+        await ctx.runMutation(internal.durableJobs.transition, {
+          ownerId: initial.job.ownerId,
+          jobId,
+          expectedStatus: initial.job.status,
+          expectedRevision: claimed.revision,
+          attemptKey,
+          leaseToken,
+          leaseEpoch: claimed.leaseEpoch,
+          targetStatus: "failed",
+          eventId: `failed_${randomUUID()}`,
+          eventFingerprint: "interrupted-after-provider-submission",
+          occurredAt: Date.now(),
+          error: safeExecutionError(
+            "INTERRUPTED_AFTER_PROVIDER_SUBMISSION",
+            "Image generation was interrupted after provider submission and will not be retried automatically.",
+          ),
+        });
+        await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
+          jobId,
+          errorMessage: "Image generation was interrupted after provider submission and was not retried.",
+        });
+      } catch {
+        // Another delivery may have completed the guarded transition.
+      }
+      return null;
+    }
+
+    if (decision === "finalize-durable-output") {
+      try {
+        const claimed = await claim("persisting", initial.job.revision);
+        await ctx.runMutation(internal.durableJobs.finalize, {
+          ownerId: initial.job.ownerId,
+          jobId,
+          expectedRevision: claimed.revision,
+          attemptKey,
+          leaseToken,
+          leaseEpoch: claimed.leaseEpoch,
+          outputIds: initial.outputs.map((output) => output._id),
+          eventId: `finalize_${randomUUID()}`,
+          occurredAt: Date.now(),
+        });
+        await ctx.runMutation(internal.generations.mirrorDurableGenerationCompleted, { jobId });
+      } catch {
+        // Another delivery may hold the lease or have finalized already.
+      }
+      return null;
+    }
+
+    if (initial.job.provider !== "google" && initial.job.provider !== "openai") return null;
+    if (!initial.generation.imageModel) return null;
+
+    let execution;
+    let providerSecret: string;
+    try {
+      execution = await ctx.runQuery(internal.generations.getGenerationExecutionContext, {
+        generationId: initial.generation._id,
+        credentialHandle: initial.job.credentialHandle,
+        credentialProvider: initial.job.provider,
+      });
+      const resolved = await ctx.runAction(internal.credentialActions.resolveCredentialForOperation, {
+        ownerId: initial.job.ownerId,
+        provider: initial.job.provider,
+        credentialHandle: initial.job.credentialHandle,
+      });
+      providerSecret = resolved.secretValue;
+    } catch {
+      try {
+        const preparationClaim = await claim("queued", initial.job.revision);
+        await ctx.runMutation(internal.durableJobs.transition, {
+          ownerId: initial.job.ownerId,
+          jobId,
+          expectedStatus: "queued",
+          expectedRevision: preparationClaim.revision,
+          attemptKey,
+          leaseToken,
+          leaseEpoch: preparationClaim.leaseEpoch,
+          targetStatus: "failed",
+          eventId: `preparation_failed_${randomUUID()}`,
+          eventFingerprint: "execution-preparation-failed",
+          occurredAt: Date.now(),
+          error: safeExecutionError(
+            "EXECUTION_PREPARATION_FAILED",
+            "Image generation could not be prepared securely.",
+          ),
+        });
+        await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
+          jobId,
+          errorMessage: "Image generation could not be prepared. Check the provider credential and reference images.",
+        });
+      } catch {
+        // Another delivery may own the lease or have already resolved the job.
+      }
+      return null;
+    }
+
+    let claimed;
+    try {
+      claimed = await claim("queued", initial.job.revision);
+    } catch {
+      return null;
+    }
+    const begin = await ctx.runMutation(internal.durableJobs.beginSubmission, {
+      ownerId: initial.job.ownerId,
+      jobId,
+      expectedRevision: claimed.revision,
+      attemptKey,
+      leaseToken,
+      leaseEpoch: claimed.leaseEpoch,
+      eventId: `begin_${randomUUID()}`,
+      occurredAt: Date.now(),
+    });
+    await ctx.runMutation(internal.generations.markDurableGenerationGenerating, { jobId });
+
+    let providerResult: ProviderImageResult;
+    try {
+      providerResult = await executeExistingImageProvider(ctx, {
+        userId: initial.job.ownerId,
+        providerSecret,
+        credentialProvider: initial.job.provider,
+        prompt: initial.generation.prompt,
+        mode: initial.generation.mode,
+        aspectRatio: initial.generation.aspectRatio,
+        imageSize: initial.generation.imageSize,
+        imageModel: initial.generation.imageModel,
+        referenceImageUrls: execution.referenceImageUrls,
+      });
+      providerResult.providerRequestId = requireProviderRequestIdentity(providerResult.providerRequestId);
+    } catch (error) {
+      try {
+        const renewed = await claim("submitting", begin.revision);
+        if (providerFailureDisposition(providerHttpStatus(error)) === "definitive") {
+          await ctx.runMutation(internal.durableJobs.transition, {
+            ownerId: initial.job.ownerId,
+            jobId,
+            expectedStatus: "submitting",
+            expectedRevision: renewed.revision,
+            attemptKey,
+            leaseToken,
+            leaseEpoch: renewed.leaseEpoch,
+            targetStatus: "failed",
+            eventId: `rejected_${randomUUID()}`,
+            eventFingerprint: "provider-definitive-rejection",
+            occurredAt: Date.now(),
+            error: safeExecutionError("PROVIDER_REJECTED", getGenerationFailureMessage(error)),
+          });
+          await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
+            jobId,
+            errorMessage: getGenerationFailureMessage(error),
+          });
+        } else {
+          await ctx.runMutation(internal.durableJobs.recordSubmissionAmbiguous, {
+            ownerId: initial.job.ownerId,
+            jobId,
+            expectedRevision: renewed.revision,
+            attemptKey,
+            leaseToken,
+            leaseEpoch: renewed.leaseEpoch,
+            submissionKey,
+            eventId: `ambiguous_${randomUUID()}`,
+            occurredAt: Date.now(),
+          });
+          await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
+            jobId,
+            errorMessage: "The provider outcome is unknown. This request will not be submitted again automatically.",
+          });
+        }
+      } catch {
+        // Lease expiry/reclaim prevents this worker from writing stale state.
+      }
+      return null;
+    }
+
+    const renewed = await claim("submitting", begin.revision);
+    const requestId = providerResult.providerRequestId;
+    if (!requestId) return null;
+    const accepted = await ctx.runMutation(internal.durableJobs.recordSubmissionAccepted, {
+      ownerId: initial.job.ownerId,
+      jobId,
+      expectedRevision: renewed.revision,
+      attemptKey,
+      leaseToken,
+      leaseEpoch: renewed.leaseEpoch,
+      submissionKey,
+      providerRequestId: requestId,
+      eventId: `accepted_${randomUUID()}`,
+      occurredAt: Date.now(),
+    });
+    const checksumSha256 = createHash("sha256").update(Uint8Array.from(providerResult.imageBuffer)).digest("hex");
+    const completion = await ctx.runMutation(internal.durableJobs.recordProviderCompletion, {
+      ownerId: initial.job.ownerId,
+      jobId,
+      expectedRevision: accepted.revision,
+      attemptKey,
+      leaseToken,
+      leaseEpoch: renewed.leaseEpoch,
+      providerRequestId: requestId,
+      outputIdentityKind: "checksum",
+      outputIdentity: checksumSha256,
+      eventId: `completion_${randomUUID()}`,
+      occurredAt: Date.now(),
+    });
+
+    const thumbnailBuffer = await generateThumbnail(providerResult.imageBuffer);
+    const imageStorageId = await ctx.storage.store(
+      new Blob([new Uint8Array(providerResult.imageBuffer)], { type: providerResult.mimeType }),
+    );
+    const thumbnailStorageId = await ctx.storage.store(
+      new Blob([new Uint8Array(thumbnailBuffer)], { type: "image/jpeg" }),
+    );
+    const storageRenewal = await claim("persisting", completion.revision);
+    const output = await ctx.runMutation(internal.durableJobs.recordDurableOutput, {
+      ownerId: initial.job.ownerId,
+      jobId,
+      expectedRevision: storageRenewal.revision,
+      attemptKey,
+      leaseToken,
+      leaseEpoch: storageRenewal.leaseEpoch,
+      completionId: completion.completionId,
+      outputKey: `output:${initial.job.jobKey}:1`,
+      storageId: imageStorageId,
+      thumbnailStorageId,
+      mediaType: "image",
+      contentType: providerResult.mimeType,
+      byteSize: providerResult.imageBuffer.byteLength,
+      checksumSha256,
+      eventId: `output_${randomUUID()}`,
+      occurredAt: Date.now(),
+    });
+    await ctx.runMutation(internal.durableJobs.finalize, {
+      ownerId: initial.job.ownerId,
+      jobId,
+      expectedRevision: output.revision,
+      attemptKey,
+      leaseToken,
+      leaseEpoch: storageRenewal.leaseEpoch,
+      outputIds: [output.outputId],
+      eventId: `finalize_${randomUUID()}`,
+      occurredAt: Date.now(),
+    });
+    await ctx.runMutation(internal.generations.mirrorDurableGenerationCompleted, { jobId });
+    return null;
   },
 });
