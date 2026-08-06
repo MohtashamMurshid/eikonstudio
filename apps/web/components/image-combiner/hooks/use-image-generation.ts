@@ -86,6 +86,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
   
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const generationStartLockRef = useRef(false)
   const pendingRequestRef = useRef<{
     signature: string
     idempotencyKey: string
@@ -164,6 +165,8 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
     if (currentMode === "image-editing" && !useUrls && !image1) return
     if (currentMode === "image-editing" && useUrls && !image1Url) return
     if (!prompt.trim()) return
+    if (generationStartLockRef.current) return
+    generationStartLockRef.current = true
 
     const fileSignature = (file: File | null) => file ? `${file.name}:${file.size}:${file.type}:${file.lastModified}` : null
     const requestSignature = JSON.stringify({
@@ -310,6 +313,8 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
           "Unable to start generation right now. Please try again.",
         ),
       )
+    } finally {
+      generationStartLockRef.current = false
     }
   }
 

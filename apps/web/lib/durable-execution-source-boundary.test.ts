@@ -34,6 +34,8 @@ describe("durable image execution source boundary", () => {
     expect(hook).toContain("crypto.randomUUID()");
     expect(hook).toContain("pendingRequestRef.current?.signature !== requestSignature");
     expect(hook).toContain("pendingRequest.referenceImageIds = referenceImageIds");
+    orderedBefore(hook, "if (generationStartLockRef.current) return", "pendingRequestRef.current?.signature !== requestSignature");
+    expect(hook).toContain("finally {\n      generationStartLockRef.current = false");
     expect(generations).toContain('withIndex("by_user_idempotency"');
     expect(generations).toContain("Generation request identity was reused with different inputs");
     expect(schema).toContain("requestIdempotencyKey: v.optional(v.string())");
