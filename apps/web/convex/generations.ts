@@ -1,12 +1,15 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
+import { mutation, query, internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { authComponent } from "./auth";
 import { createAppError } from "../lib/error-utils";
 import { estimateImageGenerationCost, resolveStoredImageModel } from "../lib/image-costs";
 import { LEGACY_IMAGE_MODEL_GEMINI_PREVIEW, IMAGE_MODEL_GPT_IMAGE_2, imageModelValidator } from "./imageModels";
 import { getProviderCredentialRecord } from "./apiKeys";
 import { credentialHealth, legacyCredentialHandle, recordCanonicalProvider } from "./credentialPolicy";
+import { createDurableJobRecords } from "./durableJobs";
+import { durableImageKeys, REQUEST_IDEMPOTENCY_KEY_PATTERN } from "./durableExecutionPolicy";
 
 // Generate upload URL for uploading images to Convex storage
 export const generateUploadUrl = mutation({
@@ -30,6 +33,7 @@ export const generateUploadUrl = mutation({
 // authenticated credential handle is bound transactionally before scheduling.
 export const startGeneration = mutation({
   args: {
+    idempotencyKey: v.string(),
     prompt: v.string(),
     mode: v.union(v.literal("text-to-image"), v.literal("image-editing")),
     aspectRatio: v.string(),
@@ -47,6 +51,36 @@ export const startGeneration = mutation({
     }
     if (args.mode === "image-editing" && (!args.referenceImageIds || args.referenceImageIds.length === 0)) {
       throw new ConvexError(createAppError("VALIDATION_ERROR", "Add at least one reference image for image editing"));
+    }
+    if (!REQUEST_IDEMPOTENCY_KEY_PATTERN.test(args.idempotencyKey)) {
+      throw new ConvexError(createAppError("VALIDATION_ERROR", "Generation request identity is invalid"));
+    }
+
+    const existing = await ctx.db
+      .query("generations")
+      .withIndex("by_user_idempotency", (q) => q.eq("userId", user._id).eq("requestIdempotencyKey", args.idempotencyKey))
+      .unique();
+    if (existing) {
+      const existingReferences = existing.referenceImageIds ?? [];
+      const requestedReferences = args.referenceImageIds ?? [];
+      const sameReferences =
+        existingReferences.length === requestedReferences.length &&
+        existingReferences.every((storageId, index) => storageId === requestedReferences[index]);
+      if (
+        existing.prompt !== args.prompt ||
+        existing.mode !== args.mode ||
+        existing.aspectRatio !== args.aspectRatio ||
+        existing.imageSize !== args.imageSize ||
+        existing.imageModel !== args.imageModel ||
+        !existing.durableJobId ||
+        !existing.durableGenerationKey ||
+        !sameReferences
+      ) {
+        throw new ConvexError(createAppError("CONFLICT", "Generation request identity was reused with different inputs"));
+      }
+      const jobId = existing.durableJobId;
+      await ctx.scheduler.runAt(Date.now(), internal.imageGeneration.generateDurableImageBackground, { jobId });
+      return existing._id;
     }
 
     const expectedProvider = args.imageModel === IMAGE_MODEL_GPT_IMAGE_2 ? "openai" : "google";
@@ -68,6 +102,7 @@ export const startGeneration = mutation({
       throw new ConvexError(createAppError("VALIDATION_ERROR", "Provider credential does not match the selected model"));
     }
 
+    const now = Date.now();
     const generationId = await ctx.db.insert("generations", {
       userId: user._id,
       prompt: args.prompt,
@@ -77,21 +112,34 @@ export const startGeneration = mutation({
       imageModel: args.imageModel,
       credentialHandle,
       credentialProvider: expectedProvider,
-      createdAt: Date.now(),
+      requestIdempotencyKey: args.idempotencyKey,
+      createdAt: now,
       status: "pending",
       referenceImageIds: args.referenceImageIds,
     });
 
-    await ctx.scheduler.runAfter(0, internal.imageGeneration.generateImageBackground, {
-      generationId,
+    const keys = durableImageKeys(generationId, args.idempotencyKey);
+    const durable = await createDurableJobRecords(ctx, {
+      ownerId: user._id,
+      ...keys,
+      idempotencyKey: `image:${args.idempotencyKey}`,
+      provider: expectedProvider,
       credentialHandle,
-      credentialProvider: expectedProvider,
-      prompt: args.prompt,
-      mode: args.mode,
-      aspectRatio: args.aspectRatio,
-      imageSize: args.imageSize,
-      imageModel: args.imageModel,
+      modelId: args.imageModel,
+      requestMetadataJson: JSON.stringify({ kind: "legacy-image-v1", generationId }),
+      maxAgeSeconds: 1_800,
+      scheduleAt: now,
+      occurredAt: now,
     });
+    if (!durable.created) {
+      throw new ConvexError(createAppError("CONFLICT", "Durable generation identity already exists"));
+    }
+    await ctx.db.patch(generationId, {
+      durableJobId: durable.jobId,
+      durableGenerationKey: keys.generationKey,
+    });
+    const jobId = durable.jobId;
+    await ctx.scheduler.runAt(now, internal.imageGeneration.generateDurableImageBackground, { jobId });
     return generationId;
   },
 });
@@ -168,6 +216,67 @@ export const failGeneration = internalMutation({
     await ctx.db.patch(args.generationId, {
       status: "failed",
       errorMessage: args.errorMessage,
+    });
+  },
+});
+
+async function loadDurableLegacyBinding(ctx: MutationCtx, jobId: Id<"durableGenerationJobs">) {
+  const job = await ctx.db.get(jobId);
+  if (!job) throw new Error("Durable generation is unavailable");
+  const generation = await ctx.db
+    .query("generations")
+    .withIndex("by_durable_job", (q) => q.eq("durableJobId", jobId))
+    .unique();
+  if (!generation || generation.userId !== job.ownerId || generation.durableGenerationKey !== job.generationKey) {
+    throw new Error("Durable generation binding is invalid");
+  }
+  return { job, generation };
+}
+
+export const markDurableGenerationGenerating = internalMutation({
+  args: { jobId: v.id("durableGenerationJobs") },
+  handler: async (ctx, { jobId }) => {
+    const { job, generation } = await loadDurableLegacyBinding(ctx, jobId);
+    if (job.status !== "submitting" || job.submissionState !== "in_flight") {
+      throw new Error("Durable generation is not submitting");
+    }
+    if (generation.status !== "completed") {
+      await ctx.db.patch(generation._id, { status: "generating", errorMessage: undefined });
+    }
+  },
+});
+
+export const mirrorDurableGenerationFailure = internalMutation({
+  args: { jobId: v.id("durableGenerationJobs"), errorMessage: v.string() },
+  handler: async (ctx, args) => {
+    const { job, generation } = await loadDurableLegacyBinding(ctx, args.jobId);
+    const terminalFailure = job.status === "failed" || job.status === "expired" || job.status === "cancelled";
+    const ambiguous = job.status === "submitting" && job.submissionState === "ambiguous";
+    if (!terminalFailure && !ambiguous) throw new Error("Durable generation failure is not authoritative");
+    if (generation.status !== "completed") {
+      await ctx.db.patch(generation._id, { status: "failed", errorMessage: args.errorMessage });
+    }
+  },
+});
+
+export const mirrorDurableGenerationCompleted = internalMutation({
+  args: { jobId: v.id("durableGenerationJobs") },
+  handler: async (ctx, { jobId }) => {
+    const { job, generation } = await loadDurableLegacyBinding(ctx, jobId);
+    if (job.status !== "completed" || !job.finalizedOutputIds || job.finalizedOutputIds.length !== 1) {
+      throw new Error("Durable generation is not completed");
+    }
+    const output = await ctx.db.get(job.finalizedOutputIds[0]);
+    if (!output || output.jobId !== jobId || output.ownerId !== job.ownerId || !output.thumbnailStorageId) {
+      throw new Error("Durable output binding is invalid");
+    }
+    await ctx.db.patch(generation._id, {
+      status: "completed",
+      imageStorageId: output.storageId,
+      thumbnailStorageId: output.thumbnailStorageId,
+      estimatedCost: estimateImageGenerationCost(generation.imageSize, generation.mode, generation.imageModel ?? generation.model),
+      model: generation.imageModel ?? generation.model,
+      errorMessage: undefined,
     });
   },
 });
@@ -290,6 +399,12 @@ export const deleteGeneration = mutation({
     if (generation.userId !== user._id) {
       throw new ConvexError(
         createAppError("FORBIDDEN", "You can only delete your own generations"),
+      );
+    }
+
+    if (generation.durableJobId) {
+      throw new ConvexError(
+        createAppError("CONFLICT", "Durable-linked generations cannot be deleted until durable-output tombstoning is available"),
       );
     }
 

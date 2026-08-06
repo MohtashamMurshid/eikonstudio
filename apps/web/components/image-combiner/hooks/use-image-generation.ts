@@ -32,6 +32,7 @@ const fileToBlob = async (file: File): Promise<Blob> => {
 }
 
 interface StartGenerationParams {
+  idempotencyKey: string
   prompt: string
   mode: "text-to-image" | "image-editing"
   aspectRatio: string
@@ -85,6 +86,12 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
   
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const generationStartLockRef = useRef(false)
+  const pendingRequestRef = useRef<{
+    signature: string
+    idempotencyKey: string
+    referenceImageIds?: Id<"_storage">[]
+  } | null>(null)
 
   // Cleanup intervals on unmount
   useEffect(() => {
@@ -158,6 +165,27 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
     if (currentMode === "image-editing" && !useUrls && !image1) return
     if (currentMode === "image-editing" && useUrls && !image1Url) return
     if (!prompt.trim()) return
+    if (generationStartLockRef.current) return
+    generationStartLockRef.current = true
+
+    const fileSignature = (file: File | null) => file ? `${file.name}:${file.size}:${file.type}:${file.lastModified}` : null
+    const requestSignature = JSON.stringify({
+      currentMode,
+      useUrls,
+      prompt,
+      aspectRatio,
+      imageSize,
+      imageModel,
+      files: [image1, image2, image3, image4].map(fileSignature),
+      urls: [image1Url, image2Url, image3Url, image4Url],
+    })
+    if (pendingRequestRef.current?.signature !== requestSignature) {
+      pendingRequestRef.current = {
+        signature: requestSignature,
+        idempotencyKey: `image_${crypto.randomUUID()}`,
+      }
+    }
+    const pendingRequest = pendingRequestRef.current!
 
     setIsLoading(true)
     setGeneratedImage(null)
@@ -186,10 +214,10 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
     }, 100)
 
     try {
-      // Upload reference images first if in image-editing mode
-      let referenceImageIds: Id<"_storage">[] | undefined
+      // Reuse uploaded references when retrying the same pending request.
+      let referenceImageIds = pendingRequest.referenceImageIds
       
-      if (currentMode === "image-editing") {
+      if (currentMode === "image-editing" && !referenceImageIds) {
         referenceImageIds = []
         
         // Collect all images that need to be uploaded
@@ -235,10 +263,12 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
         if (referenceImageIds.length === 0) {
           throw new Error("Failed to upload reference images")
         }
+        pendingRequest.referenceImageIds = referenceImageIds
       }
 
       // Start the background generation
       const genId = await startGeneration({
+        idempotencyKey: pendingRequest.idempotencyKey,
         prompt,
         mode: currentMode,
         aspectRatio,
@@ -246,6 +276,7 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
         imageModel,
         referenceImageIds,
       })
+      pendingRequestRef.current = null
 
       setGenerationId(genId)
       options.onGenerationStarted?.()
@@ -282,6 +313,8 @@ export const useImageGeneration = (options: UseImageGenerationOptions) => {
           "Unable to start generation right now. Please try again.",
         ),
       )
+    } finally {
+      generationStartLockRef.current = false
     }
   }
 

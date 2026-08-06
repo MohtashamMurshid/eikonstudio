@@ -271,7 +271,127 @@ async function assertProviderRequestAvailable(
   }
 }
 
-/** Atomically creates the job, first attempt/event, and scheduler record. */
+type DurableCreateArgs = {
+  ownerId: string;
+  jobKey: string;
+  generationKey: string;
+  idempotencyKey: string;
+  requestFingerprint: string;
+  provider: "openai" | "google" | "bfl" | "byteplus" | "kling" | "xai";
+  credentialHandle: string;
+  modelId: string;
+  requestMetadataJson: string;
+  maxAgeSeconds: number;
+  scheduleAt: number;
+  eventId: string;
+  occurredAt: number;
+};
+
+/** Creates the durable rows inside the caller's mutation transaction. The caller must schedule work before returning. */
+export async function createDurableJobRecords(
+  ctx: MutationCtx,
+  args: DurableCreateArgs,
+): Promise<{ jobId: Id<"durableGenerationJobs">; created: boolean; revision: number }> {
+  const creationNow = Date.now();
+  bounded(args.ownerId, 256, "INVALID_OWNER");
+  bounded(args.jobKey, 256, "INVALID_JOB_KEY");
+  bounded(args.generationKey, 256, "INVALID_GENERATION_KEY");
+  bounded(args.idempotencyKey, 256, "INVALID_IDEMPOTENCY_KEY");
+  bounded(args.requestFingerprint, 256, "INVALID_REQUEST_FINGERPRINT");
+  bounded(args.modelId, 256, "INVALID_MODEL");
+  opaque(args.credentialHandle, 256, "INVALID_CREDENTIAL_HANDLE");
+  try {
+    assertBoundedJsonObject(args.requestMetadataJson);
+  } catch {
+    fail("INVALID_REQUEST_METADATA");
+  }
+  if (
+    !Number.isInteger(args.maxAgeSeconds) ||
+    args.maxAgeSeconds < 1 ||
+    args.maxAgeSeconds > 604_800 ||
+    args.scheduleAt < creationNow - 60_000 ||
+    args.scheduleAt > creationNow + args.maxAgeSeconds * 1000
+  ) {
+    fail("INVALID_SCHEDULE");
+  }
+
+  const existing = await ctx.db
+    .query("durableGenerationJobs")
+    .withIndex("by_owner_idempotency", (q) => q.eq("ownerId", args.ownerId).eq("idempotencyKey", args.idempotencyKey))
+    .unique();
+  if (existing) {
+    try {
+      classifyIdempotentCreate(existing.requestFingerprint, args.requestFingerprint);
+    } catch {
+      fail("IDEMPOTENCY_COLLISION");
+    }
+    if (
+      existing.jobKey !== args.jobKey ||
+      existing.generationKey !== args.generationKey ||
+      existing.provider !== args.provider ||
+      existing.credentialHandle !== args.credentialHandle ||
+      existing.modelId !== args.modelId ||
+      existing.requestMetadataJson !== args.requestMetadataJson
+    ) {
+      fail("IDEMPOTENCY_COLLISION");
+    }
+    return { jobId: existing._id, created: false, revision: existing.revision };
+  }
+  const duplicateJobKey = await ctx.db
+    .query("durableGenerationJobs")
+    .withIndex("by_job_key", (q) => q.eq("jobKey", args.jobKey))
+    .unique();
+  if (duplicateJobKey) fail("JOB_KEY_COLLISION");
+  trustedInstant(args.occurredAt, creationNow);
+
+  const expiresAt = creationNow + args.maxAgeSeconds * 1000;
+  const jobId = await ctx.db.insert("durableGenerationJobs", {
+    ownerId: args.ownerId,
+    jobKey: args.jobKey,
+    generationKey: args.generationKey,
+    idempotencyKey: args.idempotencyKey,
+    requestFingerprint: args.requestFingerprint,
+    provider: args.provider,
+    credentialHandle: args.credentialHandle,
+    modelId: args.modelId,
+    requestMetadataJson: args.requestMetadataJson,
+    status: "queued",
+    revision: 0,
+    submissionState: "not_started",
+    cancellationRequested: false,
+    leaseEpoch: 0,
+    maxAgeSeconds: args.maxAgeSeconds,
+    expiresAt,
+    createdAt: creationNow,
+    updatedAt: creationNow,
+  });
+  const attemptId = await ctx.db.insert("durableGenerationAttempts", {
+    ownerId: args.ownerId,
+    jobId,
+    jobKey: args.jobKey,
+    generationKey: args.generationKey,
+    attemptKey: `${args.jobKey}:1`,
+    attemptNumber: 1,
+    status: "queued",
+    submissionState: "not_started",
+    leaseEpoch: 0,
+    createdAt: creationNow,
+    updatedAt: creationNow,
+  });
+  const job = await ctx.db.get(jobId);
+  if (!job) fail("JOB_NOT_FOUND");
+  await insertEvent(ctx, job, {
+    eventId: args.eventId,
+    eventType: "created",
+    eventFingerprint: args.requestFingerprint,
+    revision: 0,
+    occurredAt: args.occurredAt,
+    attemptId,
+  });
+  return { jobId, created: true, revision: 0 };
+}
+
+/** Atomically creates the job, first attempt/event, and inspection scheduler record. */
 export const createAndSchedule = internalMutation({
   args: {
     ownerId: v.string(),
@@ -290,103 +410,12 @@ export const createAndSchedule = internalMutation({
   },
   returns: v.object({ jobId: v.id("durableGenerationJobs"), created: v.boolean(), revision: v.number() }),
   handler: async (ctx, args) => {
-    const creationNow = Date.now();
-    bounded(args.ownerId, 256, "INVALID_OWNER");
-    bounded(args.jobKey, 256, "INVALID_JOB_KEY");
-    bounded(args.generationKey, 256, "INVALID_GENERATION_KEY");
-    bounded(args.idempotencyKey, 256, "INVALID_IDEMPOTENCY_KEY");
-    bounded(args.requestFingerprint, 256, "INVALID_REQUEST_FINGERPRINT");
-    bounded(args.modelId, 256, "INVALID_MODEL");
-    opaque(args.credentialHandle, 256, "INVALID_CREDENTIAL_HANDLE");
-    try {
-      assertBoundedJsonObject(args.requestMetadataJson);
-    } catch {
-      fail("INVALID_REQUEST_METADATA");
+    const result = await createDurableJobRecords(ctx, args);
+    if (result.created) {
+      const jobId = result.jobId;
+      await ctx.scheduler.runAt(args.scheduleAt, internal.durableJobs.inspectScheduledJob, { jobId });
     }
-    if (
-      !Number.isInteger(args.maxAgeSeconds) ||
-      args.maxAgeSeconds < 1 ||
-      args.maxAgeSeconds > 604_800 ||
-      args.scheduleAt < creationNow - 60_000 ||
-      args.scheduleAt > creationNow + args.maxAgeSeconds * 1000
-    ) {
-      fail("INVALID_SCHEDULE");
-    }
-
-    const existing = await ctx.db
-      .query("durableGenerationJobs")
-      .withIndex("by_owner_idempotency", (q) => q.eq("ownerId", args.ownerId).eq("idempotencyKey", args.idempotencyKey))
-      .unique();
-    if (existing) {
-      try {
-        classifyIdempotentCreate(existing.requestFingerprint, args.requestFingerprint);
-      } catch {
-        fail("IDEMPOTENCY_COLLISION");
-      }
-      if (
-        existing.jobKey !== args.jobKey ||
-        existing.generationKey !== args.generationKey ||
-        existing.provider !== args.provider ||
-        existing.credentialHandle !== args.credentialHandle ||
-        existing.modelId !== args.modelId
-      ) {
-        fail("IDEMPOTENCY_COLLISION");
-      }
-      return { jobId: existing._id, created: false, revision: existing.revision };
-    }
-    const duplicateJobKey = await ctx.db
-      .query("durableGenerationJobs")
-      .withIndex("by_job_key", (q) => q.eq("jobKey", args.jobKey))
-      .unique();
-    if (duplicateJobKey) fail("JOB_KEY_COLLISION");
-    trustedInstant(args.occurredAt, creationNow);
-
-    const expiresAt = creationNow + args.maxAgeSeconds * 1000;
-    const jobId = await ctx.db.insert("durableGenerationJobs", {
-      ownerId: args.ownerId,
-      jobKey: args.jobKey,
-      generationKey: args.generationKey,
-      idempotencyKey: args.idempotencyKey,
-      requestFingerprint: args.requestFingerprint,
-      provider: args.provider,
-      credentialHandle: args.credentialHandle,
-      modelId: args.modelId,
-      requestMetadataJson: args.requestMetadataJson,
-      status: "queued",
-      revision: 0,
-      submissionState: "not_started",
-      cancellationRequested: false,
-      leaseEpoch: 0,
-      maxAgeSeconds: args.maxAgeSeconds,
-      expiresAt,
-      createdAt: creationNow,
-      updatedAt: creationNow,
-    });
-    const attemptId = await ctx.db.insert("durableGenerationAttempts", {
-      ownerId: args.ownerId,
-      jobId,
-      jobKey: args.jobKey,
-      generationKey: args.generationKey,
-      attemptKey: `${args.jobKey}:1`,
-      attemptNumber: 1,
-      status: "queued",
-      submissionState: "not_started",
-      leaseEpoch: 0,
-      createdAt: creationNow,
-      updatedAt: creationNow,
-    });
-    const job = await ctx.db.get(jobId);
-    if (!job) fail("JOB_NOT_FOUND");
-    await insertEvent(ctx, job, {
-      eventId: args.eventId,
-      eventType: "created",
-      eventFingerprint: args.requestFingerprint,
-      revision: 0,
-      occurredAt: args.occurredAt,
-      attemptId,
-    });
-    await ctx.scheduler.runAt(args.scheduleAt, internal.durableJobs.inspectScheduledJob, { jobId });
-    return { jobId, created: true, revision: 0 };
+    return result;
   },
 });
 
@@ -405,6 +434,50 @@ export const getInternal = internalQuery({
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     return job?.ownerId === args.ownerId ? job : null;
+  },
+});
+
+/** Internal scheduler snapshot with strict cross-table ownership/linkage checks. */
+export const getScheduledExecutionInternal = internalQuery({
+  args: { jobId: v.id("durableGenerationJobs") },
+  handler: async (ctx, { jobId }) => {
+    const job = await ctx.db.get(jobId);
+    if (!job) return null;
+    const attempts = await ctx.db
+      .query("durableGenerationAttempts")
+      .withIndex("by_job", (q) => q.eq("jobId", jobId))
+      .take(17);
+    if (attempts.length === 0 || attempts.length > 16) throw new Error("Durable attempt binding is invalid");
+    const attempt = attempts.reduce((latest, candidate) =>
+      candidate.attemptNumber > latest.attemptNumber ? candidate : latest,
+    );
+    if (attempt.ownerId !== job.ownerId || attempt.generationKey !== job.generationKey) {
+      throw new Error("Durable attempt binding is invalid");
+    }
+    const outputs = await ctx.db
+      .query("durableGenerationOutputs")
+      .withIndex("by_job", (q) => q.eq("jobId", jobId))
+      .take(17);
+    if (
+      outputs.length > 16 ||
+      outputs.some((output) => output.ownerId !== job.ownerId || output.generationKey !== job.generationKey)
+    ) {
+      throw new Error("Durable output binding is invalid");
+    }
+    const generation = await ctx.db
+      .query("generations")
+      .withIndex("by_durable_job", (q) => q.eq("durableJobId", jobId))
+      .unique();
+    if (
+      !generation ||
+      generation.userId !== job.ownerId ||
+      generation.durableGenerationKey !== job.generationKey ||
+      generation.credentialHandle !== job.credentialHandle ||
+      generation.credentialProvider !== job.provider
+    ) {
+      throw new Error("Legacy generation binding is invalid");
+    }
+    return { job, attempt, outputs, generation };
   },
 });
 

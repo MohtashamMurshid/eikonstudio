@@ -6,10 +6,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 2 — Additive durable job persistence core
-- **Status:** Internal-only additive durable job persistence core implemented, adversarially reviewed, and ready for PR
-- **Branch:** `feature/phase-2-durable-job-core`
-- **Base:** `origin/main@4ce0cc2` after credential-runtime and Vercel-path follow-ups
+- **Active phase:** Phase 2 — Durable execution cutover for existing image transports
+- **Status:** Atomic legacy/durable creation and guarded image worker implemented locally; review gates in progress
+- **Branch:** `feature/phase-2-durable-execution`
+- **Base:** Durable-core merge `origin/main@46f871a` (PR #14)
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
@@ -86,6 +86,27 @@ Deliberately out of scope:
 
 ## Verification evidence
 
+Phase 2 durable-image execution exact-head verification:
+
+- `pnpm turbo run test --force` passed **111 tests**: 39 core, 9 providers, and 63 web tests across six files.
+- `pnpm turbo run typecheck --force` passed all 4 tasks.
+- `pnpm turbo run lint --force` passed with 0 errors and the existing warning baseline.
+- Placeholder-environment `pnpm turbo run build --force` passed all 3 tasks and produced all 22 routes.
+- `git diff --check` passed.
+- Independent Codex review found and repaired an expired-job scheduler loop; the final rereview found no discrete correctness issue.
+- PR #16 review repairs added stable client retry identity/reference reuse, replay re-enqueue, explicit ambiguous-expiry handling, advisory legacy mirroring, provider-identity audit failure classification, future-attempt selection, and stronger ordering/bounds regressions.
+- No provider request, deployment, production migration, production mutation, or video cutover was performed while implementing or validating this slice.
+
+Durable image execution now:
+
+- atomically creates the legacy UI row, durable job/attempt/event, linkage, and opaque-ID scheduler record under owner-scoped request idempotency;
+- resolves credentials and reference storage URLs only inside the server action before chargeable dispatch;
+- persists `in_flight` before provider submission, disables OpenAI SDK retries, bounds both existing provider clients to 240 seconds, and uses OpenAI `request_id` / Google `responseId` as provider-native identities;
+- marks uncertain transport outcomes ambiguous and never automatically resubmits reclaimed `in_flight`, accepted, or ambiguous work;
+- renews token/epoch-fenced leases after provider and storage work, verifies Convex storage SHA-256 metadata, finalizes only durable outputs, and mirrors completion into the legacy read model idempotently;
+- uses a bounded recovery tick for crashes, terminalizes eligible expired jobs without a scheduler loop, and fails closed on destructive deletion of active/completed durable audit or output state;
+- preserves the old background action only for jobs already scheduled before cutover; no new start path schedules it.
+
 Phase 2 durable-core exact-head verification:
 
 - `pnpm turbo run test --force` passed **92 tests**: 39 core, 9 providers, and 44 web tests across four files.
@@ -153,10 +174,10 @@ Expected existing warnings remain:
 
 ## Next actions
 
-1. Open and review the bounded durable-core PR.
-2. Keep legacy generation flows unchanged until the persistence primitives are merged.
+1. Run full gates and adversarial review on the durable-image execution slice.
+2. Open the bounded PR and inspect all current-head bot comments before merge.
 3. Regenerate Convex bindings against a configured deployment before release.
-4. Connect provider adapters only after both credential and durable-job boundaries are accepted.
+4. Keep video and additional provider transports out of scope until this cutover is accepted.
 
 ## Phase roadmap
 
@@ -170,6 +191,7 @@ Expected existing warnings remain:
 - [x] Phase 2 credential-boundary implementation and independent review
 - [x] Phase 2 credential-boundary PR merged via PR #13 (`f00a9f8`)
 - [x] Phase 2 durable lifecycle persistence substrate implemented and independently reviewed
+- [ ] Phase 2 existing image transport durable execution cutover
 - [ ] Phase 2 provider adapters and durable jobs
 - [ ] Phase 3: Catalog, detail pages, and playground
 - [ ] Phase 4: Creator and Developer dashboards
