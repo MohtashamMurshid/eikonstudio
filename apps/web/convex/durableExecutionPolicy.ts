@@ -8,6 +8,8 @@ export type DurableExecutionDecision =
   | "fail-without-resubmit"
   | "no-op";
 
+export const REQUEST_IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,255}$/;
+
 export function durableExecutionDecision(input: {
   status: DurableJobStatus;
   submissionState: SubmissionState;
@@ -31,6 +33,10 @@ export function durableExecutionDecision(input: {
     case "cancelled":
     case "expired":
       return "no-op";
+    default: {
+      const unreachable: never = input.status;
+      throw new Error(`UNSUPPORTED_DURABLE_STATUS:${String(unreachable)}`);
+    }
   }
 }
 
@@ -48,7 +54,7 @@ export function requireProviderRequestIdentity(value: string | null | undefined)
 
 export function durableImageKeys(generationId: string, requestIdempotencyKey: string) {
   if (!generationId || generationId.length > 128) throw new Error("INVALID_GENERATION_ID");
-  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{7,255}$/.test(requestIdempotencyKey)) throw new Error("INVALID_IDEMPOTENCY_KEY");
+  if (!REQUEST_IDEMPOTENCY_KEY_PATTERN.test(requestIdempotencyKey)) throw new Error("INVALID_IDEMPOTENCY_KEY");
   return {
     generationKey: `image-generation:${generationId}`,
     jobKey: `image-job:${generationId}`,

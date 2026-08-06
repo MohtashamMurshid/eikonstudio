@@ -88,12 +88,13 @@ Deliberately out of scope:
 
 Phase 2 durable-image execution exact-head verification:
 
-- `pnpm turbo run test --force` passed **109 tests**: 39 core, 9 providers, and 61 web tests across six files.
+- `pnpm turbo run test --force` passed **111 tests**: 39 core, 9 providers, and 63 web tests across six files.
 - `pnpm turbo run typecheck --force` passed all 4 tasks.
 - `pnpm turbo run lint --force` passed with 0 errors and the existing warning baseline.
 - Placeholder-environment `pnpm turbo run build --force` passed all 3 tasks and produced all 22 routes.
 - `git diff --check` passed.
 - Independent Codex review found and repaired an expired-job scheduler loop; the final rereview found no discrete correctness issue.
+- PR #16 review repairs added stable client retry identity/reference reuse, replay re-enqueue, explicit ambiguous-expiry handling, advisory legacy mirroring, provider-identity audit failure classification, future-attempt selection, and stronger ordering/bounds regressions.
 - No provider request, deployment, production migration, production mutation, or video cutover was performed while implementing or validating this slice.
 
 Durable image execution now:

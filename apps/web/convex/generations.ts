@@ -9,7 +9,7 @@ import { LEGACY_IMAGE_MODEL_GEMINI_PREVIEW, IMAGE_MODEL_GPT_IMAGE_2, imageModelV
 import { getProviderCredentialRecord } from "./apiKeys";
 import { credentialHealth, legacyCredentialHandle, recordCanonicalProvider } from "./credentialPolicy";
 import { createDurableJobRecords } from "./durableJobs";
-import { durableImageKeys } from "./durableExecutionPolicy";
+import { durableImageKeys, REQUEST_IDEMPOTENCY_KEY_PATTERN } from "./durableExecutionPolicy";
 
 // Generate upload URL for uploading images to Convex storage
 export const generateUploadUrl = mutation({
@@ -52,7 +52,7 @@ export const startGeneration = mutation({
     if (args.mode === "image-editing" && (!args.referenceImageIds || args.referenceImageIds.length === 0)) {
       throw new ConvexError(createAppError("VALIDATION_ERROR", "Add at least one reference image for image editing"));
     }
-    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{7,255}$/.test(args.idempotencyKey)) {
+    if (!REQUEST_IDEMPOTENCY_KEY_PATTERN.test(args.idempotencyKey)) {
       throw new ConvexError(createAppError("VALIDATION_ERROR", "Generation request identity is invalid"));
     }
 
@@ -78,6 +78,8 @@ export const startGeneration = mutation({
       ) {
         throw new ConvexError(createAppError("CONFLICT", "Generation request identity was reused with different inputs"));
       }
+      const jobId = existing.durableJobId;
+      await ctx.scheduler.runAt(Date.now(), internal.imageGeneration.generateDurableImageBackground, { jobId });
       return existing._id;
     }
 
@@ -401,20 +403,9 @@ export const deleteGeneration = mutation({
     }
 
     if (generation.durableJobId) {
-      const durableJob = await ctx.db.get(generation.durableJobId);
-      if (!durableJob || durableJob.ownerId !== user._id) {
-        throw new ConvexError(createAppError("CONFLICT", "Durable generation binding is invalid"));
-      }
-      if (durableJob.status === "completed") {
-        throw new ConvexError(
-          createAppError("CONFLICT", "Completed durable generations cannot be deleted until durable-output tombstoning is available"),
-        );
-      }
-      if (durableJob.status !== "failed" && durableJob.status !== "cancelled" && durableJob.status !== "expired") {
-        throw new ConvexError(
-          createAppError("CONFLICT", "Active durable generations cannot be deleted or treated as remotely cancelled"),
-        );
-      }
+      throw new ConvexError(
+        createAppError("CONFLICT", "Durable-linked generations cannot be deleted until durable-output tombstoning is available"),
+      );
     }
 
     // Delete the files from storage (if they exist)

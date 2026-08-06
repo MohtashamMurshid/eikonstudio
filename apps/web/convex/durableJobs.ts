@@ -446,9 +446,11 @@ export const getScheduledExecutionInternal = internalQuery({
     const attempts = await ctx.db
       .query("durableGenerationAttempts")
       .withIndex("by_job", (q) => q.eq("jobId", jobId))
-      .take(2);
-    if (attempts.length !== 1) throw new Error("Durable attempt binding is invalid");
-    const attempt = attempts[0];
+      .take(17);
+    if (attempts.length === 0 || attempts.length > 16) throw new Error("Durable attempt binding is invalid");
+    const attempt = attempts.reduce((latest, candidate) =>
+      candidate.attemptNumber > latest.attemptNumber ? candidate : latest,
+    );
     if (attempt.ownerId !== job.ownerId || attempt.generationKey !== job.generationKey) {
       throw new Error("Durable attempt binding is invalid");
     }

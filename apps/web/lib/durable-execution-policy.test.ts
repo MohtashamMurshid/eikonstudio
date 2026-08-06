@@ -51,4 +51,18 @@ describe("durable execution policy", () => {
       requestFingerprint: "image-request:request_12345678",
     });
   });
+
+  it("rejects invalid output counts", () => {
+    for (const durableOutputCount of [-1, 1.5, 17]) {
+      expect(() =>
+        durableExecutionDecision({ status: "persisting", submissionState: "accepted", durableOutputCount }),
+      ).toThrow("INVALID_DURABLE_OUTPUT_COUNT");
+    }
+  });
+
+  it("rejects invalid durable key inputs", () => {
+    expect(() => durableImageKeys("", "request_12345678")).toThrow("INVALID_GENERATION_ID");
+    expect(() => durableImageKeys("g".repeat(129), "request_12345678")).toThrow("INVALID_GENERATION_ID");
+    expect(() => durableImageKeys("generation_123", "short")).toThrow("INVALID_IDEMPOTENCY_KEY");
+  });
 });

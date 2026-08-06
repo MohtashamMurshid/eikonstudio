@@ -259,7 +259,10 @@ async function executeExistingImageProvider(
           const response = await fetch(url);
           if (!response.ok) continue;
           const buffer = Buffer.from(await response.arrayBuffer());
-          if (buffer.byteLength > 25_000_000) throw new Error("Reference image is too large");
+          if (buffer.byteLength > 25_000_000) {
+            console.error("Reference image exceeds the size limit and was skipped");
+            continue;
+          }
           imageParts.push({
             inlineData: {
               data: buffer.toString("base64"),
@@ -566,9 +569,25 @@ export const generateImageBackground = internalAction({
   },
 });
 
-function safeExecutionError(code: string, message: string, retryable = false) {
+type ExecutionErrorCategory =
+  | "authentication"
+  | "billing-access"
+  | "validation"
+  | "rate-limit"
+  | "moderation"
+  | "provider-unavailable"
+  | "timeout"
+  | "cancelled"
+  | "unknown";
+
+function safeExecutionError(
+  code: string,
+  message: string,
+  category: ExecutionErrorCategory = "unknown",
+  retryable = false,
+) {
   return {
-    category: "provider-unavailable" as const,
+    category,
     code,
     message,
     retryable,
@@ -593,6 +612,17 @@ export const generateDurableImageBackground = internalAction({
       !["completed", "failed", "cancelled", "expired"].includes(initial.job.status) &&
       initial.job.expiresAt <= Date.now()
     ) {
+      if (initial.job.submissionState === "ambiguous" || initial.job.cancellationRequested) {
+        try {
+          await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
+            jobId,
+            errorMessage: "Image generation requires explicit reconciliation and will not be retried automatically.",
+          });
+        } catch {
+          // The legacy row may already be terminal or unavailable.
+        }
+        return null;
+      }
       try {
         await ctx.runMutation(internal.durableJobs.transition, {
           ownerId: initial.job.ownerId,
@@ -604,12 +634,16 @@ export const generateDurableImageBackground = internalAction({
           eventFingerprint: "maximum-age-reached",
           occurredAt: Date.now(),
         });
+      } catch {
+        // Another worker may already have terminalized this job.
+      }
+      try {
         await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
           jobId,
           errorMessage: "Image generation expired before it could complete.",
         });
       } catch {
-        // Ambiguous or cancellation-pending jobs require explicit resolution, but must not reschedule forever.
+        // The legacy row may already be terminal or unavailable.
       }
       return null;
     }
@@ -769,6 +803,7 @@ export const generateDurableImageBackground = internalAction({
           error: safeExecutionError(
             "EXECUTION_PREPARATION_FAILED",
             "Image generation could not be prepared securely.",
+            "validation",
           ),
         });
         await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
@@ -797,7 +832,11 @@ export const generateDurableImageBackground = internalAction({
       eventId: `begin_${randomUUID()}`,
       occurredAt: Date.now(),
     });
-    await ctx.runMutation(internal.generations.markDurableGenerationGenerating, { jobId });
+    try {
+      await ctx.runMutation(internal.generations.markDurableGenerationGenerating, { jobId });
+    } catch {
+      // Legacy read-model mirroring is advisory and must not strand a never-submitted in-flight job.
+    }
 
     let providerResult: ProviderImageResult;
     try {
@@ -812,7 +851,6 @@ export const generateDurableImageBackground = internalAction({
         imageModel: initial.generation.imageModel,
         referenceImageUrls: execution.referenceImageUrls,
       });
-      providerResult.providerRequestId = requireProviderRequestIdentity(providerResult.providerRequestId);
     } catch (error) {
       try {
         const renewed = await claim("submitting", begin.revision);
@@ -829,7 +867,7 @@ export const generateDurableImageBackground = internalAction({
             eventId: `rejected_${randomUUID()}`,
             eventFingerprint: "provider-definitive-rejection",
             occurredAt: Date.now(),
-            error: safeExecutionError("PROVIDER_REJECTED", getGenerationFailureMessage(error)),
+            error: safeExecutionError("PROVIDER_REJECTED", getGenerationFailureMessage(error), "validation"),
           });
           await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
             jobId,
@@ -858,9 +896,41 @@ export const generateDurableImageBackground = internalAction({
       return null;
     }
 
+    let requestId: string;
+    try {
+      requestId = requireProviderRequestIdentity(providerResult.providerRequestId);
+    } catch {
+      try {
+        const identityClaim = await claim("submitting", begin.revision);
+        await ctx.runMutation(internal.durableJobs.transition, {
+          ownerId: initial.job.ownerId,
+          jobId,
+          expectedStatus: "submitting",
+          expectedRevision: identityClaim.revision,
+          attemptKey,
+          leaseToken,
+          leaseEpoch: identityClaim.leaseEpoch,
+          targetStatus: "failed",
+          eventId: `identity_missing_${randomUUID()}`,
+          eventFingerprint: "provider-request-identity-missing",
+          occurredAt: Date.now(),
+          error: safeExecutionError(
+            "PROVIDER_REQUEST_ID_REQUIRED",
+            "The provider completed without an auditable request identity; the output was not persisted.",
+            "validation",
+          ),
+        });
+        await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
+          jobId,
+          errorMessage: "The provider response could not be bound to an auditable request identity.",
+        });
+      } catch {
+        // Lease expiry/reclaim prevents this worker from writing stale state.
+      }
+      return null;
+    }
+
     const renewed = await claim("submitting", begin.revision);
-    const requestId = providerResult.providerRequestId;
-    if (!requestId) return null;
     const accepted = await ctx.runMutation(internal.durableJobs.recordSubmissionAccepted, {
       ownerId: initial.job.ownerId,
       jobId,
