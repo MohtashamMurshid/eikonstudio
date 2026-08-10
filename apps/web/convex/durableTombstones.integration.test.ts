@@ -414,7 +414,7 @@ describe("durable generation tombstones", () => {
     expect(visible.map((generation) => generation._id)).toEqual([older.generationId]);
   });
 
-  it("preserves legacy unlinked physical deletion behavior", async () => {
+  it("deletes legacy unlinked rows while retaining storage for reconciliation", async () => {
     const t = convexTest(schema, modules);
     const fixture = await t.run(async (ctx) => {
       const imageStorageId = await ctx.storage.store(new Blob(["legacy-image"], { type: "image/png" }));
@@ -435,7 +435,7 @@ describe("durable generation tombstones", () => {
     const result = await asOwner(t).mutation(api.generations.deleteGeneration, { generationId: fixture.generationId });
     expect(result).toEqual({ success: true, replayed: false, tombstoned: false });
     expect(await t.run(async (ctx) => ctx.db.get(fixture.generationId))).toBeNull();
-    expect(await t.run(async (ctx) => ctx.db.system.get(fixture.imageStorageId))).toBeNull();
-    expect(await t.run(async (ctx) => ctx.db.system.get(fixture.thumbnailStorageId))).toBeNull();
+    expect(await t.run(async (ctx) => ctx.db.system.get(fixture.imageStorageId))).not.toBeNull();
+    expect(await t.run(async (ctx) => ctx.db.system.get(fixture.thumbnailStorageId))).not.toBeNull();
   });
 });

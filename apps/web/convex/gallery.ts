@@ -126,13 +126,13 @@ export const deleteFolder = mutation({
     const images = await ctx.db
       .query("gallery")
       .withIndex("by_folder", (q) => q.eq("folderId", args.folderId))
-      .collect();
-
-    for (const img of images) {
-      await ctx.storage.delete(img.imageStorageId);
-      await ctx.storage.delete(img.thumbnailStorageId);
-      await ctx.db.delete(img._id);
+      .take(5);
+    if (images.length > 4) {
+      throw new Error("Folder exceeds the supported four-image deletion limit");
     }
+
+    // Gallery rows may share storage with generations, outputs, videos, or characters.
+    for (const img of images) await ctx.db.delete(img._id);
 
     // Delete the folder
     await ctx.db.delete(args.folderId);
@@ -678,11 +678,7 @@ export const deleteImage = mutation({
       throw new Error("Cannot delete another user's image");
     }
 
-    // Delete the files from storage
-    await ctx.storage.delete(image.imageStorageId);
-    await ctx.storage.delete(image.thumbnailStorageId);
-
-    // Delete the database record
+    // Retain storage until a complete cross-table reference ledger proves it is unreferenced.
     await ctx.db.delete(args.imageId);
     return { success: true };
   },

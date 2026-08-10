@@ -171,20 +171,7 @@ export const deleteVideoGeneration = mutation({
       );
     }
 
-    // Delete the files from storage
-    await ctx.storage.delete(videoGeneration.videoStorageId);
-    await ctx.storage.delete(videoGeneration.thumbnailStorageId);
-
-    // Delete reference images if they exist
-    if (videoGeneration.referenceImageStorageIds) {
-      await Promise.all(
-        videoGeneration.referenceImageStorageIds.map((id) =>
-          ctx.storage.delete(id)
-        )
-      );
-    }
-
-    // Delete the database record
+    // Retain storage until a complete cross-table reference ledger proves it is unreferenced.
     await ctx.db.delete(args.videoGenerationId);
     return { success: true };
   },

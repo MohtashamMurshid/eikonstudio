@@ -568,25 +568,8 @@ export const deleteGeneration = mutation({
       return { success: true, replayed: false, tombstoned: true, tombstonedAt };
     }
 
-    // Legacy unlinked rows keep their historical physical-delete behavior.
-    if (generation.imageStorageId) {
-      await ctx.storage.delete(generation.imageStorageId);
-    }
-    if (generation.thumbnailStorageId) {
-      await ctx.storage.delete(generation.thumbnailStorageId);
-    }
-    // Delete reference images if they exist
-    if (generation.referenceImageIds) {
-      for (const refId of generation.referenceImageIds) {
-        try {
-          await ctx.storage.delete(refId);
-        } catch (e) {
-          // Ignore errors deleting reference images (they might be shared)
-        }
-      }
-    }
-
-    // Delete the database record
+    // Legacy unlinked rows use row-only deletion until reference-ledger reconciliation is complete.
+    // Retain storage until a complete cross-table reference ledger proves it is unreferenced.
     await ctx.db.delete(args.generationId);
     return { success: true, replayed: false, tombstoned: false };
   },
