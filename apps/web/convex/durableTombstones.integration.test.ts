@@ -116,12 +116,20 @@ async function createFixture(
     }
 
     const submissionState = status === "queued" ? "not_started" : status === "submitting" ? "ambiguous" : "accepted";
+    const currentJob = await ctx.db.get(created.jobId);
+    if (!currentJob) throw new Error("Durable fixture job is missing");
+    const terminalAt = ["completed", "failed", "cancelled", "expired"].includes(status)
+      ? Math.max(now, currentJob.createdAt)
+      : undefined;
     await ctx.db.patch(created.jobId, {
       status,
       submissionState,
       providerRequestId: status === "queued" ? undefined : `request_${suffix}`,
       finalizedOutputIds: status === "completed" && outputId ? [outputId] : undefined,
-      terminalAt: ["completed", "failed", "cancelled", "expired"].includes(status) ? now : undefined,
+      terminalAt,
+      cancellationRequestedAt: status === "cancelled" ? terminalAt : undefined,
+      cancellationObservedAt: status === "cancelled" ? terminalAt : undefined,
+      cancellationOutcome: status === "cancelled" ? "accepted" : undefined,
       updatedAt: now,
     });
     return {
@@ -165,6 +173,10 @@ describe("durable generation tombstones", () => {
         createdAt: Date.now(),
       });
     });
+    if (!fixture.outputId) throw new Error("Completed fixture has no finalized output");
+    await t.run(async (ctx) => ctx.db.patch(fixture.jobId, {
+      finalizedOutputIds: [fixture.outputId!, extraOutputId],
+    }));
 
     const first = await authed.mutation(api.generations.deleteGeneration, { generationId: fixture.generationId });
     const replay = await authed.mutation(api.generations.deleteGeneration, { generationId: fixture.generationId });
@@ -210,6 +222,26 @@ describe("durable generation tombstones", () => {
 
     expect(await authed.query(api.generations.getMyGenerations, { limit: 50 })).toEqual([]);
     expect(await authed.query(api.generations.getUsageStats, {})).toMatchObject({ totalGenerations: 0, totalCost: 0 });
+    await expect(
+      authed.mutation(api.generations.startGeneration, {
+        idempotencyKey: "idempotency_completed",
+        prompt: "prompt completed",
+        mode: "text-to-image",
+        aspectRatio: "square",
+        imageSize: "2K",
+        imageModel: "gpt-image-2",
+      }),
+    ).rejects.toThrow("Generation request identity belongs to a deleted generation");
+    const generationReferences = await t.query(internal.storageReconciliation.pageStorageReferences, {
+      source: "generations",
+      paginationOpts: { cursor: null, numItems: 100 },
+    });
+    const outputReferences = await t.query(internal.storageReconciliation.pageStorageReferences, {
+      source: "durable_outputs",
+      paginationOpts: { cursor: null, numItems: 100 },
+    });
+    expect(generationReferences.page.some((document) => document.documentId === fixture.generationId)).toBe(true);
+    expect(outputReferences.page.some((document) => document.documentId === fixture.outputId)).toBe(true);
 
     await t.mutation(internal.generations.mirrorDurableGenerationCompleted, { jobId: fixture.jobId });
     const afterMirror = await t.run(async (ctx) => ctx.db.get(fixture.generationId));
@@ -222,17 +254,138 @@ describe("durable generation tombstones", () => {
       const fixture = await createFixture(t, `active_${status}`, status);
       await expect(
         asOwner(t).mutation(api.generations.deleteGeneration, { generationId: fixture.generationId }),
-      ).rejects.toThrow("Active durable generations cannot be deleted");
+      ).rejects.toThrow("Durable generation is not consistently terminal");
       expect((await t.run(async (ctx) => ctx.db.get(fixture.generationId)))?.tombstonedAt).toBeUndefined();
     }
   });
 
-  it("tombstones terminal failed jobs with no outputs", async () => {
+  it("tombstones failed, cancelled, and expired jobs while preserving their outputs", async () => {
+    for (const status of ["failed", "cancelled", "expired"] as const) {
+      const t = convexTest(schema, modules);
+      const fixture = await createFixture(t, `terminal_${status}`, status, { withOutput: true });
+      const result = await asOwner(t).mutation(api.generations.deleteGeneration, { generationId: fixture.generationId });
+      expect(result).toMatchObject({ success: true, tombstoned: true, replayed: false });
+      const state = await t.run(async (ctx) => ({
+        generation: await ctx.db.get(fixture.generationId),
+        output: fixture.outputId ? await ctx.db.get(fixture.outputId) : null,
+      }));
+      expect(state.generation?.tombstonedAt).toBe(result.tombstonedAt);
+      expect(state.output?.tombstonedAt).toBe(result.tombstonedAt);
+    }
+  });
+
+  it("rejects malformed terminal timestamps, ambiguous submission, and unresolved cancellation", async () => {
+    const cases = [
+      { suffix: "missing_terminal_at", patch: { terminalAt: undefined } },
+      { suffix: "ambiguous_terminal", patch: { submissionState: "ambiguous" as const } },
+      { suffix: "unresolved_cancellation", patch: { cancellationRequested: true } },
+    ];
+    for (const testCase of cases) {
+      const t = convexTest(schema, modules);
+      const fixture = await createFixture(t, testCase.suffix, "failed");
+      await t.run(async (ctx) => ctx.db.patch(fixture.jobId, testCase.patch));
+      await expect(
+        asOwner(t).mutation(api.generations.deleteGeneration, { generationId: fixture.generationId }),
+      ).rejects.toThrow("Durable generation is not consistently terminal");
+      expect((await t.run(async (ctx) => ctx.db.get(fixture.generationId)))?.tombstonedAt).toBeUndefined();
+    }
+
+    const cancelledTest = convexTest(schema, modules);
+    const cancelled = await createFixture(cancelledTest, "unobserved_cancelled", "cancelled");
+    await cancelledTest.run(async (ctx) => ctx.db.patch(cancelled.jobId, {
+      cancellationObservedAt: undefined,
+      cancellationOutcome: undefined,
+    }));
+    await expect(
+      asOwner(cancelledTest).mutation(api.generations.deleteGeneration, { generationId: cancelled.generationId }),
+    ).rejects.toThrow("Durable cancellation is not consistently observed");
+
+    const outcomeTest = convexTest(schema, modules);
+    const contradictory = await createFixture(outcomeTest, "contradictory_cancelled", "cancelled");
+    await outcomeTest.run(async (ctx) => ctx.db.patch(contradictory.jobId, { cancellationOutcome: "unsupported" }));
+    await expect(
+      asOwner(outcomeTest).mutation(api.generations.deleteGeneration, { generationId: contradictory.generationId }),
+    ).rejects.toThrow("Durable cancellation is not consistently observed");
+  });
+
+  it("replays from exact tombstone markers before revalidating later job state and rejects marker corruption", async () => {
     const t = convexTest(schema, modules);
-    const fixture = await createFixture(t, "failed", "failed");
-    const result = await asOwner(t).mutation(api.generations.deleteGeneration, { generationId: fixture.generationId });
-    expect(result).toMatchObject({ success: true, tombstoned: true, replayed: false });
-    expect((await t.run(async (ctx) => ctx.db.get(fixture.generationId)))?.tombstonedAt).toBe(result.tombstonedAt);
+    const fixture = await createFixture(t, "replay_order", "completed", { withOutput: true });
+    const authed = asOwner(t);
+    const first = await authed.mutation(api.generations.deleteGeneration, { generationId: fixture.generationId });
+    const replayTombstonedAt = first.tombstonedAt;
+    if (replayTombstonedAt === undefined) throw new Error("Replay fixture was not tombstoned");
+    await t.run(async (ctx) => ctx.db.patch(fixture.jobId, {
+      status: "processing",
+      terminalAt: undefined,
+      cancellationRequested: true,
+      revision: 999,
+    }));
+    expect(await authed.mutation(api.generations.deleteGeneration, { generationId: fixture.generationId })).toEqual({
+      ...first,
+      replayed: true,
+    });
+
+    if (!fixture.outputId) throw new Error("Replay fixture has no output");
+    await t.run(async (ctx) => ctx.db.patch(fixture.outputId!, { tombstonedAt: replayTombstonedAt + 1 }));
+    await expect(
+      authed.mutation(api.generations.deleteGeneration, { generationId: fixture.generationId }),
+    ).rejects.toThrow("Durable tombstone replay is inconsistent");
+  });
+
+  it("rejects malformed finalized completion/image bindings and output overflow atomically", async () => {
+    const completionTest = convexTest(schema, modules);
+    const completionFixture = await createFixture(completionTest, "bad_completion", "completed", { withOutput: true });
+    if (!completionFixture.completionId) throw new Error("Completion fixture is incomplete");
+    await completionTest.run(async (ctx) => ctx.db.patch(completionFixture.completionId!, { outputIdentity: "b".repeat(64) }));
+    await expect(
+      asOwner(completionTest).mutation(api.generations.deleteGeneration, { generationId: completionFixture.generationId }),
+    ).rejects.toThrow("Durable output completion binding is invalid");
+
+    const unfinalizedTest = convexTest(schema, modules);
+    const unfinalizedFixture = await createFixture(unfinalizedTest, "bad_unfinalized_completion", "failed", { withOutput: true });
+    if (!unfinalizedFixture.completionId) throw new Error("Unfinalized completion fixture is incomplete");
+    await unfinalizedTest.run(async (ctx) => ctx.db.patch(unfinalizedFixture.completionId!, { jobKey: "foreign_job" }));
+    await expect(
+      asOwner(unfinalizedTest).mutation(api.generations.deleteGeneration, { generationId: unfinalizedFixture.generationId }),
+    ).rejects.toThrow("Durable output completion binding is invalid");
+
+    const thumbnailTest = convexTest(schema, modules);
+    const thumbnailFixture = await createFixture(thumbnailTest, "missing_thumbnail", "completed", { withOutput: true });
+    if (!thumbnailFixture.outputId) throw new Error("Thumbnail fixture is incomplete");
+    await thumbnailTest.run(async (ctx) => ctx.db.patch(thumbnailFixture.outputId!, { thumbnailStorageId: undefined }));
+    await expect(
+      asOwner(thumbnailTest).mutation(api.generations.deleteGeneration, { generationId: thumbnailFixture.generationId }),
+    ).rejects.toThrow("Durable finalized image output is invalid");
+
+    const duplicateTest = convexTest(schema, modules);
+    const duplicateFixture = await createFixture(duplicateTest, "duplicate_finalized", "completed", { withOutput: true });
+    if (!duplicateFixture.outputId) throw new Error("Duplicate fixture is incomplete");
+    await duplicateTest.run(async (ctx) => ctx.db.patch(duplicateFixture.jobId, {
+      finalizedOutputIds: [duplicateFixture.outputId!, duplicateFixture.outputId!],
+    }));
+    await expect(
+      asOwner(duplicateTest).mutation(api.generations.deleteGeneration, { generationId: duplicateFixture.generationId }),
+    ).rejects.toThrow("Durable finalized output binding is invalid");
+
+    const overflowTest = convexTest(schema, modules);
+    const overflow = await createFixture(overflowTest, "overflow", "failed", { withOutput: true });
+    if (!overflow.outputId) throw new Error("Overflow fixture is incomplete");
+    await overflowTest.run(async (ctx) => {
+      const original = await ctx.db.get(overflow.outputId!);
+      if (!original) throw new Error("Overflow source output is missing");
+      const { _id: _ignoredId, _creationTime: _ignoredCreationTime, ...fields } = original;
+      for (let index = 1; index <= 16; index += 1) {
+        await ctx.db.insert("durableGenerationOutputs", {
+          ...fields,
+          outputKey: `output_overflow_${index}`,
+        });
+      }
+    });
+    await expect(
+      asOwner(overflowTest).mutation(api.generations.deleteGeneration, { generationId: overflow.generationId }),
+    ).rejects.toThrow("Durable output binding is invalid");
+    expect((await overflowTest.run(async (ctx) => ctx.db.get(overflow.generationId)))?.tombstonedAt).toBeUndefined();
   });
 
   it("rejects cross-owner deletion and inconsistent finalized output sets", async () => {
