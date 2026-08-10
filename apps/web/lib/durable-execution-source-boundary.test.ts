@@ -90,9 +90,20 @@ describe("durable image execution source boundary", () => {
     expect(durableArgs).not.toMatch(/credential|prompt|providerSecret|apiKey/);
   });
 
-  it("fails closed instead of deleting active or completed durable audit/storage", () => {
+  it("soft-tombstones terminal durable rows without deleting audit records or storage", () => {
     const deletion = generations.split("export const deleteGeneration")[1]?.split("// ============================================")[0] ?? "";
-    expect(deletion).toContain("Durable-linked generations cannot be deleted until durable-output tombstoning is available");
-    orderedBefore(deletion, "if (generation.durableJobId)", "ctx.storage.delete");
+    const durableDeletion = deletion.split("if (generation.durableJobId)")[1]?.split("// Legacy unlinked rows")[0] ?? "";
+    expect(durableDeletion).toContain('["completed", "failed", "cancelled", "expired"]');
+    expect(durableDeletion).toContain("Active durable generations cannot be deleted");
+    expect(durableDeletion).toContain('withIndex("by_job"');
+    expect(durableDeletion).toContain("Durable finalized output binding is invalid");
+    expect(durableDeletion).toContain("generation_tombstone:");
+    expect(durableDeletion).toContain('eventType: "tombstoned"');
+    expect(durableDeletion).toContain('tombstoneReason: "user_deleted_generation"');
+    expect(durableDeletion).not.toContain("ctx.storage.delete");
+    expect(durableDeletion).not.toContain("ctx.db.delete");
+    expect(generations).toContain('withIndex("by_user_tombstone_created"');
+    expect(generations).toContain("Generation request identity belongs to a deleted generation");
+    expect(schema).toContain('.index("by_user_tombstone_created", ["userId", "tombstonedAt", "createdAt"])');
   });
 });

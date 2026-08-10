@@ -61,6 +61,9 @@ export const startGeneration = mutation({
       .withIndex("by_user_idempotency", (q) => q.eq("userId", user._id).eq("requestIdempotencyKey", args.idempotencyKey))
       .unique();
     if (existing) {
+      if (existing.tombstonedAt !== undefined) {
+        throw new ConvexError(createAppError("CONFLICT", "Generation request identity belongs to a deleted generation"));
+      }
       const existingReferences = existing.referenceImageIds ?? [];
       const requestedReferences = args.referenceImageIds ?? [];
       const sameReferences =
@@ -154,6 +157,7 @@ export const getGenerationExecutionContext = internalQuery({
     const generation = await ctx.db.get(args.generationId);
     if (
       !generation ||
+      generation.tombstonedAt !== undefined ||
       generation.credentialHandle !== args.credentialHandle ||
       generation.credentialProvider !== args.credentialProvider
     ) {
@@ -168,6 +172,14 @@ export const getGenerationExecutionContext = internalQuery({
   },
 });
 
+async function loadWritableGeneration(ctx: MutationCtx, generationId: Id<"generations">) {
+  const generation = await ctx.db.get(generationId);
+  if (!generation || generation.tombstonedAt !== undefined) {
+    throw new Error("Generation is unavailable");
+  }
+  return generation;
+}
+
 // Internal mutation to update generation status
 export const updateGenerationStatus = internalMutation({
   args: {
@@ -180,7 +192,8 @@ export const updateGenerationStatus = internalMutation({
     ),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.generationId, {
+    const generation = await loadWritableGeneration(ctx, args.generationId);
+    await ctx.db.patch(generation._id, {
       status: args.status,
     });
   },
@@ -196,7 +209,8 @@ export const completeGeneration = internalMutation({
     model: v.string(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.generationId, {
+    const generation = await loadWritableGeneration(ctx, args.generationId);
+    await ctx.db.patch(generation._id, {
       status: "completed",
       imageStorageId: args.imageStorageId,
       thumbnailStorageId: args.thumbnailStorageId,
@@ -213,7 +227,8 @@ export const failGeneration = internalMutation({
     errorMessage: v.string(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.generationId, {
+    const generation = await loadWritableGeneration(ctx, args.generationId);
+    await ctx.db.patch(generation._id, {
       status: "failed",
       errorMessage: args.errorMessage,
     });
@@ -240,6 +255,9 @@ export const markDurableGenerationGenerating = internalMutation({
     if (job.status !== "submitting" || job.submissionState !== "in_flight") {
       throw new Error("Durable generation is not submitting");
     }
+    if (generation.tombstonedAt !== undefined) {
+      throw new Error("Durable generation is tombstoned");
+    }
     if (generation.status !== "completed") {
       await ctx.db.patch(generation._id, { status: "generating", errorMessage: undefined });
     }
@@ -253,6 +271,7 @@ export const mirrorDurableGenerationFailure = internalMutation({
     const terminalFailure = job.status === "failed" || job.status === "expired" || job.status === "cancelled";
     const ambiguous = job.status === "submitting" && job.submissionState === "ambiguous";
     if (!terminalFailure && !ambiguous) throw new Error("Durable generation failure is not authoritative");
+    if (generation.tombstonedAt !== undefined) return;
     if (generation.status !== "completed") {
       await ctx.db.patch(generation._id, { status: "failed", errorMessage: args.errorMessage });
     }
@@ -266,6 +285,7 @@ export const mirrorDurableGenerationCompleted = internalMutation({
     if (job.status !== "completed" || !job.finalizedOutputIds || job.finalizedOutputIds.length !== 1) {
       throw new Error("Durable generation is not completed");
     }
+    if (generation.tombstonedAt !== undefined) return;
     const output = await ctx.db.get(job.finalizedOutputIds[0]);
     if (!output || output.jobId !== jobId || output.ownerId !== job.ownerId || !output.thumbnailStorageId) {
       throw new Error("Durable output binding is invalid");
@@ -344,7 +364,9 @@ export const getMyGenerations = query({
 
     const generations = await ctx.db
       .query("generations")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user_tombstone_created", (q) =>
+        q.eq("userId", user._id).eq("tombstonedAt", undefined)
+      )
       .order("desc")
       .take(limit);
 
@@ -403,12 +425,99 @@ export const deleteGeneration = mutation({
     }
 
     if (generation.durableJobId) {
-      throw new ConvexError(
-        createAppError("CONFLICT", "Durable-linked generations cannot be deleted until durable-output tombstoning is available"),
-      );
+      const job = await ctx.db.get(generation.durableJobId);
+      if (
+        !job ||
+        job.ownerId !== user._id ||
+        job.generationKey !== generation.durableGenerationKey
+      ) {
+        throw new ConvexError(createAppError("CONFLICT", "Durable generation binding is invalid"));
+      }
+      if (!["completed", "failed", "cancelled", "expired"].includes(job.status)) {
+        throw new ConvexError(createAppError("CONFLICT", "Active durable generations cannot be deleted"));
+      }
+
+      const outputs = await ctx.db
+        .query("durableGenerationOutputs")
+        .withIndex("by_job", (q) => q.eq("jobId", job._id))
+        .collect();
+      if (
+        outputs.some((output) =>
+          output.ownerId !== user._id ||
+          output.jobKey !== job.jobKey ||
+          output.generationKey !== job.generationKey
+        )
+      ) {
+        throw new ConvexError(createAppError("CONFLICT", "Durable output binding is invalid"));
+      }
+      if (job.status === "completed") {
+        const finalized = job.finalizedOutputIds ?? [];
+        const outputIds = new Set(outputs.map((output) => output._id));
+        if (finalized.length === 0 || finalized.some((outputId) => !outputIds.has(outputId))) {
+          throw new ConvexError(createAppError("CONFLICT", "Durable finalized output binding is invalid"));
+        }
+      }
+
+      const tombstoneEventId = `generation_tombstone:${generation._id}`;
+      const tombstoneEvent = await ctx.db
+        .query("durableGenerationEvents")
+        .withIndex("by_event_id", (q) => q.eq("eventId", tombstoneEventId))
+        .unique();
+      if (generation.tombstonedAt !== undefined) {
+        if (
+          !tombstoneEvent ||
+          tombstoneEvent.ownerId !== user._id ||
+          tombstoneEvent.jobId !== job._id ||
+          tombstoneEvent.jobKey !== job.jobKey ||
+          tombstoneEvent.generationKey !== job.generationKey ||
+          tombstoneEvent.eventType !== "tombstoned" ||
+          tombstoneEvent.eventFingerprint !== generation._id ||
+          tombstoneEvent.revision !== job.revision ||
+          tombstoneEvent.occurredAt !== generation.tombstonedAt ||
+          generation.tombstoneEventId !== tombstoneEventId ||
+          generation.tombstoneReason !== "user_deleted_generation" ||
+          outputs.some((output) =>
+            output.tombstonedAt !== generation.tombstonedAt ||
+            output.tombstoneEventId !== tombstoneEventId ||
+            output.tombstoneReason !== "user_deleted_generation"
+          )
+        ) {
+          throw new ConvexError(createAppError("CONFLICT", "Durable tombstone replay is inconsistent"));
+        }
+        return { success: true, replayed: true, tombstoned: true, tombstonedAt: generation.tombstonedAt };
+      }
+      if (tombstoneEvent || outputs.some((output) => output.tombstonedAt !== undefined)) {
+        throw new ConvexError(createAppError("CONFLICT", "Durable tombstone state is inconsistent"));
+      }
+
+      const tombstonedAt = Date.now();
+      await ctx.db.insert("durableGenerationEvents", {
+        ownerId: user._id,
+        eventId: tombstoneEventId,
+        jobId: job._id,
+        jobKey: job.jobKey,
+        generationKey: job.generationKey,
+        eventType: "tombstoned",
+        eventFingerprint: generation._id,
+        revision: job.revision,
+        occurredAt: tombstonedAt,
+      });
+      for (const output of outputs) {
+        await ctx.db.patch(output._id, {
+          tombstonedAt,
+          tombstoneEventId,
+          tombstoneReason: "user_deleted_generation",
+        });
+      }
+      await ctx.db.patch(generation._id, {
+        tombstonedAt,
+        tombstoneEventId,
+        tombstoneReason: "user_deleted_generation",
+      });
+      return { success: true, replayed: false, tombstoned: true, tombstonedAt };
     }
 
-    // Delete the files from storage (if they exist)
+    // Legacy unlinked rows keep their historical physical-delete behavior.
     if (generation.imageStorageId) {
       await ctx.storage.delete(generation.imageStorageId);
     }
@@ -428,7 +537,7 @@ export const deleteGeneration = mutation({
 
     // Delete the database record
     await ctx.db.delete(args.generationId);
-    return { success: true };
+    return { success: true, replayed: false, tombstoned: false };
   },
 });
 
@@ -460,8 +569,8 @@ export const getUsageStats = query({
     // Query only this month's completed generations using the compound index
     const thisMonthGenerations = await ctx.db
       .query("generations")
-      .withIndex("by_user_created", (q) => 
-        q.eq("userId", user._id).gte("createdAt", thisMonthStart)
+      .withIndex("by_user_tombstone_created", (q) =>
+        q.eq("userId", user._id).eq("tombstonedAt", undefined).gte("createdAt", thisMonthStart)
       )
       .filter((q) => q.eq(q.field("status"), "completed"))
       .collect();
@@ -469,8 +578,9 @@ export const getUsageStats = query({
     // Query only last month's completed generations using the compound index
     const lastMonthGenerations = await ctx.db
       .query("generations")
-      .withIndex("by_user_created", (q) => 
+      .withIndex("by_user_tombstone_created", (q) =>
         q.eq("userId", user._id)
+          .eq("tombstonedAt", undefined)
           .gte("createdAt", lastMonthStart)
           .lt("createdAt", thisMonthStart)
       )
@@ -481,8 +591,8 @@ export const getUsageStats = query({
     // This is still needed for total count and cost, but we minimize data processed
     const olderGenerations = await ctx.db
       .query("generations")
-      .withIndex("by_user_created", (q) => 
-        q.eq("userId", user._id).lt("createdAt", lastMonthStart)
+      .withIndex("by_user_tombstone_created", (q) =>
+        q.eq("userId", user._id).eq("tombstonedAt", undefined).lt("createdAt", lastMonthStart)
       )
       .filter((q) => q.eq(q.field("status"), "completed"))
       .collect();
@@ -577,13 +687,10 @@ export const getDailyUsage = query({
 
     const generations = await ctx.db
       .query("generations")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .filter((q) => 
-        q.and(
-          q.gte(q.field("createdAt"), startTime),
-          q.eq(q.field("status"), "completed")
-        )
+      .withIndex("by_user_tombstone_created", (q) =>
+        q.eq("userId", user._id).eq("tombstonedAt", undefined).gte("createdAt", startTime)
       )
+      .filter((q) => q.eq(q.field("status"), "completed"))
       .collect();
 
     // Group by date
@@ -644,13 +751,10 @@ export const getUsageTrends = query({
 
     const generations = await ctx.db
       .query("generations")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .filter((q) => 
-        q.and(
-          q.gte(q.field("createdAt"), twoMonthsAgoStart),
-          q.eq(q.field("status"), "completed")
-        )
+      .withIndex("by_user_tombstone_created", (q) =>
+        q.eq("userId", user._id).eq("tombstonedAt", undefined).gte("createdAt", twoMonthsAgoStart)
       )
+      .filter((q) => q.eq(q.field("status"), "completed"))
       .collect();
 
     let thisMonthCount = 0;
@@ -702,7 +806,9 @@ export const backfillCosts = mutation({
 
     const generations = await ctx.db
       .query("generations")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user_tombstone_created", (q) =>
+        q.eq("userId", user._id).eq("tombstonedAt", undefined)
+      )
       .collect();
 
     let updated = 0;

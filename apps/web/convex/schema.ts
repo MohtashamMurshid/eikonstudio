@@ -35,9 +35,14 @@ export default defineSchema({
     errorMessage: v.optional(v.string()), // Error message if generation failed
     // Reference images for image-editing mode (stored as base64 data URLs or storage IDs)
     referenceImageIds: v.optional(v.array(v.id("_storage"))),
+    /** User-facing soft deletion preserves durable audit and storage identities. */
+    tombstonedAt: v.optional(v.number()),
+    tombstoneEventId: v.optional(v.string()),
+    tombstoneReason: v.optional(v.literal("user_deleted_generation")),
   })
     .index("by_user", ["userId"])
     .index("by_user_created", ["userId", "createdAt"])
+    .index("by_user_tombstone_created", ["userId", "tombstonedAt", "createdAt"])
     .index("by_user_status", ["userId", "status"])
     .index("by_user_idempotency", ["userId", "requestIdempotencyKey"])
     .index("by_durable_job", ["durableJobId"]),
@@ -231,7 +236,7 @@ export default defineSchema({
     jobId: v.id("durableGenerationJobs"),
     jobKey: v.string(),
     generationKey: v.string(),
-    eventType: v.union(v.literal("created"), v.literal("claimed"), v.literal("transitioned"), v.literal("submission_accepted"), v.literal("submission_ambiguous"), v.literal("submission_reconciled"), v.literal("cancellation_requested"), v.literal("cancellation_observed"), v.literal("provider_completed"), v.literal("output_persisted"), v.literal("finalized")),
+    eventType: v.union(v.literal("created"), v.literal("claimed"), v.literal("transitioned"), v.literal("submission_accepted"), v.literal("submission_ambiguous"), v.literal("submission_reconciled"), v.literal("cancellation_requested"), v.literal("cancellation_observed"), v.literal("provider_completed"), v.literal("output_persisted"), v.literal("finalized"), v.literal("tombstoned")),
     eventFingerprint: v.string(),
     revision: v.number(),
     occurredAt: v.number(),
@@ -272,6 +277,10 @@ export default defineSchema({
     byteSize: v.number(),
     checksumSha256: v.string(),
     createdAt: v.number(),
+    /** Tombstoning preserves output identity while removing it from user-visible generation history. */
+    tombstonedAt: v.optional(v.number()),
+    tombstoneEventId: v.optional(v.string()),
+    tombstoneReason: v.optional(v.literal("user_deleted_generation")),
   })
     .index("by_output_key", ["outputKey"])
     .index("by_job", ["jobId"])

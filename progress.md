@@ -6,10 +6,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 2 — Storage inventory pagination repair
-- **Status:** Poison-row, split-page, and drifting-cutoff repairs implemented and independently reviewed; PR delivery pending
-- **Branch:** `fix/storage-inventory-pagination`
-- **Base:** Storage inventory merge `origin/main@a060e05` (PR #18)
+- **Active phase:** Phase 2 — Durable generation soft tombstones
+- **Status:** Terminal-only atomic tombstoning implemented and independently reviewed; PR delivery pending
+- **Branch:** `feature/phase-2-durable-tombstones`
+- **Base:** Storage inventory repair merge `origin/main@9433b23` (PR #19)
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
@@ -85,6 +85,19 @@ Deliberately out of scope:
 - Added crypto, AAD isolation, metadata, resolution-policy, and source-boundary regressions. No real provider calls or production migration were performed.
 
 ## Verification evidence
+
+Phase 2 durable generation soft tombstones:
+
+- Durable-linked generations may now be user-deleted only after the authoritative job reaches `completed`, `failed`, `cancelled`, or `expired`; queued, submitting, ambiguous, processing, and persisting jobs remain fail-closed.
+- A single owner-authenticated Convex mutation atomically inserts an immutable `tombstoned` durable event and applies deterministic tombstone metadata to the legacy generation and every bound durable output.
+- Durable jobs, attempts, events, completions, output identities, storage IDs, checksums, and blobs remain physically intact; the durable branch performs no storage or row deletion.
+- Completed jobs validate that every finalized output ID belongs to the full bound output set, while safely tombstoning persisted-but-unfinalized outputs too.
+- Exact replay returns the original tombstone timestamp and rejects inconsistent partial state; deleted idempotency identities cannot reschedule or resurrect work.
+- User history, usage statistics, daily charts, trends, and backfill use the tombstone-aware `[userId, tombstonedAt, createdAt]` index, preventing hidden recent rows from starving visible pages.
+- Post-tombstone legacy status/completion/failure mutations reject or no-op so terminal replay cannot rewrite hidden generation state.
+- Six real Convex integration scenarios cover completed output/audit/blob preservation, persisted-but-unfinalized outputs, exact replay, active/ambiguous blocking, terminal failure without outputs, owner isolation, inconsistent bindings, history pagination, analytics, and unchanged legacy physical deletion.
+- Focused web tests and typecheck passed; independent Codex review found and repaired finalized-subset handling, then rereviewed cleanly.
+- No provider request, deployment, production mutation, physical durable deletion, storage cleanup, or migration occurred.
 
 Phase 2 storage inventory pagination repair:
 
