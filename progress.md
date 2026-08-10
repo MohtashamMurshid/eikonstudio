@@ -6,10 +6,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 2 — Durable tombstone invariant repair
-- **Status:** Delayed-audit replay, terminal, output, completion, and cancellation repairs implemented; PR delivery pending
-- **Branch:** `fix/durable-tombstone-invariants`
-- **Base:** Durable tombstone merge `origin/main@91d587f` (PR #20)
+- **Active phase:** Phase 2 — Shared storage retention safety
+- **Status:** Unsafe cross-surface physical deletion removed; PR delivery pending
+- **Branch:** `fix/shared-storage-retention`
+- **Base:** Tombstone invariant repair merge `origin/main@9df4344` (PR #21)
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
@@ -85,6 +85,17 @@ Deliberately out of scope:
 - Added crypto, AAD isolation, metadata, resolution-policy, and source-boundary regressions. No real provider calls or production migration were performed.
 
 ## Verification evidence
+
+Phase 2 shared storage retention safety:
+
+- Removed all 11 `ctx.storage.delete` calls from Convex user-facing deletion paths until a complete cross-table reference ledger and backfill can prove exclusive ownership.
+- Legacy image generation, video generation, gallery image, gallery folder cascade, and character deletion remove owned application rows while retaining image, thumbnail, video, reference, and avatar blobs.
+- Folder cascades use `.take(5)` and fail closed above the documented four-image contract, preventing unbounded or partial deletion mutations.
+- A mechanical source test scans every Convex TypeScript file and fails if physical storage deletion is reintroduced.
+- Three real Convex scenarios prove one shared blob survives sequential deletion across generation/gallery/video/character surfaces, folder cascades retain all blobs, and malformed five-image folders preserve every row and blob.
+- Updated the legacy generation regression to require retained storage metadata after row deletion.
+- All 97 web tests and typecheck passed; independent Codex review returned clean.
+- No provider request, deployment, production mutation, or physical storage cleanup occurred.
 
 Phase 2 durable tombstone invariant repair:
 

@@ -112,9 +112,7 @@ export const deleteCharacter = mutation({
     if (!character) throw new Error("Character not found");
     if (character.userId !== user._id) throw new Error("Not your character");
 
-    if (character.avatarStorageId) {
-      await ctx.storage.delete(character.avatarStorageId);
-    }
+    // Avatars may be shared with gallery/reference rows; retain storage for reconciliation.
     await ctx.db.delete(args.characterId);
   },
 });
