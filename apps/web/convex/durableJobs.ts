@@ -43,6 +43,7 @@ const eventTypeValidator = v.union(
   v.literal("provider_completed"),
   v.literal("output_persisted"),
   v.literal("finalized"),
+  v.literal("tombstoned"),
 );
 const errorCategoryValidator = v.union(
   v.literal("authentication"),
