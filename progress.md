@@ -6,10 +6,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 2 — Durable fake-provider behavioral integration
-- **Status:** Real Convex mutation harness implemented and independently reviewed; PR delivery pending
-- **Branch:** `feature/phase-2-durable-fake-provider`
-- **Base:** Durable image execution merge `origin/main@f77c0cc` (PR #16)
+- **Active phase:** Phase 2 — Read-only storage reconciliation inventory
+- **Status:** Complete bounded storage/reference inventory implemented and independently reviewed; PR delivery pending
+- **Branch:** `feature/phase-2-storage-orphan-inventory`
+- **Base:** Fake-provider integration merge `origin/main@5e99a11` (PR #17)
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
@@ -86,12 +86,27 @@ Deliberately out of scope:
 
 ## Verification evidence
 
+Phase 2 read-only storage reconciliation inventory exact-head verification:
+
+- Added internal-only, read-only pages for minimal `_storage` metadata and every schema-defined application reference surface: generations, gallery, characters, durable outputs, and video generations.
+- Scalar and array references are flattened into opaque source/document/field/storage identities; prompts, filenames, owners, URLs, checksums, provider identities, and media bytes are excluded.
+- Source rows are paginated with a 100-row cap, arrays fail closed above 16 entries, and storage review eligibility uses server `Date.now()` with a bounded 1-hour-to-90-day grace period.
+- The API explicitly reports only `eligibleForReview`; it never classifies an object as orphaned and contains no writes, deletion, URL resolution, or scheduler calls.
+- Five real Convex integration scenarios and six source-boundary tests cover complete field coverage, row pagination, overflow, server-time cutoff, minimal metadata, invalid bounds, internal-only exposure, and read-only behavior.
+- `pnpm install --frozen-lockfile` passed. Platform optional packages remain enabled because clean Vitest execution requires Rollup's native package.
+- `pnpm turbo run test --force` passed **131 tests**: 39 core, 9 providers, and 83 web tests across nine files.
+- `pnpm turbo run typecheck --force` passed all 4 tasks.
+- `pnpm turbo run lint --force` passed with 0 errors and the existing 30-warning baseline.
+- Placeholder-environment `pnpm turbo run build --force` passed all 3 tasks and produced all 22 routes.
+- `git diff --check` passed; independent Codex review found no actionable correctness defect.
+- No provider request, deployment, production mutation, schema change, storage deletion, orphan classification, or migration occurred.
+
 Phase 2 fake-provider behavioral integration exact-head verification:
 
 - Added official `convex-test@0.0.40`, the newest release compatible with the existing Convex `1.31.2` runtime, as a development-only dependency.
 - The test-local fake provider executes the real schema and internal durable mutations; it does not duplicate the production state machine or issue network requests.
 - Nine integration scenarios cover atomic create/replay/scheduler payload, duplicate delivery, crashes before and after dispatch, ambiguous timeout plus reconciliation, stale lease reclaim, verified storage/output/finalization, terminal replay, local/remote/unsupported cancellation, late completion, and unlinked legacy coexistence.
-- `pnpm install --frozen-lockfile --no-optional` passed with a minimal 12-line lockfile addition.
+- `pnpm install --frozen-lockfile` passed with the minimal 12-line lockfile addition. Platform optional packages are required for clean Vitest/Rollup execution.
 - `pnpm turbo run test --force` passed **120 tests**: 39 core, 9 providers, and 72 web tests across seven files.
 - `pnpm turbo run typecheck --force` passed all 4 tasks.
 - `pnpm turbo run lint --force` passed with 0 errors and the existing 30-warning baseline.
