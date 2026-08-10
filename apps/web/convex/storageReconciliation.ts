@@ -1,12 +1,10 @@
-import { paginationOptsValidator } from "convex/server";
+import { paginationOptsValidator, paginationResultValidator } from "convex/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internalQuery } from "./_generated/server";
 
 const MAX_PAGE_ROWS = 100;
-const MAX_ARRAY_REFERENCES = 16;
 const MINIMUM_AGE_MS = 60 * 60 * 1000;
-const MAXIMUM_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 
 const sourceValidator = v.union(
   v.literal("generations"),
@@ -42,11 +40,15 @@ type StorageField =
   | "videoStorageId"
   | "referenceImageStorageIds";
 
-type StorageReference = {
+type ReferenceGroup = {
+  field: StorageField;
+  storageIds: Id<"_storage">[];
+};
+
+type ReferenceDocument = {
   source: StorageSource;
   documentId: string;
-  field: StorageField;
-  storageId: Id<"_storage">;
+  references: ReferenceGroup[];
 };
 
 function assertPageSize(numItems: number) {
@@ -55,50 +57,38 @@ function assertPageSize(numItems: number) {
   }
 }
 
-function assertReferenceArray(ids: readonly Id<"_storage">[]) {
-  if (ids.length > MAX_ARRAY_REFERENCES) {
-    throw new Error("STORAGE_REFERENCE_ARRAY_LIMIT_EXCEEDED");
-  }
+function group(field: StorageField, storageIds: readonly Id<"_storage">[] | undefined): ReferenceGroup[] {
+  return storageIds && storageIds.length > 0 ? [{ field, storageIds: [...storageIds] }] : [];
 }
 
-function reference(
+function scalar(field: StorageField, storageId: Id<"_storage"> | undefined): ReferenceGroup[] {
+  return storageId ? group(field, [storageId]) : [];
+}
+
+function document(
   source: StorageSource,
   documentId: string,
-  field: StorageField,
-  storageId: Id<"_storage"> | undefined,
-): StorageReference[] {
-  return storageId ? [{ source, documentId, field, storageId }] : [];
+  references: ReferenceGroup[],
+): ReferenceDocument {
+  return { source, documentId, references };
 }
 
-function references(
-  source: StorageSource,
-  documentId: string,
-  field: StorageField,
-  storageIds: readonly Id<"_storage">[] | undefined,
-): StorageReference[] {
-  const ids = storageIds ?? [];
-  assertReferenceArray(ids);
-  return ids.map((storageId) => ({ source, documentId, field, storageId }));
-}
-
-const referencePageValidator = v.object({
-  page: v.array(v.object({
-    source: sourceValidator,
-    documentId: v.string(),
+const referenceDocumentValidator = v.object({
+  source: sourceValidator,
+  documentId: v.string(),
+  references: v.array(v.object({
     field: fieldValidator,
-    storageId: v.id("_storage"),
+    storageIds: v.array(v.id("_storage")),
   })),
-  continueCursor: v.string(),
-  isDone: v.boolean(),
 });
 
 /**
- * Pages application references without deciding whether any object is orphaned.
- * The cursor belongs to the selected source table and must not be reused for another source.
+ * Pages compact application reference documents without deciding whether any object is orphaned.
+ * Convex scopes every cursor to the exact selected source query and reports split-page signals.
  */
 export const pageStorageReferences = internalQuery({
   args: { source: sourceValidator, paginationOpts: paginationOptsValidator },
-  returns: referencePageValidator,
+  returns: paginationResultValidator(referenceDocumentValidator),
   handler: async (ctx, args) => {
     assertPageSize(args.paginationOpts.numItems);
     switch (args.source) {
@@ -106,106 +96,108 @@ export const pageStorageReferences = internalQuery({
         const result = await ctx.db.query("generations").order("asc").paginate(args.paginationOpts);
         return {
           ...result,
-          page: result.page.flatMap((row) => [
-            ...reference("generations", row._id, "imageStorageId", row.imageStorageId),
-            ...reference("generations", row._id, "thumbnailStorageId", row.thumbnailStorageId),
-            ...references("generations", row._id, "referenceImageIds", row.referenceImageIds),
-          ]),
+          page: result.page.map((row) => document("generations", row._id, [
+            ...scalar("imageStorageId", row.imageStorageId),
+            ...scalar("thumbnailStorageId", row.thumbnailStorageId),
+            ...group("referenceImageIds", row.referenceImageIds),
+          ])),
         };
       }
       case "gallery": {
         const result = await ctx.db.query("gallery").order("asc").paginate(args.paginationOpts);
         return {
           ...result,
-          page: result.page.flatMap((row) => [
-            ...reference("gallery", row._id, "imageStorageId", row.imageStorageId),
-            ...reference("gallery", row._id, "thumbnailStorageId", row.thumbnailStorageId),
-          ]),
+          page: result.page.map((row) => document("gallery", row._id, [
+            ...scalar("imageStorageId", row.imageStorageId),
+            ...scalar("thumbnailStorageId", row.thumbnailStorageId),
+          ])),
         };
       }
       case "characters": {
         const result = await ctx.db.query("characters").order("asc").paginate(args.paginationOpts);
         return {
           ...result,
-          page: result.page.flatMap((row) =>
-            reference("characters", row._id, "avatarStorageId", row.avatarStorageId),
-          ),
+          page: result.page.map((row) => document(
+            "characters",
+            row._id,
+            scalar("avatarStorageId", row.avatarStorageId),
+          )),
         };
       }
       case "durable_outputs": {
         const result = await ctx.db.query("durableGenerationOutputs").order("asc").paginate(args.paginationOpts);
         return {
           ...result,
-          page: result.page.flatMap((row) => [
-            ...reference("durable_outputs", row._id, "storageId", row.storageId),
-            ...reference("durable_outputs", row._id, "thumbnailStorageId", row.thumbnailStorageId),
-          ]),
+          page: result.page.map((row) => document("durable_outputs", row._id, [
+            ...scalar("storageId", row.storageId),
+            ...scalar("thumbnailStorageId", row.thumbnailStorageId),
+          ])),
         };
       }
       case "video_generations": {
         const result = await ctx.db.query("videoGenerations").order("asc").paginate(args.paginationOpts);
         return {
           ...result,
-          page: result.page.flatMap((row) => [
-            ...reference("video_generations", row._id, "videoStorageId", row.videoStorageId),
-            ...reference("video_generations", row._id, "thumbnailStorageId", row.thumbnailStorageId),
-            ...references(
-              "video_generations",
-              row._id,
-              "referenceImageStorageIds",
-              row.referenceImageStorageIds,
-            ),
-          ]),
+          page: result.page.map((row) => document("video_generations", row._id, [
+            ...scalar("videoStorageId", row.videoStorageId),
+            ...scalar("thumbnailStorageId", row.thumbnailStorageId),
+            ...group("referenceImageStorageIds", row.referenceImageStorageIds),
+          ])),
         };
       }
     }
   },
 });
 
+const storageObjectValidator = v.object({
+  storageId: v.id("_storage"),
+  createdAt: v.number(),
+  byteSize: v.number(),
+  contentType: v.optional(v.string()),
+  eligibleForReview: v.boolean(),
+});
+
 /**
  * Pages minimal storage metadata and marks only age eligibility for later offline review.
- * Eligibility is not an orphan verdict and this query never mutates storage or application rows.
+ * Pass the first page's server-derived reviewBefore into later pages for a stable run cutoff.
  */
 export const pageStorageObjects = internalQuery({
   args: {
     paginationOpts: paginationOptsValidator,
     minimumAgeMs: v.number(),
+    reviewBefore: v.optional(v.number()),
   },
   returns: v.object({
-    page: v.array(v.object({
-      storageId: v.id("_storage"),
-      createdAt: v.number(),
-      byteSize: v.number(),
-      contentType: v.optional(v.string()),
-      eligibleForReview: v.boolean(),
-    })),
-    continueCursor: v.string(),
-    isDone: v.boolean(),
+    result: paginationResultValidator(storageObjectValidator),
     reviewBefore: v.number(),
   }),
   handler: async (ctx, args) => {
     assertPageSize(args.paginationOpts.numItems);
-    if (
-      !Number.isInteger(args.minimumAgeMs) ||
-      args.minimumAgeMs < MINIMUM_AGE_MS ||
-      args.minimumAgeMs > MAXIMUM_AGE_MS
-    ) {
+    if (!Number.isSafeInteger(args.minimumAgeMs) || args.minimumAgeMs < MINIMUM_AGE_MS) {
       throw new Error("INVALID_STORAGE_INVENTORY_MINIMUM_AGE");
     }
     const now = Date.now();
-    const reviewBefore = now - args.minimumAgeMs;
+    const latestReviewBefore = Math.max(0, now - args.minimumAgeMs);
+    if (
+      args.reviewBefore !== undefined &&
+      (!Number.isSafeInteger(args.reviewBefore) || args.reviewBefore < 0 || args.reviewBefore > latestReviewBefore)
+    ) {
+      throw new Error("INVALID_STORAGE_INVENTORY_REVIEW_BEFORE");
+    }
+    const reviewBefore = args.reviewBefore ?? latestReviewBefore;
     const result = await ctx.db.system.query("_storage").order("asc").paginate(args.paginationOpts);
     return {
-      continueCursor: result.continueCursor,
-      isDone: result.isDone,
       reviewBefore,
-      page: result.page.map((row) => ({
-        storageId: row._id,
-        createdAt: row._creationTime,
-        byteSize: row.size,
-        contentType: row.contentType,
-        eligibleForReview: row._creationTime <= reviewBefore,
-      })),
+      result: {
+        ...result,
+        page: result.page.map((row) => ({
+          storageId: row._id,
+          createdAt: row._creationTime,
+          byteSize: row.size,
+          contentType: row.contentType,
+          eligibleForReview: row._creationTime <= reviewBefore,
+        })),
+      },
     };
   },
 });

@@ -6,10 +6,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 2 — Read-only storage reconciliation inventory
-- **Status:** Complete bounded storage/reference inventory implemented and independently reviewed; PR delivery pending
-- **Branch:** `feature/phase-2-storage-orphan-inventory`
-- **Base:** Fake-provider integration merge `origin/main@5e99a11` (PR #17)
+- **Active phase:** Phase 2 — Storage inventory pagination repair
+- **Status:** Poison-row, split-page, and drifting-cutoff repairs implemented and independently reviewed; PR delivery pending
+- **Branch:** `fix/storage-inventory-pagination`
+- **Base:** Storage inventory merge `origin/main@a060e05` (PR #18)
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
@@ -86,11 +86,23 @@ Deliberately out of scope:
 
 ## Verification evidence
 
+Phase 2 storage inventory pagination repair:
+
+- Replaced flattened reference occurrences with compact per-document reference groups so schema-valid arrays are preserved completely, including duplicate order, without response expansion per occurrence.
+- Removed the artificial 16-reference guard that could turn a valid historical row into a permanent poison cursor.
+- Both inventory APIs now use Convex `paginationResultValidator`, preserving `splitCursor` and `pageStatus` for `SplitRecommended` and `SplitRequired` handling.
+- Storage pages accept the first server-derived `reviewBefore` on continuation calls, reject newer caller cutoffs, and clamp extremely conservative ages to Unix epoch `0`.
+- Removed the arbitrary 90-day maximum; any safe-integer grace period of at least one hour is accepted.
+- Source coverage now mechanically compares every schema `_storage` field with the inventory field registry, so a newly added field fails tests until inventoried.
+- Five real Convex scenarios and six source-boundary tests cover 17-entry duplicate arrays, compact pagination, stable cross-page cutoffs, conservative epoch clamping, official split-result validators, and schema completeness.
+- Focused web tests and typecheck passed; independent Codex review found and repaired the negative-cutoff continuation edge, then rereviewed cleanly.
+- No provider request, deployment, production mutation, schema change, deletion, orphan classification, or migration occurred.
+
 Phase 2 read-only storage reconciliation inventory exact-head verification:
 
 - Added internal-only, read-only pages for minimal `_storage` metadata and every schema-defined application reference surface: generations, gallery, characters, durable outputs, and video generations.
-- Scalar and array references are flattened into opaque source/document/field/storage identities; prompts, filenames, owners, URLs, checksums, provider identities, and media bytes are excluded.
-- Source rows are paginated with a 100-row cap, arrays fail closed above 16 entries, and storage review eligibility uses server `Date.now()` with a bounded 1-hour-to-90-day grace period.
+- Scalar and array references are returned as compact opaque source/document/field/storage groups; prompts, filenames, owners, URLs, checksums, provider identities, and media bytes are excluded.
+- Source rows are paginated with a 100-row cap, full schema-valid arrays are preserved, and storage review eligibility uses server `Date.now()` with a minimum one-hour grace period.
 - The API explicitly reports only `eligibleForReview`; it never classifies an object as orphaned and contains no writes, deletion, URL resolution, or scheduler calls.
 - Five real Convex integration scenarios and six source-boundary tests cover complete field coverage, row pagination, overflow, server-time cutoff, minimal metadata, invalid bounds, internal-only exposure, and read-only behavior.
 - `pnpm install --frozen-lockfile` passed. Platform optional packages remain enabled because clean Vitest execution requires Rollup's native package.

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const source = readFileSync(resolve(webRoot, "convex/storageReconciliation.ts"), "utf8");
+const schema = readFileSync(resolve(webRoot, "convex/schema.ts"), "utf8");
 const generatedApi = readFileSync(resolve(webRoot, "convex/_generated/api.d.ts"), "utf8");
 
 describe("storage reconciliation source boundary", () => {
@@ -28,7 +29,7 @@ describe("storage reconciliation source boundary", () => {
   });
 
   it("covers every schema storage-reference field, including arrays", () => {
-    for (const field of [
+    const expectedFields = [
       "imageStorageId",
       "thumbnailStorageId",
       "referenceImageIds",
@@ -36,7 +37,11 @@ describe("storage reconciliation source boundary", () => {
       "storageId",
       "videoStorageId",
       "referenceImageStorageIds",
-    ]) {
+    ];
+    const schemaFields = [...schema.matchAll(/^\s*(\w+):[^\n]*v\.id\("_storage"\)/gm)]
+      .map((match) => match[1]);
+    expect([...new Set(schemaFields)].sort()).toEqual([...expectedFields].sort());
+    for (const field of expectedFields) {
       expect(source).toContain(`v.literal("${field}")`);
     }
     for (const table of [
@@ -50,17 +55,22 @@ describe("storage reconciliation source boundary", () => {
     }
   });
 
-  it("bounds source pages and reference arrays without collecting tables", () => {
+  it("bounds source rows, preserves full arrays, and returns Convex split signals", () => {
     expect(source).toContain("const MAX_PAGE_ROWS = 100;");
-    expect(source).toContain("const MAX_ARRAY_REFERENCES = 16;");
     expect(source).toContain("INVALID_STORAGE_INVENTORY_PAGE_SIZE");
-    expect(source).toContain("STORAGE_REFERENCE_ARRAY_LIMIT_EXCEEDED");
+    expect(source).toContain("paginationResultValidator(referenceDocumentValidator)");
+    expect(source).toContain("paginationResultValidator(storageObjectValidator)");
+    expect(source).toContain("storageIds: [...storageIds]");
+    expect(source).not.toMatch(/\.slice\(|\.splice\(|MAX_ARRAY_REFERENCES/);
     expect(source).not.toContain(".collect()");
     expect(source.match(/\.paginate\(args\.paginationOpts\)/g)).toHaveLength(6);
   });
 
   it("uses server time and reports age eligibility without an orphan verdict", () => {
     expect(source).toContain("const now = Date.now();");
+    expect(source).toContain("const latestReviewBefore = Math.max(0, now - args.minimumAgeMs);");
+    expect(source).toContain("const reviewBefore = args.reviewBefore ?? latestReviewBefore;");
+    expect(source).toContain("args.reviewBefore > latestReviewBefore");
     expect(source).toContain("eligibleForReview: row._creationTime <= reviewBefore");
     expect(source).not.toMatch(/orphan\s*:/i);
     expect(source).not.toContain("isOrphan");
