@@ -688,14 +688,9 @@ export const getDailyUsage = query({
     const generations = await ctx.db
       .query("generations")
       .withIndex("by_user_tombstone_created", (q) =>
-        q.eq("userId", user._id).eq("tombstonedAt", undefined)
+        q.eq("userId", user._id).eq("tombstonedAt", undefined).gte("createdAt", startTime)
       )
-      .filter((q) => 
-        q.and(
-          q.gte(q.field("createdAt"), startTime),
-          q.eq(q.field("status"), "completed")
-        )
-      )
+      .filter((q) => q.eq(q.field("status"), "completed"))
       .collect();
 
     // Group by date
@@ -757,14 +752,9 @@ export const getUsageTrends = query({
     const generations = await ctx.db
       .query("generations")
       .withIndex("by_user_tombstone_created", (q) =>
-        q.eq("userId", user._id).eq("tombstonedAt", undefined)
+        q.eq("userId", user._id).eq("tombstonedAt", undefined).gte("createdAt", twoMonthsAgoStart)
       )
-      .filter((q) => 
-        q.and(
-          q.gte(q.field("createdAt"), twoMonthsAgoStart),
-          q.eq(q.field("status"), "completed")
-        )
-      )
+      .filter((q) => q.eq(q.field("status"), "completed"))
       .collect();
 
     let thisMonthCount = 0;
