@@ -135,38 +135,54 @@ describe("storage reconciliation inventory", () => {
     const t = convexTest(schema, modules);
     const { ids, documents } = await seedAllReferenceSources(t);
 
-    expect((await referencePage(t, "generations")).page).toEqual([
-      { source: "generations", documentId: documents.generationId, field: "imageStorageId", storageId: ids.generationImage },
-      { source: "generations", documentId: documents.generationId, field: "thumbnailStorageId", storageId: ids.generationThumbnail },
-      { source: "generations", documentId: documents.generationId, field: "referenceImageIds", storageId: ids.generationReferenceA },
-      { source: "generations", documentId: documents.generationId, field: "referenceImageIds", storageId: ids.generationReferenceB },
-    ]);
-    expect((await referencePage(t, "gallery")).page).toEqual([
-      { source: "gallery", documentId: documents.galleryId, field: "imageStorageId", storageId: ids.galleryImage },
-      { source: "gallery", documentId: documents.galleryId, field: "thumbnailStorageId", storageId: ids.galleryThumbnail },
-    ]);
-    expect((await referencePage(t, "characters")).page).toEqual([
-      { source: "characters", documentId: documents.characterId, field: "avatarStorageId", storageId: ids.avatar },
-    ]);
-    expect((await referencePage(t, "durable_outputs")).page).toEqual([
-      { source: "durable_outputs", documentId: documents.durableOutputId, field: "storageId", storageId: ids.durableImage },
-      { source: "durable_outputs", documentId: documents.durableOutputId, field: "thumbnailStorageId", storageId: ids.durableThumbnail },
-    ]);
-    expect((await referencePage(t, "video_generations")).page).toEqual([
-      { source: "video_generations", documentId: documents.videoGenerationId, field: "videoStorageId", storageId: ids.video },
-      { source: "video_generations", documentId: documents.videoGenerationId, field: "thumbnailStorageId", storageId: ids.videoThumbnail },
-      { source: "video_generations", documentId: documents.videoGenerationId, field: "referenceImageStorageIds", storageId: ids.videoReferenceA },
-      { source: "video_generations", documentId: documents.videoGenerationId, field: "referenceImageStorageIds", storageId: ids.videoReferenceB },
-    ]);
+    expect((await referencePage(t, "generations")).page).toEqual([{
+      source: "generations",
+      documentId: documents.generationId,
+      references: [
+        { field: "imageStorageId", storageIds: [ids.generationImage] },
+        { field: "thumbnailStorageId", storageIds: [ids.generationThumbnail] },
+        { field: "referenceImageIds", storageIds: [ids.generationReferenceA, ids.generationReferenceB] },
+      ],
+    }]);
+    expect((await referencePage(t, "gallery")).page).toEqual([{
+      source: "gallery",
+      documentId: documents.galleryId,
+      references: [
+        { field: "imageStorageId", storageIds: [ids.galleryImage] },
+        { field: "thumbnailStorageId", storageIds: [ids.galleryThumbnail] },
+      ],
+    }]);
+    expect((await referencePage(t, "characters")).page).toEqual([{
+      source: "characters",
+      documentId: documents.characterId,
+      references: [{ field: "avatarStorageId", storageIds: [ids.avatar] }],
+    }]);
+    expect((await referencePage(t, "durable_outputs")).page).toEqual([{
+      source: "durable_outputs",
+      documentId: documents.durableOutputId,
+      references: [
+        { field: "storageId", storageIds: [ids.durableImage] },
+        { field: "thumbnailStorageId", storageIds: [ids.durableThumbnail] },
+      ],
+    }]);
+    expect((await referencePage(t, "video_generations")).page).toEqual([{
+      source: "video_generations",
+      documentId: documents.videoGenerationId,
+      references: [
+        { field: "videoStorageId", storageIds: [ids.video] },
+        { field: "thumbnailStorageId", storageIds: [ids.videoThumbnail] },
+        { field: "referenceImageStorageIds", storageIds: [ids.videoReferenceA, ids.videoReferenceB] },
+      ],
+    }]);
 
     for (const source of ["generations", "gallery", "characters", "durable_outputs", "video_generations"] as const) {
       for (const entry of (await referencePage(t, source)).page) {
-        expect(Object.keys(entry).sort()).toEqual(["documentId", "field", "source", "storageId"]);
+        expect(Object.keys(entry).sort()).toEqual(["documentId", "references", "source"]);
       }
     }
   });
 
-  it("paginates source rows without dropping or duplicating their flattened references", async () => {
+  it("paginates source rows without dropping or duplicating their compact references", async () => {
     const t = convexTest(schema, modules);
     const storageIds = [await store(t, "page-a"), await store(t, "page-b"), await store(t, "page-c")];
     await t.run(async (ctx) => {
@@ -187,11 +203,15 @@ describe("storage reconciliation inventory", () => {
     const second = await referencePage(t, "generations", { cursor: first.continueCursor, numItems: 2 });
     expect(first.isDone).toBe(false);
     expect(second.isDone).toBe(true);
-    expect([...first.page, ...second.page].map((entry) => entry.storageId)).toEqual(storageIds);
+    expect(
+      [...first.page, ...second.page].flatMap((entry) =>
+        entry.references.flatMap((reference) => reference.storageIds),
+      ),
+    ).toEqual(storageIds);
     expect(new Set([...first.page, ...second.page].map((entry) => entry.documentId)).size).toBe(3);
   });
 
-  it("fails closed instead of truncating oversized historical reference arrays", async () => {
+  it("returns every occurrence in schema-valid oversized and duplicate reference arrays", async () => {
     const t = convexTest(schema, modules);
     const storageId = await store(t, "overflow");
     await t.run(async (ctx) => {
@@ -205,7 +225,10 @@ describe("storage reconciliation inventory", () => {
         referenceImageIds: Array.from({ length: 17 }, () => storageId),
       });
     });
-    await expect(referencePage(t, "generations")).rejects.toThrow("STORAGE_REFERENCE_ARRAY_LIMIT_EXCEEDED");
+    const page = await referencePage(t, "generations");
+    expect(page.page[0].references).toEqual([
+      { field: "referenceImageIds", storageIds: Array.from({ length: 17 }, () => storageId) },
+    ]);
   });
 
   it("uses server time for age eligibility and returns only minimal storage metadata", async () => {
@@ -216,16 +239,24 @@ describe("storage reconciliation inventory", () => {
     vi.advanceTimersByTime(HOUR_MS);
     const youngStorageId = await store(t, "young");
 
-    const result = await t.query(internal.storageReconciliation.pageStorageObjects, {
-      paginationOpts: PAGE,
+    const first = await t.query(internal.storageReconciliation.pageStorageObjects, {
+      paginationOpts: { cursor: null, numItems: 1 },
       minimumAgeMs: HOUR_MS,
     });
-    const oldObject = result.page.find((row) => row.storageId === oldStorageId);
-    const youngObject = result.page.find((row) => row.storageId === youngStorageId);
+    vi.advanceTimersByTime(HOUR_MS);
+    const second = await t.query(internal.storageReconciliation.pageStorageObjects, {
+      paginationOpts: { cursor: first.result.continueCursor, numItems: 1 },
+      minimumAgeMs: HOUR_MS,
+      reviewBefore: first.reviewBefore,
+    });
+    const rows = [...first.result.page, ...second.result.page];
+    const oldObject = rows.find((row) => row.storageId === oldStorageId);
+    const youngObject = rows.find((row) => row.storageId === youngStorageId);
     expect(oldObject?.eligibleForReview).toBe(true);
     expect(youngObject?.eligibleForReview).toBe(false);
-    expect(oldObject?.createdAt).toBe(result.reviewBefore);
-    for (const row of result.page) {
+    expect(oldObject?.createdAt).toBe(first.reviewBefore);
+    expect(second.reviewBefore).toBe(first.reviewBefore);
+    for (const row of rows) {
       const keys = Object.keys(row).sort();
       expect(keys.filter((key) => key !== "contentType")).toEqual([
         "byteSize",
@@ -248,7 +279,7 @@ describe("storage reconciliation inventory", () => {
         minimumAgeMs: HOUR_MS,
       }),
     ).rejects.toThrow("INVALID_STORAGE_INVENTORY_PAGE_SIZE");
-    for (const minimumAgeMs of [HOUR_MS - 1, 90 * 24 * HOUR_MS + 1, HOUR_MS + 0.5]) {
+    for (const minimumAgeMs of [HOUR_MS - 1, HOUR_MS + 0.5, Number.MAX_SAFE_INTEGER + 1]) {
       await expect(
         t.query(internal.storageReconciliation.pageStorageObjects, {
           paginationOpts: PAGE,
@@ -256,5 +287,30 @@ describe("storage reconciliation inventory", () => {
         }),
       ).rejects.toThrow("INVALID_STORAGE_INVENTORY_MINIMUM_AGE");
     }
+    await expect(
+      t.query(internal.storageReconciliation.pageStorageObjects, {
+        paginationOpts: PAGE,
+        minimumAgeMs: 365 * 24 * HOUR_MS,
+      }),
+    ).resolves.toBeDefined();
+    const conservative = await t.query(internal.storageReconciliation.pageStorageObjects, {
+      paginationOpts: PAGE,
+      minimumAgeMs: Number.MAX_SAFE_INTEGER,
+    });
+    expect(conservative.reviewBefore).toBe(0);
+    await expect(
+      t.query(internal.storageReconciliation.pageStorageObjects, {
+        paginationOpts: { cursor: conservative.result.continueCursor, numItems: 1 },
+        minimumAgeMs: Number.MAX_SAFE_INTEGER,
+        reviewBefore: conservative.reviewBefore,
+      }),
+    ).resolves.toBeDefined();
+    await expect(
+      t.query(internal.storageReconciliation.pageStorageObjects, {
+        paginationOpts: PAGE,
+        minimumAgeMs: HOUR_MS,
+        reviewBefore: Date.now(),
+      }),
+    ).rejects.toThrow("INVALID_STORAGE_INVENTORY_REVIEW_BEFORE");
   });
 });
