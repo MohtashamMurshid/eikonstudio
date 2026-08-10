@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter, JetBrains_Mono } from "next/font/google"
+import { Caveat, Fraunces, Inter, JetBrains_Mono } from "next/font/google"
 import { Suspense } from "react"
 import "./globals.css"
 import { ConvexClientProvider } from "../components/ConvexClientProvider"
@@ -16,6 +16,19 @@ const inter = Inter({
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains-mono",
+})
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  style: ["normal", "italic"],
+  axes: ["opsz", "SOFT", "WONK"],
+})
+
+const caveat = Caveat({
+  subsets: ["latin"],
+  variable: "--font-caveat",
+  weight: ["500", "600", "700"],
 })
 
 export const metadata: Metadata = {
@@ -52,7 +65,11 @@ export default async function RootLayout({
   const initialToken = await getToken()
 
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${inter.variable} ${jetbrainsMono.variable} ${fraunces.variable} ${caveat.variable}`}
+      suppressHydrationWarning
+    >
       <body className="font-mono antialiased">
         <ThemeProvider
           attribute="class"

@@ -56,14 +56,15 @@ export function DetailedFeatures() {
               One connected library
             </p>
             <h2 className="mt-6 font-sans text-4xl font-medium leading-[0.98] tracking-[-0.055em]">
-              Make it.
-              <br />
-              Keep it in reach.
+              Make it.{" "}
+              <span className="font-script text-emerald-500">
+                Keep it in reach.
+              </span>
             </h2>
             <p className="mt-6 font-sans text-sm leading-6 text-foreground/50">
-              Every useful generation lands in a gallery built for iteration.
-              Sort it, rename it, or reference it in the next idea without
-              breaking your flow.
+              Every completed job — image or video, from any of the six
+              providers — lands in a durable gallery. Sort it, rename it, or
+              reference it in the next prompt without breaking your flow.
             </p>
           </div>
           <div className="mt-10 space-y-3">
@@ -92,13 +93,14 @@ export function DetailedFeatures() {
               Developer interface
             </p>
             <h2 className="mt-6 font-sans text-4xl font-medium leading-[0.98] tracking-[-0.055em]">
-              The engine,
-              <br />
-              wherever you build.
+              The engine,{" "}
+              <span className="font-serif italic">
+                wherever you build.
+              </span>
             </h2>
             <p className="mt-6 max-w-[350px] font-sans text-sm leading-6 text-foreground/50">
-              A clean REST endpoint gives your product the same image system
-              used inside the studio.
+              A documented REST endpoint and typed SDKs give your product the
+              same provider-neutral contract used inside the studio.
             </p>
           </div>
           <Link
@@ -157,13 +159,15 @@ export function DetailedFeatures() {
         <div className="landing-radial absolute inset-0 opacity-50" aria-hidden="true" />
         <div className="relative mx-auto max-w-[760px]">
           <p className="text-[8px] uppercase tracking-[0.2em] text-emerald-500">
-            Your next frame starts here
+            Your keys. Your models. Your studio.
           </p>
-          <h2 className="mt-7 font-sans text-[clamp(2.7rem,6vw,5.8rem)] font-medium leading-[0.9] tracking-[-0.07em]">
-            Turn the idea into an image.
+          <h2 className="mt-7 font-sans text-[clamp(2.5rem,5.6vw,5.2rem)] font-medium leading-[0.94] tracking-[-0.06em]">
+            Turn the idea{" "}
+            <span className="font-script text-emerald-500">into an image.</span>
           </h2>
           <p className="mx-auto mt-7 max-w-[520px] font-sans text-sm leading-6 text-foreground/50">
-            Start with a prompt. Leave with something you can actually use.
+            Connect a provider key and start with a prompt. Leave with
+            something durable, priced transparently, and yours to keep.
           </p>
           <Link
             href="/studio/create"

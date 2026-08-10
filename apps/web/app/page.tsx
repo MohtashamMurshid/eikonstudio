@@ -1,38 +1,39 @@
 import type { Metadata } from "next";
 import { LandingHeader } from "@/components/landing/header";
 import { Hero } from "@/components/landing/hero";
+import { ProvidersStrip } from "@/components/landing/providers-strip";
 import { Stats } from "@/components/landing/stats";
 import { FeaturesGrid } from "@/components/landing/features-grid";
+import { UseCases } from "@/components/landing/use-cases";
+import { ByokPricing } from "@/components/landing/byok-pricing";
 import { DetailedFeatures } from "@/components/landing/detailed-features";
 import { LandingFooter } from "@/components/landing/footer";
 
 export const metadata: Metadata = {
-  title: "Eikon — The AI image workshop",
+  title: "Eikon Studio — Bring your own keys, own your image and video pipeline",
   description:
-    "Generate, transform, and organize production-ready images with a precise AI creative workspace.",
+    "Open source, self-hostable generative-media platform. Connect OpenAI, Google, Black Forest Labs, BytePlus, Kling, and xAI behind one contract — no markup, no credits.",
   openGraph: {
-    title: "Eikon — The AI image workshop",
+    title: "Eikon Studio — Bring your own keys, own your image and video pipeline",
     description:
-      "A precise creative workspace for generating, transforming, and organizing images with AI.",
+      "A BYOK generative-media platform with a public model catalog, playground, sandbox comparisons, gallery, usage analytics, and a unified API.",
   },
 };
 
 export default function LandingPage() {
   return (
-    <div className="landing-page min-h-screen bg-background text-foreground">
-      <div className="landing-grid" aria-hidden="true" />
-      <div className="relative mx-auto w-full max-w-[1240px] px-3 py-3 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
-        <div className="overflow-hidden border border-foreground/10 bg-background shadow-[0_16px_50px_rgba(0,0,0,0.06)] dark:shadow-[0_16px_50px_rgba(0,0,0,0.28)]">
-          <LandingHeader />
-          <main>
-            <Hero />
-            <Stats />
-            <FeaturesGrid />
-            <DetailedFeatures />
-          </main>
-          <LandingFooter />
-        </div>
-      </div>
+    <div className="landing-page relative min-h-screen bg-background text-foreground">
+      <LandingHeader />
+      <main>
+        <Hero />
+        <ProvidersStrip />
+        <Stats />
+        <FeaturesGrid />
+        <UseCases />
+        <ByokPricing />
+        <DetailedFeatures />
+      </main>
+      <LandingFooter />
     </div>
   );
 }

@@ -40,6 +40,8 @@
   --sidebar-ring: rgba(0, 0, 0, 0.1);
   --font-inter: "Inter", sans-serif;
   --font-jetbrains-mono: "JetBrains Mono", monospace;
+  --font-fraunces: "Fraunces", serif;
+  --font-caveat: "Caveat", cursive;
 }
 
 .dark {
@@ -78,12 +80,17 @@
   --sidebar-ring: #ffffff;
   --font-inter: "Inter", sans-serif;
   --font-jetbrains-mono: "JetBrains Mono", monospace;
+  --font-fraunces: "Fraunces", serif;
+  --font-caveat: "Caveat", cursive;
 }
 
 @theme inline {
   /* Updated font variables to use new Inter and JetBrains Mono fonts */
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
+  /* Editorial display serif + handwritten accent, used sparingly on the landing page */
+  --font-serif: var(--font-fraunces);
+  --font-script: var(--font-caveat);
 
   /* Shimmer animation for loading states */
   --animate-shimmer: shimmer 2s infinite;
@@ -213,6 +220,75 @@
   background:
     radial-gradient(circle at center, color-mix(in srgb, #34d399 13%, transparent), transparent 45%),
     linear-gradient(to right, transparent 49.9%, color-mix(in srgb, var(--foreground) 7%, transparent) 50%, transparent 50.1%);
+}
+
+/* Sparse dot grid behind the hero headline panel. */
+.hero-dots {
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--foreground) 13%, transparent) 1.1px,
+    transparent 1.1px
+  );
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+/* Highlight pills used inline within the hero headline. */
+.hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28em;
+  padding: 0.1em 0.42em 0.16em 0.18em;
+  border-radius: 0.38em;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 0.94em;
+  line-height: 1.15;
+  white-space: nowrap;
+  transform: rotate(-1.4deg);
+}
+
+.hero-pill__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.82em;
+  height: 0.82em;
+  border-radius: 0.18em;
+  color: #ffffff;
+}
+
+.hero-pill--violet {
+  background: #ece4fb;
+  color: #7c4be0;
+}
+
+.hero-pill--violet .hero-pill__icon {
+  background: #8b5cf6;
+}
+
+.dark .hero-pill--violet {
+  background: color-mix(in srgb, #8b5cf6 18%, transparent);
+  color: #c1a6ff;
+}
+
+.hero-pill--orange {
+  background: #fdeeda;
+  color: #e8720c;
+  transform: rotate(-1deg);
+}
+
+.hero-pill--orange .hero-pill__icon {
+  background: #f0810f;
+}
+
+.dark .hero-pill--orange {
+  background: color-mix(in srgb, #f0810f 16%, transparent);
+  color: #ffb266;
+}
+
+.landing-page .font-script {
+  font-family: var(--font-script);
 }
 
 @media (prefers-reduced-motion: reduce) {
