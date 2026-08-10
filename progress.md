@@ -6,10 +6,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 2 — Durable execution cutover for existing image transports
-- **Status:** Atomic legacy/durable creation and guarded image worker implemented locally; review gates in progress
-- **Branch:** `feature/phase-2-durable-execution`
-- **Base:** Durable-core merge `origin/main@46f871a` (PR #14)
+- **Active phase:** Phase 2 — Durable fake-provider behavioral integration
+- **Status:** Real Convex mutation harness implemented and independently reviewed; PR delivery pending
+- **Branch:** `feature/phase-2-durable-fake-provider`
+- **Base:** Durable image execution merge `origin/main@f77c0cc` (PR #16)
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
@@ -85,6 +85,20 @@ Deliberately out of scope:
 - Added crypto, AAD isolation, metadata, resolution-policy, and source-boundary regressions. No real provider calls or production migration were performed.
 
 ## Verification evidence
+
+Phase 2 fake-provider behavioral integration exact-head verification:
+
+- Added official `convex-test@0.0.40`, the newest release compatible with the existing Convex `1.31.2` runtime, as a development-only dependency.
+- The test-local fake provider executes the real schema and internal durable mutations; it does not duplicate the production state machine or issue network requests.
+- Nine integration scenarios cover atomic create/replay/scheduler payload, duplicate delivery, crashes before and after dispatch, ambiguous timeout plus reconciliation, stale lease reclaim, verified storage/output/finalization, terminal replay, local/remote/unsupported cancellation, late completion, and unlinked legacy coexistence.
+- `pnpm install --frozen-lockfile --no-optional` passed with a minimal 12-line lockfile addition.
+- `pnpm turbo run test --force` passed **120 tests**: 39 core, 9 providers, and 72 web tests across seven files.
+- `pnpm turbo run typecheck --force` passed all 4 tasks.
+- `pnpm turbo run lint --force` passed with 0 errors and the existing 30-warning baseline.
+- Placeholder-environment `pnpm turbo run build --force` passed all 3 tasks and produced all 22 routes.
+- `git diff --check` passed.
+- Independent Codex review found no actionable correctness issue.
+- No provider request, Convex/Vercel deployment, production mutation, runtime dependency upgrade, or production code path was introduced.
 
 Phase 2 durable-image execution exact-head verification:
 
