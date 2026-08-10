@@ -6,10 +6,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 2 — Durable generation soft tombstones
-- **Status:** Terminal-only atomic tombstoning implemented and independently reviewed; PR delivery pending
-- **Branch:** `feature/phase-2-durable-tombstones`
-- **Base:** Storage inventory repair merge `origin/main@9433b23` (PR #19)
+- **Active phase:** Phase 2 — Durable tombstone invariant repair
+- **Status:** Delayed-audit replay, terminal, output, completion, and cancellation repairs implemented; PR delivery pending
+- **Branch:** `fix/durable-tombstone-invariants`
+- **Base:** Durable tombstone merge `origin/main@91d587f` (PR #20)
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
@@ -85,6 +85,18 @@ Deliberately out of scope:
 - Added crypto, AAD isolation, metadata, resolution-policy, and source-boundary regressions. No real provider calls or production migration were performed.
 
 ## Verification evidence
+
+Phase 2 durable tombstone invariant repair:
+
+- Tombstone replay validates bounded output/completion bindings and exact markers before fresh terminal-state policy; later malformed job state cannot rewrite or invalidate an otherwise exact replay.
+- Output loading is capped with `.take(17)` and rejects more than 16 rows; every output validates owner, job ID/key, generation key, provider request, completion identity, and provider linkage.
+- Fresh tombstones require coherent `terminalAt`, non-ambiguous submission, and no unresolved cancellation.
+- Cancelled jobs require an `accepted` or `local` outcome with request ≤ observation and observation equal to terminal transition time.
+- Completed jobs accept 1–16 unique finalized outputs and validate every finalized image/thumbnail binding, including recovery finalization with multiple outputs.
+- Tombstoned generating/failure/completion mirrors return before authority/output-shape checks, keeping late scheduler delivery a quiet no-op.
+- Nine real Convex scenarios cover all terminal states, retained outputs, multi-finalized recovery, replay-after-job-corruption, marker corruption, malformed completion/image/finalized bindings, 17-output overflow, contradictory cancellation, no resurrection, and reconciliation visibility.
+- Focused tests/typecheck passed; iterative independent Codex review found and repaired multi-output, all-output completion, and cancellation-outcome gaps, then returned clean.
+- No provider request, deployment, production mutation, row deletion, or durable storage cleanup occurred.
 
 Phase 2 durable generation soft tombstones:
 

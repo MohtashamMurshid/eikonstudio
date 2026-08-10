@@ -252,11 +252,9 @@ export const markDurableGenerationGenerating = internalMutation({
   args: { jobId: v.id("durableGenerationJobs") },
   handler: async (ctx, { jobId }) => {
     const { job, generation } = await loadDurableLegacyBinding(ctx, jobId);
+    if (generation.tombstonedAt !== undefined) return;
     if (job.status !== "submitting" || job.submissionState !== "in_flight") {
       throw new Error("Durable generation is not submitting");
-    }
-    if (generation.tombstonedAt !== undefined) {
-      throw new Error("Durable generation is tombstoned");
     }
     if (generation.status !== "completed") {
       await ctx.db.patch(generation._id, { status: "generating", errorMessage: undefined });
@@ -268,10 +266,10 @@ export const mirrorDurableGenerationFailure = internalMutation({
   args: { jobId: v.id("durableGenerationJobs"), errorMessage: v.string() },
   handler: async (ctx, args) => {
     const { job, generation } = await loadDurableLegacyBinding(ctx, args.jobId);
+    if (generation.tombstonedAt !== undefined) return;
     const terminalFailure = job.status === "failed" || job.status === "expired" || job.status === "cancelled";
     const ambiguous = job.status === "submitting" && job.submissionState === "ambiguous";
     if (!terminalFailure && !ambiguous) throw new Error("Durable generation failure is not authoritative");
-    if (generation.tombstonedAt !== undefined) return;
     if (generation.status !== "completed") {
       await ctx.db.patch(generation._id, { status: "failed", errorMessage: args.errorMessage });
     }
@@ -282,10 +280,10 @@ export const mirrorDurableGenerationCompleted = internalMutation({
   args: { jobId: v.id("durableGenerationJobs") },
   handler: async (ctx, { jobId }) => {
     const { job, generation } = await loadDurableLegacyBinding(ctx, jobId);
+    if (generation.tombstonedAt !== undefined) return;
     if (job.status !== "completed" || !job.finalizedOutputIds || job.finalizedOutputIds.length !== 1) {
       throw new Error("Durable generation is not completed");
     }
-    if (generation.tombstonedAt !== undefined) return;
     const output = await ctx.db.get(job.finalizedOutputIds[0]);
     if (!output || output.jobId !== jobId || output.ownerId !== job.ownerId || !output.thumbnailStorageId) {
       throw new Error("Durable output binding is invalid");
@@ -433,29 +431,38 @@ export const deleteGeneration = mutation({
       ) {
         throw new ConvexError(createAppError("CONFLICT", "Durable generation binding is invalid"));
       }
-      if (!["completed", "failed", "cancelled", "expired"].includes(job.status)) {
-        throw new ConvexError(createAppError("CONFLICT", "Active durable generations cannot be deleted"));
-      }
-
       const outputs = await ctx.db
         .query("durableGenerationOutputs")
         .withIndex("by_job", (q) => q.eq("jobId", job._id))
-        .collect();
+        .take(17);
       if (
+        outputs.length > 16 ||
         outputs.some((output) =>
           output.ownerId !== user._id ||
+          output.jobId !== job._id ||
           output.jobKey !== job.jobKey ||
           output.generationKey !== job.generationKey
         )
       ) {
         throw new ConvexError(createAppError("CONFLICT", "Durable output binding is invalid"));
       }
-      if (job.status === "completed") {
-        const finalized = job.finalizedOutputIds ?? [];
-        const outputIds = new Set(outputs.map((output) => output._id));
-        if (finalized.length === 0 || finalized.some((outputId) => !outputIds.has(outputId))) {
-          throw new ConvexError(createAppError("CONFLICT", "Durable finalized output binding is invalid"));
-        }
+      const outputCompletions = await Promise.all(
+        outputs.map(async (output) => ({ output, completion: await ctx.db.get(output.completionId) })),
+      );
+      if (
+        outputCompletions.some(({ output, completion }) =>
+          !completion ||
+          completion.ownerId !== user._id ||
+          completion.jobId !== job._id ||
+          completion.jobKey !== job.jobKey ||
+          completion.generationKey !== job.generationKey ||
+          completion.provider !== job.provider ||
+          completion.providerRequestId !== job.providerRequestId ||
+          (completion.outputIdentityKind === "checksum" && completion.outputIdentity !== output.checksumSha256) ||
+          (completion.outputIdentityKind === "asset" && completion.outputIdentity !== output.outputKey)
+        )
+      ) {
+        throw new ConvexError(createAppError("CONFLICT", "Durable output completion binding is invalid"));
       }
 
       const tombstoneEventId = `generation_tombstone:${generation._id}`;
@@ -472,7 +479,6 @@ export const deleteGeneration = mutation({
           tombstoneEvent.generationKey !== job.generationKey ||
           tombstoneEvent.eventType !== "tombstoned" ||
           tombstoneEvent.eventFingerprint !== generation._id ||
-          tombstoneEvent.revision !== job.revision ||
           tombstoneEvent.occurredAt !== generation.tombstonedAt ||
           generation.tombstoneEventId !== tombstoneEventId ||
           generation.tombstoneReason !== "user_deleted_generation" ||
@@ -488,6 +494,51 @@ export const deleteGeneration = mutation({
       }
       if (tombstoneEvent || outputs.some((output) => output.tombstonedAt !== undefined)) {
         throw new ConvexError(createAppError("CONFLICT", "Durable tombstone state is inconsistent"));
+      }
+
+      const validTerminalAt =
+        Number.isSafeInteger(job.terminalAt) &&
+        job.terminalAt! >= job.createdAt &&
+        job.terminalAt! <= Date.now() + 300_000;
+      if (
+        !["completed", "failed", "cancelled", "expired"].includes(job.status) ||
+        job.submissionState === "ambiguous" ||
+        job.cancellationRequested ||
+        !validTerminalAt
+      ) {
+        throw new ConvexError(createAppError("CONFLICT", "Durable generation is not consistently terminal"));
+      }
+      if (
+        job.status === "cancelled" &&
+        (
+          (job.cancellationOutcome !== "accepted" && job.cancellationOutcome !== "local") ||
+          !Number.isSafeInteger(job.cancellationRequestedAt) ||
+          !Number.isSafeInteger(job.cancellationObservedAt) ||
+          job.cancellationRequestedAt! < job.createdAt ||
+          job.cancellationRequestedAt! > job.cancellationObservedAt! ||
+          job.cancellationObservedAt !== job.terminalAt
+        )
+      ) {
+        throw new ConvexError(createAppError("CONFLICT", "Durable cancellation is not consistently observed"));
+      }
+
+      if (job.status === "completed") {
+        const finalized = job.finalizedOutputIds ?? [];
+        const outputIds = new Set(outputs.map((output) => output._id));
+        if (
+          finalized.length < 1 ||
+          finalized.length > 16 ||
+          new Set(finalized).size !== finalized.length ||
+          finalized.some((outputId) => !outputIds.has(outputId))
+        ) {
+          throw new ConvexError(createAppError("CONFLICT", "Durable finalized output binding is invalid"));
+        }
+        for (const finalizedOutputId of finalized) {
+          const finalizedOutput = outputs.find((output) => output._id === finalizedOutputId);
+          if (!finalizedOutput || finalizedOutput.mediaType !== "image" || !finalizedOutput.thumbnailStorageId) {
+            throw new ConvexError(createAppError("CONFLICT", "Durable finalized image output is invalid"));
+          }
+        }
       }
 
       const tombstonedAt = Date.now();
