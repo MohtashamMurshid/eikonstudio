@@ -216,6 +216,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.7)
+      convex-test:
+        specifier: 0.0.40
+        version: 0.0.40(convex@1.31.2(react@19.0.0))
       eslint:
         specifier: ^9.39.2
         version: 9.39.2(jiti@2.6.1)
@@ -2891,6 +2894,11 @@ packages:
         optional: true
       zod:
         optional: true
+
+  convex-test@0.0.40:
+    resolution: {integrity: sha512-BOM4aoXFI6JxA5eb7TIKI/q7c880Jq5OHbbEbmUDmsN82LAxzomYveQDNFlj3a+cN4K7TB3KjpyzNzEjlOPvNg==}
+    peerDependencies:
+      convex: ^1.16.4
 
   convex@1.31.2:
     resolution: {integrity: sha512-RFuJOwlL2bM5X63egvBI5ZZZH6wESREpAbHsLjODxzDeJuewTLKrEnbvHV/NWp1uJYpgEFJziuGHmZ0tnAmmJg==}
@@ -7279,6 +7287,10 @@ snapshots:
       react: 19.0.0
       typescript: 5.9.3
       zod: 4.3.4
+
+  convex-test@0.0.40(convex@1.31.2(react@19.0.0)):
+    dependencies:
+      convex: 1.31.2(react@19.0.0)
 
   convex@1.31.2(react@19.0.0):
     dependencies:
