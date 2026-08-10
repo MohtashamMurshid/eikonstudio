@@ -291,6 +291,116 @@
   font-family: var(--font-script);
 }
 
+/* Interactive product preview in the landing hero. */
+.dashboard-reveal {
+  animation: dashboard-reveal 900ms var(--ease-ui-out) both;
+}
+
+.mock-page-enter {
+  animation: mock-page-enter 420ms var(--ease-ui-out) both;
+}
+
+.mock-button,
+.mock-icon-button,
+.mock-nav-item,
+.mock-card,
+.mock-gallery-card {
+  transition:
+    transform 180ms var(--ease-ui-out),
+    color 180ms var(--ease-ui-out),
+    background-color 180ms var(--ease-ui-out),
+    border-color 180ms var(--ease-ui-out),
+    box-shadow 180ms var(--ease-ui-out),
+    opacity 180ms var(--ease-ui-out);
+}
+
+.mock-button:active,
+.mock-icon-button:active,
+.mock-nav-item:active,
+.mock-gallery-card:active {
+  transform: scale(0.96);
+}
+
+.mock-icon-button {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  color: color-mix(in srgb, var(--foreground) 38%, transparent);
+}
+
+.mock-icon-button:hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+
+.mock-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+  box-shadow: 0 12px 28px -20px color-mix(in srgb, var(--foreground) 38%, transparent);
+}
+
+.mock-chart-bar {
+  transform-origin: bottom;
+  animation: mock-bar-grow 700ms var(--ease-ui-out) both;
+}
+
+.mock-usage-bar {
+  transform-origin: left;
+  animation: mock-usage-grow 900ms 500ms var(--ease-ui-out) both;
+}
+
+.mock-result-enter {
+  animation: mock-result-enter 520ms var(--ease-ui-out) both;
+}
+
+@keyframes dashboard-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(48px, 28px, 0) rotate(0.8deg);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes mock-page-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes mock-bar-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes mock-usage-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes mock-result-enter {
+  from {
+    opacity: 0.3;
+    transform: scale(1.04);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-page .animate-ping {
     animation: none !important;
@@ -300,5 +410,12 @@
     animation: none !important;
     transition-property: opacity, color, background-color, border-color, box-shadow !important;
     transition-duration: 120ms !important;
+  }
+  .dashboard-reveal,
+  .mock-page-enter,
+  .mock-chart-bar,
+  .mock-usage-bar,
+  .mock-result-enter {
+    animation: none !important;
   }
 }
