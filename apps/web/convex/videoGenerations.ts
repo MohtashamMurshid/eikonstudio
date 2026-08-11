@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 import { createAppError } from "../lib/error-utils";
+import { removeDocumentStorageReferences, replaceDocumentStorageReferences } from "./storageReferenceLedger";
 
 // Cost calculation constants (mirrored from lib/video-cost-calculator.ts for server-side use)
 const VIDEO_COST_FACTORS = {
@@ -91,6 +92,16 @@ export const saveVideoGeneration = mutation({
       model: args.model ?? "veo-3.1-generate-preview",
       hasAudio: args.hasAudio ?? true,
     });
+    await replaceDocumentStorageReferences(ctx, {
+      source: "video_generations",
+      documentId: videoGenerationId,
+      ownerId: user._id,
+      references: [
+        { field: "videoStorageId", storageIds: [args.videoStorageId] },
+        { field: "thumbnailStorageId", storageIds: [args.thumbnailStorageId] },
+        { field: "referenceImageStorageIds", storageIds: args.referenceImageStorageIds },
+      ],
+    });
 
     return videoGenerationId;
   },
@@ -172,6 +183,7 @@ export const deleteVideoGeneration = mutation({
     }
 
     // Retain storage until a complete cross-table reference ledger proves it is unreferenced.
+    await removeDocumentStorageReferences(ctx, "video_generations", args.videoGenerationId, user._id);
     await ctx.db.delete(args.videoGenerationId);
     return { success: true };
   },

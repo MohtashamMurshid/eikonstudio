@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
+import { removeDocumentStorageReferences, replaceDocumentStorageReferences } from "./storageReferenceLedger";
 
 const appearanceValidator = v.object({
   gender: v.optional(v.string()),
@@ -37,7 +38,7 @@ export const createCharacter = mutation({
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) throw new Error("Must be authenticated to create characters");
 
-    return await ctx.db.insert("characters", {
+    const characterId = await ctx.db.insert("characters", {
       userId: user._id,
       name: args.name,
       genre: args.genre,
@@ -48,6 +49,13 @@ export const createCharacter = mutation({
       avatarStorageId: args.avatarStorageId,
       createdAt: Date.now(),
     });
+    await replaceDocumentStorageReferences(ctx, {
+      source: "characters",
+      documentId: characterId,
+      ownerId: user._id,
+      references: [{ field: "avatarStorageId", storageIds: args.avatarStorageId ? [args.avatarStorageId] : [] }],
+    });
+    return characterId;
   },
 });
 
@@ -99,6 +107,13 @@ export const updateCharacter = mutation({
     );
 
     await ctx.db.patch(characterId, filtered);
+    const avatarStorageId = args.avatarStorageId ?? character.avatarStorageId;
+    await replaceDocumentStorageReferences(ctx, {
+      source: "characters",
+      documentId: characterId,
+      ownerId: user._id,
+      references: [{ field: "avatarStorageId", storageIds: avatarStorageId ? [avatarStorageId] : [] }],
+    });
   },
 });
 
@@ -113,6 +128,7 @@ export const deleteCharacter = mutation({
     if (character.userId !== user._id) throw new Error("Not your character");
 
     // Avatars may be shared with gallery/reference rows; retain storage for reconciliation.
+    await removeDocumentStorageReferences(ctx, "characters", args.characterId, user._id);
     await ctx.db.delete(args.characterId);
   },
 });

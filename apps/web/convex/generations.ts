@@ -10,6 +10,7 @@ import { getProviderCredentialRecord } from "./apiKeys";
 import { credentialHealth, legacyCredentialHandle, recordCanonicalProvider } from "./credentialPolicy";
 import { createDurableJobRecords } from "./durableJobs";
 import { durableImageKeys, REQUEST_IDEMPOTENCY_KEY_PATTERN } from "./durableExecutionPolicy";
+import { removeDocumentStorageReferences, replaceDocumentStorageReferences } from "./storageReferenceLedger";
 
 // Generate upload URL for uploading images to Convex storage
 export const generateUploadUrl = mutation({
@@ -120,6 +121,12 @@ export const startGeneration = mutation({
       status: "pending",
       referenceImageIds: args.referenceImageIds,
     });
+    await replaceDocumentStorageReferences(ctx, {
+      source: "generations",
+      documentId: generationId,
+      ownerId: user._id,
+      references: [{ field: "referenceImageIds", storageIds: args.referenceImageIds }],
+    });
 
     const keys = durableImageKeys(generationId, args.idempotencyKey);
     const durable = await createDurableJobRecords(ctx, {
@@ -217,6 +224,16 @@ export const completeGeneration = internalMutation({
       estimatedCost: args.estimatedCost,
       model: args.model,
     });
+    await replaceDocumentStorageReferences(ctx, {
+      source: "generations",
+      documentId: generation._id,
+      ownerId: generation.userId,
+      references: [
+        { field: "imageStorageId", storageIds: [args.imageStorageId] },
+        { field: "thumbnailStorageId", storageIds: [args.thumbnailStorageId] },
+        { field: "referenceImageIds", storageIds: generation.referenceImageIds },
+      ],
+    });
   },
 });
 
@@ -296,6 +313,16 @@ export const mirrorDurableGenerationCompleted = internalMutation({
       model: generation.imageModel ?? generation.model,
       errorMessage: undefined,
     });
+    await replaceDocumentStorageReferences(ctx, {
+      source: "generations",
+      documentId: generation._id,
+      ownerId: generation.userId,
+      references: [
+        { field: "imageStorageId", storageIds: [output.storageId] },
+        { field: "thumbnailStorageId", storageIds: [output.thumbnailStorageId] },
+        { field: "referenceImageIds", storageIds: generation.referenceImageIds },
+      ],
+    });
   },
 });
 
@@ -341,6 +368,15 @@ export const saveGeneration = mutation({
       estimatedCost,
       model: args.model ?? LEGACY_IMAGE_MODEL_GEMINI_PREVIEW,
       status: "completed", // Legacy saves are already completed
+    });
+    await replaceDocumentStorageReferences(ctx, {
+      source: "generations",
+      documentId: generationId,
+      ownerId: user._id,
+      references: [
+        { field: "imageStorageId", storageIds: [args.imageStorageId] },
+        { field: "thumbnailStorageId", storageIds: [args.thumbnailStorageId] },
+      ],
     });
 
     return generationId;
@@ -570,6 +606,7 @@ export const deleteGeneration = mutation({
 
     // Legacy unlinked rows use row-only deletion until reference-ledger reconciliation is complete.
     // Retain storage until a complete cross-table reference ledger proves it is unreferenced.
+    await removeDocumentStorageReferences(ctx, "generations", args.generationId, user._id);
     await ctx.db.delete(args.generationId);
     return { success: true, replayed: false, tombstoned: false };
   },

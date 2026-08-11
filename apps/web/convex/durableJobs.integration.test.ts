@@ -198,6 +198,15 @@ async function persistFakeOutput(
     eventId: `output_${fixture.suffix}`,
     occurredAt: Date.now(),
   });
+  const ledgerRows = await fixture.t.run(async (ctx) =>
+    ctx.db
+      .query("storageReferenceLedger")
+      .withIndex("by_source_document", (q) => q.eq("source", "durable_outputs").eq("documentId", output.outputId))
+      .collect()
+  );
+  expect(ledgerRows.map((row) => ({ field: row.field, storageId: row.storageId }))).toEqual([
+    { field: "storageId", storageId },
+  ]);
   const finalized = await fixture.t.mutation(internal.durableJobs.finalize, {
     ownerId: fixture.ownerId,
     jobId: fixture.jobId,

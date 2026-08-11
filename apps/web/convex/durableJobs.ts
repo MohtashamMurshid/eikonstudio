@@ -21,6 +21,7 @@ import {
   TERMINAL_DURABLE_JOB_STATUSES,
   type DurableJobStatus,
 } from "./durableJobPolicy";
+import { replaceDocumentStorageReferences } from "./storageReferenceLedger";
 
 const statusValidator = v.union(...DURABLE_JOB_STATUSES.map((status) => v.literal(status)));
 const providerValidator = v.union(
@@ -1204,6 +1205,15 @@ export const recordDurableOutput = internalMutation({
       byteSize: args.byteSize,
       checksumSha256: args.checksumSha256,
       createdAt: args.occurredAt,
+    });
+    await replaceDocumentStorageReferences(ctx, {
+      source: "durable_outputs",
+      documentId: outputId,
+      ownerId: job.ownerId,
+      references: [
+        { field: "storageId", storageIds: [args.storageId] },
+        { field: "thumbnailStorageId", storageIds: args.thumbnailStorageId ? [args.thumbnailStorageId] : [] },
+      ],
     });
     await insertEvent(ctx, job, {
       eventId: args.eventId,
