@@ -93,9 +93,9 @@ Phase 2 transactional storage-reference ledger foundation:
 - Transactional replacement deduplicates `(source, document, field, storage)` identities, bounds each live document at 64 unique references, removes stale rows, and rolls back the application write on overflow.
 - Image generation start/completion/durable mirror/legacy save, gallery save, character create/update, durable output persistence, and video save all dual-write their complete reference set.
 - Legacy generation, gallery image/folder, character, and video row deletion transactionally remove their ledger rows while retaining physical blobs.
-- Real Convex tests prove four public creator surfaces, durable output persistence, duplicate-array collapse, character replacement, all deletion cleanup, collecting readiness, and application/ledger/readiness rollback on 65-reference overflow.
+- Real Convex tests prove four public creator surfaces, durable output persistence with and without thumbnails, duplicate-array collapse, character replacement, all deletion cleanup, collecting readiness, exact acceptance at 64 total identities, and application/ledger/readiness rollback at 65.
 - Mechanical source tests enforce all production writer/removal hooks, canonical source/field counts, indexes, bounds, and the absence of any API that can mark the ledger authoritative.
-- All 105 web tests and typecheck passed; independent Codex review returned clean.
+- All 106 web tests and typecheck passed; independent Codex review returned clean.
 - Historical backfill, readiness verification, deletion authority, provider calls, deployment, production mutation, and physical storage cleanup remain out of scope.
 
 Phase 2 shared storage retention safety:

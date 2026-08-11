@@ -152,11 +152,15 @@ async function persistFakeOutput(
   lease: Lease,
   expectedRevision: number,
   providerResult: ReturnType<FakeProvider["submit"]>,
+  withThumbnail = false,
 ) {
   if (!providerResult) throw new Error("TEST_PROVIDER_RESULT_MISSING");
   const storageId = await fixture.t.run(async (ctx) =>
     ctx.storage.store(new Blob([providerResult.bytes], { type: providerResult.contentType })),
   );
+  const thumbnailStorageId = withThumbnail
+    ? await fixture.t.run(async (ctx) => ctx.storage.store(new Blob(["thumbnail"], { type: "image/jpeg" })))
+    : undefined;
   const checksumSha256 = await sha256Hex(providerResult.bytes);
   // convex-test@0.0.40 returns base64 here; Convex 1.31 documents this system field as hex.
   await fixture.t.run(async (ctx) => {
@@ -191,6 +195,7 @@ async function persistFakeOutput(
     completionId: completion.completionId,
     outputKey: `output_${fixture.suffix}`,
     storageId,
+    thumbnailStorageId,
     mediaType: "image",
     contentType: providerResult.contentType,
     byteSize: metadata.size,
@@ -204,9 +209,14 @@ async function persistFakeOutput(
       .withIndex("by_source_document", (q) => q.eq("source", "durable_outputs").eq("documentId", output.outputId))
       .collect()
   );
-  expect(ledgerRows.map((row) => ({ field: row.field, storageId: row.storageId }))).toEqual([
-    { field: "storageId", storageId },
-  ]);
+  expect(ledgerRows.map((row) => ({ field: row.field, storageId: row.storageId }))).toEqual(
+    thumbnailStorageId
+      ? [
+          { field: "storageId", storageId },
+          { field: "thumbnailStorageId", storageId: thumbnailStorageId },
+        ]
+      : [{ field: "storageId", storageId }],
+  );
   const finalized = await fixture.t.mutation(internal.durableJobs.finalize, {
     ownerId: fixture.ownerId,
     jobId: fixture.jobId,
@@ -371,7 +381,7 @@ describe("durable jobs integration with fake provider", () => {
     const submission = await begin(fixture, lease);
     const providerResult = provider.submit("accepted", fixture.suffix);
     const accepted = await accept(fixture, lease, submission.revision, providerResult.providerRequestId);
-    const persisted = await persistFakeOutput(fixture, lease, accepted.revision, providerResult);
+    const persisted = await persistFakeOutput(fixture, lease, accepted.revision, providerResult, true);
 
     const completionReplay = await fixture.t.mutation(internal.durableJobs.recordProviderCompletion, {
       ownerId: fixture.ownerId,

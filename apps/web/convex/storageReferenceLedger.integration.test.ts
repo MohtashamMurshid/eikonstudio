@@ -80,7 +80,7 @@ describe("transactional storage reference ledger", () => {
       videoStorageId: storage.primary,
       thumbnailStorageId: storage.thumbnail,
       mode: "image-to-video",
-      aspectRatio: "16:9",
+      aspectRatio: "landscape",
       resolution: "720p",
       referenceImageStorageIds: [storage.primary, storage.primary],
     });
@@ -112,11 +112,33 @@ describe("transactional storage reference ledger", () => {
     });
   });
 
+  it("accepts exactly 64 unique document references", async () => {
+    const t = convexTest(schema, modules);
+    const storageIds = await t.run(async (ctx) => {
+      const ids = [];
+      for (let index = 0; index < 62; index += 1) {
+        ids.push(await ctx.storage.store(new Blob([`boundary-${index}`], { type: "image/png" })));
+      }
+      return ids;
+    });
+    const videoGenerationId = await asOwner(t).mutation(api.videoGenerations.saveVideoGeneration, {
+      prompt: "boundary ledger",
+      videoStorageId: storageIds[0],
+      thumbnailStorageId: storageIds[1],
+      mode: "image-to-video",
+      aspectRatio: "landscape",
+      resolution: "720p",
+      referenceImageStorageIds: storageIds,
+    });
+    const rows = (await ledgerRows(t)).filter((row) => row.documentId === videoGenerationId);
+    expect(rows).toHaveLength(64);
+  });
+
   it("rolls back the application row and ledger when a document exceeds 64 references", async () => {
     const t = convexTest(schema, modules);
     const storageIds = await t.run(async (ctx) => {
       const ids = [];
-      for (let index = 0; index < 65; index += 1) {
+      for (let index = 0; index < 63; index += 1) {
         ids.push(await ctx.storage.store(new Blob([`reference-${index}`], { type: "image/png" })));
       }
       return ids;
@@ -127,7 +149,7 @@ describe("transactional storage reference ledger", () => {
         videoStorageId: storageIds[0],
         thumbnailStorageId: storageIds[1],
         mode: "image-to-video",
-        aspectRatio: "16:9",
+        aspectRatio: "landscape",
         resolution: "720p",
         referenceImageStorageIds: storageIds,
       }),
