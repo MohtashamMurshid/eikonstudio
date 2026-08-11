@@ -34,10 +34,25 @@ export type StorageReferenceField =
   | "videoStorageId"
   | "referenceImageStorageIds";
 
-export const STORAGE_REFERENCE_SOURCE_FIELDS = {
-  generations: ["imageStorageId", "thumbnailStorageId", "referenceImageIds"],
-  gallery: ["imageStorageId", "thumbnailStorageId"],
-  characters: ["avatarStorageId"],
-  durable_outputs: ["storageId", "thumbnailStorageId"],
-  video_generations: ["videoStorageId", "thumbnailStorageId", "referenceImageStorageIds"],
-} as const satisfies Record<StorageReferenceSource, readonly StorageReferenceField[]>;
+export const STORAGE_REFERENCE_SOURCE_FIELD_LIMITS = {
+  generations: { imageStorageId: 1, thumbnailStorageId: 1, referenceImageIds: 4 },
+  gallery: { imageStorageId: 1, thumbnailStorageId: 1 },
+  characters: { avatarStorageId: 1 },
+  durable_outputs: { storageId: 1, thumbnailStorageId: 1 },
+  video_generations: { videoStorageId: 1, thumbnailStorageId: 1, referenceImageStorageIds: 3 },
+} as const satisfies Record<StorageReferenceSource, Partial<Record<StorageReferenceField, number>>>;
+
+export const STORAGE_REFERENCE_SOURCE_FIELDS = Object.fromEntries(
+  Object.entries(STORAGE_REFERENCE_SOURCE_FIELD_LIMITS).map(([source, fields]) => [source, Object.keys(fields)]),
+) as unknown as Record<StorageReferenceSource, readonly StorageReferenceField[]>;
+
+export const STORAGE_REFERENCE_SOURCE_TOTAL_LIMITS = Object.fromEntries(
+  Object.entries(STORAGE_REFERENCE_SOURCE_FIELD_LIMITS).map(([source, fields]) => [
+    source,
+    Object.values(fields).reduce((total, limit) => total + limit, 0),
+  ]),
+) as Record<StorageReferenceSource, number>;
+
+export function storageReferenceFieldLimit(source: StorageReferenceSource, field: StorageReferenceField) {
+  return (STORAGE_REFERENCE_SOURCE_FIELD_LIMITS[source] as Partial<Record<StorageReferenceField, number>>)[field];
+}

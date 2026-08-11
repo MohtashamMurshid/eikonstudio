@@ -313,20 +313,21 @@ export default defineSchema({
     source: storageReferenceSourceValidator,
     documentId: v.string(),
     field: storageReferenceFieldValidator,
+    position: v.number(),
     ownerId: v.string(),
+    origin: v.literal("transactional_dual_write_v1"),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_reference_key", ["referenceKey"])
     .index("by_storage", ["storageId"])
-    .index("by_source_document", ["source", "documentId"]),
+    .index("by_source_document", ["source", "documentId"])
+    .index("by_source_document_field", ["source", "documentId", "field"]),
 
   storageReferenceLedgerState: defineTable({
     stateKey: v.literal("global"),
-    status: v.union(v.literal("collecting"), v.literal("verified")),
+    status: v.literal("collecting"),
     startedAt: v.number(),
-    verifiedAt: v.optional(v.number()),
-    verificationFingerprint: v.optional(v.string()),
   })
     .index("by_state_key", ["stateKey"]),
 

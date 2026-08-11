@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 import type { Id } from "./_generated/dataModel";
-import { removeDocumentStorageReferences, replaceDocumentStorageReferences } from "./storageReferenceLedger";
+import { insertDocumentStorageReferences, removeDocumentStorageReferences } from "./storageReferenceLedger";
 
 const MAX_IMAGES_PER_FOLDER = 4;
 
@@ -362,7 +362,7 @@ export const saveImage = mutation({
       folderId: args.folderId,
       createdAt: Date.now(),
     });
-    await replaceDocumentStorageReferences(ctx, {
+    await insertDocumentStorageReferences(ctx, {
       source: "gallery",
       documentId: imageId,
       ownerId: user._id,

@@ -90,12 +90,14 @@ Phase 2 transactional storage-reference ledger foundation:
 
 - Added one canonical five-source/11-field contract shared by reconciliation and the ledger schema.
 - Added indexed `storageReferenceLedger` and singleton readiness state tables; readiness is observable only through an internal query and always reports `authoritative: false` in this slice.
-- Transactional replacement deduplicates `(source, document, field, storage)` identities, bounds each live document at 64 unique references, removes stale rows, and rolls back the application write on overflow.
-- Image generation start/completion/durable mirror/legacy save, gallery save, character create/update, durable output persistence, and video save all dual-write their complete reference set.
+- Each raw occurrence has a deterministic `(source, document, field, position)` identity, preserving duplicate array entries and exact order.
+- New writes enforce source-specific raw bounds before mutation: generation references ≤4, video references ≤3, and total source maxima of 6/2/1/2/5.
+- New-document insertion records complete field snapshots; scalar patches use field-scoped replacement so historical unrelated fields are never opportunistically backfilled.
+- Image generation start/completion/durable mirror/legacy save, gallery save, character create/update, durable output persistence, and video save all dual-write only their actual reference changes.
 - Legacy generation, gallery image/folder, character, and video row deletion transactionally remove their ledger rows while retaining physical blobs.
-- Real Convex tests prove four public creator surfaces, durable output persistence with and without thumbnails, duplicate-array collapse, character replacement, all deletion cleanup, collecting readiness, exact acceptance at 64 total identities, and application/ledger/readiness rollback at 65.
-- Mechanical source tests enforce all production writer/removal hooks, canonical source/field counts, indexes, bounds, and the absence of any API that can mark the ledger authoritative.
-- All 106 web tests and typecheck passed; independent Codex review returned clean.
+- Real Convex tests prove four public creator surfaces, durable output persistence with and without thumbnails, duplicate-array positions, character replacement, all deletion cleanup, three-video-reference acceptance/four rejection, five-generation-reference rollback, field-only historical patches, and corruption rollback.
+- Mechanical source tests enforce all production insert/field-replace/removal hooks, canonical source/field counts, occurrence indexes, source bounds, collecting-only state, and the absence of any authority/deletion-enabling API.
+- All 109 web tests and typecheck passed; iterative independent reviews returned clean after contract repairs.
 - Historical backfill, readiness verification, deletion authority, provider calls, deployment, production mutation, and physical storage cleanup remain out of scope.
 
 Phase 2 shared storage retention safety:

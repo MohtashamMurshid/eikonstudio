@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 import { createAppError } from "../lib/error-utils";
-import { removeDocumentStorageReferences, replaceDocumentStorageReferences } from "./storageReferenceLedger";
+import { insertDocumentStorageReferences, removeDocumentStorageReferences } from "./storageReferenceLedger";
 
 // Cost calculation constants (mirrored from lib/video-cost-calculator.ts for server-side use)
 const VIDEO_COST_FACTORS = {
@@ -70,6 +70,9 @@ export const saveVideoGeneration = mutation({
         createAppError("UNAUTHENTICATED", "Sign in to save video generations"),
       );
     }
+    if ((args.referenceImageStorageIds?.length ?? 0) > 3) {
+      throw new ConvexError(createAppError("VALIDATION_ERROR", "Video generation supports at most three reference images"));
+    }
 
     // Calculate cost if not provided
     const referenceImageCount = args.referenceImageStorageIds?.length || 0;
@@ -92,7 +95,7 @@ export const saveVideoGeneration = mutation({
       model: args.model ?? "veo-3.1-generate-preview",
       hasAudio: args.hasAudio ?? true,
     });
-    await replaceDocumentStorageReferences(ctx, {
+    await insertDocumentStorageReferences(ctx, {
       source: "video_generations",
       documentId: videoGenerationId,
       ownerId: user._id,

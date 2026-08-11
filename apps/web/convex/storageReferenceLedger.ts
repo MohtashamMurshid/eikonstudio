@@ -1,42 +1,110 @@
 import { v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { internalQuery } from "./_generated/server";
 import {
   STORAGE_REFERENCE_SOURCE_FIELDS,
+  STORAGE_REFERENCE_SOURCE_TOTAL_LIMITS,
+  storageReferenceFieldLimit,
   type StorageReferenceField,
   type StorageReferenceSource,
 } from "./storageReferenceContract";
-
-const MAX_REFERENCES_PER_DOCUMENT = 64;
 
 type ReferenceInput = {
   field: StorageReferenceField;
   storageIds: readonly Id<"_storage">[] | undefined;
 };
 
-type ReplaceDocumentReferencesArgs = {
+type DocumentReferencesArgs = {
   source: StorageReferenceSource;
   documentId: string;
   ownerId: string;
   references: readonly ReferenceInput[];
 };
 
+type FieldReferencesArgs = {
+  source: StorageReferenceSource;
+  documentId: string;
+  ownerId: string;
+  field: StorageReferenceField;
+  storageIds: readonly Id<"_storage">[] | undefined;
+};
+
 function referenceKey(
   source: StorageReferenceSource,
   documentId: string,
   field: StorageReferenceField,
-  storageId: Id<"_storage">,
+  position: number,
 ) {
-  return JSON.stringify([source, documentId, field, storageId]);
+  return JSON.stringify([source, documentId, field, position]);
+}
+
+function fieldOccurrences(
+  source: StorageReferenceSource,
+  documentId: string,
+  field: StorageReferenceField,
+  storageIds: readonly Id<"_storage">[] | undefined,
+) {
+  const limit = storageReferenceFieldLimit(source, field);
+  if (limit === undefined) throw new Error("INVALID_STORAGE_REFERENCE_LEDGER_FIELD");
+  const ids = storageIds ?? [];
+  if (ids.length > limit) throw new Error("STORAGE_REFERENCE_LEDGER_DOCUMENT_OVERFLOW");
+  return ids.map((storageId, position) => ({
+    referenceKey: referenceKey(source, documentId, field, position),
+    storageId,
+    field,
+    position,
+  }));
+}
+
+function validateLedgerRows(
+  rows: Doc<"storageReferenceLedger">[],
+  source: StorageReferenceSource,
+  documentId: string,
+  ownerId: string,
+  expectedField?: StorageReferenceField,
+) {
+  const keys = new Set<string>();
+  const positions = new Set<string>();
+  const positionsByField = new Map<StorageReferenceField, number[]>();
+  for (const row of rows) {
+    const limit = storageReferenceFieldLimit(source, row.field);
+    const positionKey = `${row.field}:${row.position}`;
+    if (
+      row.source !== source ||
+      row.documentId !== documentId ||
+      row.ownerId !== ownerId ||
+      (expectedField !== undefined && row.field !== expectedField) ||
+      limit === undefined ||
+      !Number.isInteger(row.position) ||
+      row.position < 0 ||
+      row.position >= limit ||
+      row.referenceKey !== referenceKey(source, documentId, row.field, row.position) ||
+      row.origin !== "transactional_dual_write_v1" ||
+      keys.has(row.referenceKey) ||
+      positions.has(positionKey)
+    ) {
+      throw new Error("STORAGE_REFERENCE_LEDGER_CORRUPT");
+    }
+    keys.add(row.referenceKey);
+    positions.add(positionKey);
+    positionsByField.set(row.field, [...(positionsByField.get(row.field) ?? []), row.position]);
+  }
+  for (const fieldPositions of positionsByField.values()) {
+    fieldPositions.sort((left, right) => left - right);
+    if (fieldPositions.some((position, index) => position !== index)) {
+      throw new Error("STORAGE_REFERENCE_LEDGER_CORRUPT");
+    }
+  }
 }
 
 async function ensureCollectingState(ctx: MutationCtx, now: number) {
-  const state = await ctx.db
+  const states = await ctx.db
     .query("storageReferenceLedgerState")
     .withIndex("by_state_key", (q) => q.eq("stateKey", "global"))
-    .unique();
-  if (!state) {
+    .take(2);
+  if (states.length > 1) throw new Error("STORAGE_REFERENCE_LEDGER_STATE_CORRUPT");
+  if (states.length === 0) {
     await ctx.db.insert("storageReferenceLedgerState", {
       stateKey: "global",
       status: "collecting",
@@ -45,102 +113,128 @@ async function ensureCollectingState(ctx: MutationCtx, now: number) {
   }
 }
 
-/**
- * Atomically replaces the complete deduplicated storage-reference set for one
- * application document. This dual-write ledger is not deletion authority until
- * a later historical backfill and verification milestone marks it ready.
- */
-export async function replaceDocumentStorageReferences(
-  ctx: MutationCtx,
-  args: ReplaceDocumentReferencesArgs,
-) {
-  const allowedFields = new Set<StorageReferenceField>(STORAGE_REFERENCE_SOURCE_FIELDS[args.source]);
-  const desired = new Map<string, { field: StorageReferenceField; storageId: Id<"_storage"> }>();
-  for (const reference of args.references) {
-    if (!allowedFields.has(reference.field)) throw new Error("INVALID_STORAGE_REFERENCE_LEDGER_FIELD");
-    for (const storageId of reference.storageIds ?? []) {
-      const key = referenceKey(args.source, args.documentId, reference.field, storageId);
-      desired.set(key, { field: reference.field, storageId });
-      if (desired.size > MAX_REFERENCES_PER_DOCUMENT) {
-        throw new Error("STORAGE_REFERENCE_LEDGER_DOCUMENT_OVERFLOW");
-      }
-    }
+/** Inserts the complete storage-reference snapshot for a newly inserted source document. */
+export async function insertDocumentStorageReferences(ctx: MutationCtx, args: DocumentReferencesArgs) {
+  const expectedFields = STORAGE_REFERENCE_SOURCE_FIELDS[args.source];
+  const providedFields = args.references.map((reference) => reference.field);
+  if (
+    providedFields.length !== expectedFields.length ||
+    new Set(providedFields).size !== providedFields.length ||
+    expectedFields.some((field) => !providedFields.includes(field))
+  ) {
+    throw new Error("INVALID_STORAGE_REFERENCE_LEDGER_SNAPSHOT");
   }
-
+  const occurrences = args.references.flatMap((reference) =>
+    fieldOccurrences(args.source, args.documentId, reference.field, reference.storageIds)
+  );
+  if (occurrences.length > STORAGE_REFERENCE_SOURCE_TOTAL_LIMITS[args.source]) {
+    throw new Error("STORAGE_REFERENCE_LEDGER_DOCUMENT_OVERFLOW");
+  }
   const existing = await ctx.db
     .query("storageReferenceLedger")
     .withIndex("by_source_document", (q) => q.eq("source", args.source).eq("documentId", args.documentId))
-    .take(MAX_REFERENCES_PER_DOCUMENT + 1);
-  if (existing.length > MAX_REFERENCES_PER_DOCUMENT) {
-    throw new Error("STORAGE_REFERENCE_LEDGER_DOCUMENT_OVERFLOW");
-  }
+    .take(STORAGE_REFERENCE_SOURCE_TOTAL_LIMITS[args.source] + 1);
+  if (existing.length !== 0) throw new Error("STORAGE_REFERENCE_LEDGER_ALREADY_EXISTS");
 
   const now = Date.now();
   await ensureCollectingState(ctx, now);
-  const existingByKey = new Map(existing.map((row) => [row.referenceKey, row]));
-  for (const row of existing) {
-    if (!desired.has(row.referenceKey)) await ctx.db.delete(row._id);
+  for (const occurrence of occurrences) {
+    await ctx.db.insert("storageReferenceLedger", {
+      ...occurrence,
+      source: args.source,
+      documentId: args.documentId,
+      ownerId: args.ownerId,
+      origin: "transactional_dual_write_v1",
+      createdAt: now,
+      updatedAt: now,
+    });
   }
-  for (const [key, reference] of desired) {
-    const row = existingByKey.get(key);
+}
+
+/** Replaces only the storage field actually patched; unrelated historical fields remain untouched. */
+export async function replaceStorageFieldReferences(ctx: MutationCtx, args: FieldReferencesArgs) {
+  const desired = fieldOccurrences(args.source, args.documentId, args.field, args.storageIds);
+  const limit = storageReferenceFieldLimit(args.source, args.field)!;
+  const existing = await ctx.db
+    .query("storageReferenceLedger")
+    .withIndex("by_source_document_field", (q) =>
+      q.eq("source", args.source).eq("documentId", args.documentId).eq("field", args.field)
+    )
+    .take(limit + 1);
+  if (existing.length > limit) throw new Error("STORAGE_REFERENCE_LEDGER_CORRUPT");
+  validateLedgerRows(existing, args.source, args.documentId, args.ownerId, args.field);
+
+  const now = Date.now();
+  await ensureCollectingState(ctx, now);
+  const existingByPosition = new Map(existing.map((row) => [row.position, row]));
+  for (const row of existing) {
+    if (row.position >= desired.length) await ctx.db.delete(row._id);
+  }
+  for (const occurrence of desired) {
+    const row = existingByPosition.get(occurrence.position);
     if (!row) {
       await ctx.db.insert("storageReferenceLedger", {
-        referenceKey: key,
-        storageId: reference.storageId,
+        ...occurrence,
         source: args.source,
         documentId: args.documentId,
-        field: reference.field,
         ownerId: args.ownerId,
+        origin: "transactional_dual_write_v1",
         createdAt: now,
         updatedAt: now,
       });
-    } else if (
-      row.ownerId !== args.ownerId ||
-      row.storageId !== reference.storageId ||
-      row.field !== reference.field
-    ) {
+    } else if (row.storageId !== occurrence.storageId) {
       await ctx.db.patch(row._id, {
-        storageId: reference.storageId,
-        field: reference.field,
-        ownerId: args.ownerId,
+        storageId: occurrence.storageId,
         updatedAt: now,
       });
     }
   }
 }
 
+/** Missing rows are valid while non-authoritative; malformed existing rows fail closed. */
 export async function removeDocumentStorageReferences(
   ctx: MutationCtx,
   source: StorageReferenceSource,
   documentId: string,
   ownerId: string,
 ) {
-  await replaceDocumentStorageReferences(ctx, { source, documentId, ownerId, references: [] });
+  const limit = STORAGE_REFERENCE_SOURCE_TOTAL_LIMITS[source];
+  const existing = await ctx.db
+    .query("storageReferenceLedger")
+    .withIndex("by_source_document", (q) => q.eq("source", source).eq("documentId", documentId))
+    .take(limit + 1);
+  if (existing.length > limit) throw new Error("STORAGE_REFERENCE_LEDGER_CORRUPT");
+  validateLedgerRows(existing, source, documentId, ownerId);
+  await ensureCollectingState(ctx, Date.now());
+  for (const row of existing) await ctx.db.delete(row._id);
 }
 
-/** Read-only observability; authoritative deliberately remains false in this slice. */
+/** Read-only observability; this slice cannot represent or enable authority. */
 export const getStorageReferenceLedgerReadiness = internalQuery({
   args: {},
   returns: v.object({
-    status: v.union(v.literal("uninitialized"), v.literal("collecting"), v.literal("verified")),
+    status: v.union(v.literal("uninitialized"), v.literal("collecting")),
     authoritative: v.literal(false),
+    physicalDeletionEnabled: v.literal(false),
     startedAt: v.optional(v.number()),
-    verifiedAt: v.optional(v.number()),
-    verificationFingerprint: v.optional(v.string()),
   }),
   handler: async (ctx) => {
-    const state = await ctx.db
+    const states = await ctx.db
       .query("storageReferenceLedgerState")
       .withIndex("by_state_key", (q) => q.eq("stateKey", "global"))
-      .unique();
-    return state
+      .take(2);
+    if (states.length > 1) throw new Error("STORAGE_REFERENCE_LEDGER_STATE_CORRUPT");
+    return states[0]
       ? {
-          status: state.status,
+          status: "collecting" as const,
           authoritative: false as const,
-          startedAt: state.startedAt,
-          verifiedAt: state.verifiedAt,
-          verificationFingerprint: state.verificationFingerprint,
+          physicalDeletionEnabled: false as const,
+          startedAt: states[0].startedAt,
         }
-      : { status: "uninitialized" as const, authoritative: false as const };
+      : {
+          status: "uninitialized" as const,
+          authoritative: false as const,
+          physicalDeletionEnabled: false as const,
+        };
   },
 });

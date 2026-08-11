@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
-import { removeDocumentStorageReferences, replaceDocumentStorageReferences } from "./storageReferenceLedger";
+import { insertDocumentStorageReferences, removeDocumentStorageReferences, replaceStorageFieldReferences } from "./storageReferenceLedger";
 
 const appearanceValidator = v.object({
   gender: v.optional(v.string()),
@@ -49,7 +49,7 @@ export const createCharacter = mutation({
       avatarStorageId: args.avatarStorageId,
       createdAt: Date.now(),
     });
-    await replaceDocumentStorageReferences(ctx, {
+    await insertDocumentStorageReferences(ctx, {
       source: "characters",
       documentId: characterId,
       ownerId: user._id,
@@ -107,13 +107,15 @@ export const updateCharacter = mutation({
     );
 
     await ctx.db.patch(characterId, filtered);
-    const avatarStorageId = args.avatarStorageId ?? character.avatarStorageId;
-    await replaceDocumentStorageReferences(ctx, {
-      source: "characters",
-      documentId: characterId,
-      ownerId: user._id,
-      references: [{ field: "avatarStorageId", storageIds: avatarStorageId ? [avatarStorageId] : [] }],
-    });
+    if (args.avatarStorageId !== undefined) {
+      await replaceStorageFieldReferences(ctx, {
+        source: "characters",
+        documentId: characterId,
+        ownerId: user._id,
+        field: "avatarStorageId",
+        storageIds: [args.avatarStorageId],
+      });
+    }
   },
 });
 
