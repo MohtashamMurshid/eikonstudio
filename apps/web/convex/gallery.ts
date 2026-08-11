@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 import type { Id } from "./_generated/dataModel";
+import { insertDocumentStorageReferences, removeDocumentStorageReferences } from "./storageReferenceLedger";
 
 const MAX_IMAGES_PER_FOLDER = 4;
 
@@ -132,7 +133,10 @@ export const deleteFolder = mutation({
     }
 
     // Gallery rows may share storage with generations, outputs, videos, or characters.
-    for (const img of images) await ctx.db.delete(img._id);
+    for (const img of images) {
+      await removeDocumentStorageReferences(ctx, "gallery", img._id, user._id);
+      await ctx.db.delete(img._id);
+    }
 
     // Delete the folder
     await ctx.db.delete(args.folderId);
@@ -357,6 +361,15 @@ export const saveImage = mutation({
       thumbnailStorageId: args.thumbnailStorageId,
       folderId: args.folderId,
       createdAt: Date.now(),
+    });
+    await insertDocumentStorageReferences(ctx, {
+      source: "gallery",
+      documentId: imageId,
+      ownerId: user._id,
+      references: [
+        { field: "imageStorageId", storageIds: [args.imageStorageId] },
+        { field: "thumbnailStorageId", storageIds: [args.thumbnailStorageId] },
+      ],
     });
 
     return imageId;
@@ -679,6 +692,7 @@ export const deleteImage = mutation({
     }
 
     // Retain storage until a complete cross-table reference ledger proves it is unreferenced.
+    await removeDocumentStorageReferences(ctx, "gallery", args.imageId, user._id);
     await ctx.db.delete(args.imageId);
     return { success: true };
   },

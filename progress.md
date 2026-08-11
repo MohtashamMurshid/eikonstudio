@@ -6,10 +6,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 2 — Shared storage retention safety
-- **Status:** Unsafe cross-surface physical deletion removed; PR delivery pending
-- **Branch:** `fix/shared-storage-retention`
-- **Base:** Tombstone invariant repair merge `origin/main@9df4344` (PR #21)
+- **Active phase:** Phase 2 — Transactional storage-reference ledger foundation
+- **Status:** All live storage-reference writers dual-write a non-authoritative ledger; PR delivery pending
+- **Branch:** `feature/storage-reference-ledger`
+- **Base:** Shared storage retention merge `origin/main@17a2ff5` (PR #22)
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
@@ -85,6 +85,20 @@ Deliberately out of scope:
 - Added crypto, AAD isolation, metadata, resolution-policy, and source-boundary regressions. No real provider calls or production migration were performed.
 
 ## Verification evidence
+
+Phase 2 transactional storage-reference ledger foundation:
+
+- Added one canonical five-source/11-field contract shared by reconciliation and the ledger schema.
+- Added indexed `storageReferenceLedger` and singleton readiness state tables; readiness is observable only through an internal query and always reports `authoritative: false` in this slice.
+- Each raw occurrence has a deterministic `(source, document, field, position)` identity, preserving duplicate array entries and exact order.
+- New writes enforce source-specific raw bounds before mutation: generation references ≤4, video references ≤3, and total source maxima of 6/2/1/2/5.
+- New-document insertion records complete field snapshots; scalar patches use field-scoped replacement so historical unrelated fields are never opportunistically backfilled.
+- Image generation start/completion/durable mirror/legacy save, gallery save, character create/update, durable output persistence, and video save all dual-write only their actual reference changes.
+- Legacy generation, gallery image/folder, character, and video row deletion transactionally remove their ledger rows while retaining physical blobs.
+- Real Convex tests prove four public creator surfaces, durable output persistence with and without thumbnails, duplicate-array positions, character replacement, all deletion cleanup, three-video-reference acceptance/four rejection, five-generation-reference rollback, field-only historical patches, and corruption rollback.
+- Mechanical source tests enforce all production insert/field-replace/removal hooks, canonical source/field counts, occurrence indexes, source bounds, collecting-only state, and the absence of any authority/deletion-enabling API.
+- All 109 web tests and typecheck passed; iterative independent reviews returned clean after contract repairs.
+- Historical backfill, readiness verification, deletion authority, provider calls, deployment, production mutation, and physical storage cleanup remain out of scope.
 
 Phase 2 shared storage retention safety:
 

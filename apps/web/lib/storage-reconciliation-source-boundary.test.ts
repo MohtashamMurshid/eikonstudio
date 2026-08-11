@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const source = readFileSync(resolve(webRoot, "convex/storageReconciliation.ts"), "utf8");
 const schema = readFileSync(resolve(webRoot, "convex/schema.ts"), "utf8");
+const contract = readFileSync(resolve(webRoot, "convex/storageReferenceContract.ts"), "utf8");
 const generatedApi = readFileSync(resolve(webRoot, "convex/_generated/api.d.ts"), "utf8");
 
 describe("storage reconciliation source boundary", () => {
@@ -42,7 +43,7 @@ describe("storage reconciliation source boundary", () => {
       .map((match) => match[1]);
     expect([...new Set(schemaFields)].sort()).toEqual([...expectedFields].sort());
     for (const field of expectedFields) {
-      expect(source).toContain(`v.literal("${field}")`);
+      expect(contract).toContain(`v.literal("${field}")`);
     }
     for (const table of [
       'query("generations")',

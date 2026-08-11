@@ -2,43 +2,16 @@ import { paginationOptsValidator, paginationResultValidator } from "convex/serve
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internalQuery } from "./_generated/server";
+import {
+  storageReferenceFieldValidator as fieldValidator,
+  storageReferenceSourceValidator as sourceValidator,
+  type StorageReferenceField as StorageField,
+  type StorageReferenceSource as StorageSource,
+} from "./storageReferenceContract";
 
 const MAX_PAGE_ROWS = 100;
 const MINIMUM_AGE_MS = 60 * 60 * 1000;
 
-const sourceValidator = v.union(
-  v.literal("generations"),
-  v.literal("gallery"),
-  v.literal("characters"),
-  v.literal("durable_outputs"),
-  v.literal("video_generations"),
-);
-
-const fieldValidator = v.union(
-  v.literal("imageStorageId"),
-  v.literal("thumbnailStorageId"),
-  v.literal("referenceImageIds"),
-  v.literal("avatarStorageId"),
-  v.literal("storageId"),
-  v.literal("videoStorageId"),
-  v.literal("referenceImageStorageIds"),
-);
-
-type StorageSource =
-  | "generations"
-  | "gallery"
-  | "characters"
-  | "durable_outputs"
-  | "video_generations";
-
-type StorageField =
-  | "imageStorageId"
-  | "thumbnailStorageId"
-  | "referenceImageIds"
-  | "avatarStorageId"
-  | "storageId"
-  | "videoStorageId"
-  | "referenceImageStorageIds";
 
 type ReferenceGroup = {
   field: StorageField;

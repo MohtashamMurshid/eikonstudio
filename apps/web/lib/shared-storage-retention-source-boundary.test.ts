@@ -24,7 +24,9 @@ describe("shared storage retention source boundary", () => {
     expect(generations).toContain("await ctx.db.delete(args.generationId)");
     expect(videos).toContain("await ctx.db.delete(args.videoGenerationId)");
     expect(gallery).toContain("await ctx.db.delete(args.imageId)");
-    expect(gallery).toContain("for (const img of images) await ctx.db.delete(img._id)");
+    expect(gallery).toMatch(
+      /removeDocumentStorageReferences\(ctx, "gallery", img\._id[\s\S]*?await ctx\.db\.delete\(img\._id\)/,
+    );
     expect(gallery).toContain(".take(5)");
     expect(gallery).toContain("images.length > 4");
     expect(characters).toContain("await ctx.db.delete(args.characterId)");

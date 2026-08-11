@@ -10,6 +10,7 @@ import { getProviderCredentialRecord } from "./apiKeys";
 import { credentialHealth, legacyCredentialHandle, recordCanonicalProvider } from "./credentialPolicy";
 import { createDurableJobRecords } from "./durableJobs";
 import { durableImageKeys, REQUEST_IDEMPOTENCY_KEY_PATTERN } from "./durableExecutionPolicy";
+import { insertDocumentStorageReferences, removeDocumentStorageReferences, replaceStorageFieldReferences } from "./storageReferenceLedger";
 
 // Generate upload URL for uploading images to Convex storage
 export const generateUploadUrl = mutation({
@@ -51,6 +52,9 @@ export const startGeneration = mutation({
     }
     if (args.mode === "image-editing" && (!args.referenceImageIds || args.referenceImageIds.length === 0)) {
       throw new ConvexError(createAppError("VALIDATION_ERROR", "Add at least one reference image for image editing"));
+    }
+    if ((args.referenceImageIds?.length ?? 0) > 4) {
+      throw new ConvexError(createAppError("VALIDATION_ERROR", "Image editing supports at most four reference images"));
     }
     if (!REQUEST_IDEMPOTENCY_KEY_PATTERN.test(args.idempotencyKey)) {
       throw new ConvexError(createAppError("VALIDATION_ERROR", "Generation request identity is invalid"));
@@ -119,6 +123,16 @@ export const startGeneration = mutation({
       createdAt: now,
       status: "pending",
       referenceImageIds: args.referenceImageIds,
+    });
+    await insertDocumentStorageReferences(ctx, {
+      source: "generations",
+      documentId: generationId,
+      ownerId: user._id,
+      references: [
+        { field: "imageStorageId", storageIds: [] },
+        { field: "thumbnailStorageId", storageIds: [] },
+        { field: "referenceImageIds", storageIds: args.referenceImageIds },
+      ],
     });
 
     const keys = durableImageKeys(generationId, args.idempotencyKey);
@@ -217,6 +231,20 @@ export const completeGeneration = internalMutation({
       estimatedCost: args.estimatedCost,
       model: args.model,
     });
+    await replaceStorageFieldReferences(ctx, {
+      source: "generations",
+      documentId: generation._id,
+      ownerId: generation.userId,
+      field: "imageStorageId",
+      storageIds: [args.imageStorageId],
+    });
+    await replaceStorageFieldReferences(ctx, {
+      source: "generations",
+      documentId: generation._id,
+      ownerId: generation.userId,
+      field: "thumbnailStorageId",
+      storageIds: [args.thumbnailStorageId],
+    });
   },
 });
 
@@ -296,6 +324,20 @@ export const mirrorDurableGenerationCompleted = internalMutation({
       model: generation.imageModel ?? generation.model,
       errorMessage: undefined,
     });
+    await replaceStorageFieldReferences(ctx, {
+      source: "generations",
+      documentId: generation._id,
+      ownerId: generation.userId,
+      field: "imageStorageId",
+      storageIds: [output.storageId],
+    });
+    await replaceStorageFieldReferences(ctx, {
+      source: "generations",
+      documentId: generation._id,
+      ownerId: generation.userId,
+      field: "thumbnailStorageId",
+      storageIds: [output.thumbnailStorageId],
+    });
   },
 });
 
@@ -341,6 +383,16 @@ export const saveGeneration = mutation({
       estimatedCost,
       model: args.model ?? LEGACY_IMAGE_MODEL_GEMINI_PREVIEW,
       status: "completed", // Legacy saves are already completed
+    });
+    await insertDocumentStorageReferences(ctx, {
+      source: "generations",
+      documentId: generationId,
+      ownerId: user._id,
+      references: [
+        { field: "imageStorageId", storageIds: [args.imageStorageId] },
+        { field: "thumbnailStorageId", storageIds: [args.thumbnailStorageId] },
+        { field: "referenceImageIds", storageIds: [] },
+      ],
     });
 
     return generationId;
@@ -570,6 +622,7 @@ export const deleteGeneration = mutation({
 
     // Legacy unlinked rows use row-only deletion until reference-ledger reconciliation is complete.
     // Retain storage until a complete cross-table reference ledger proves it is unreferenced.
+    await removeDocumentStorageReferences(ctx, "generations", args.generationId, user._id);
     await ctx.db.delete(args.generationId);
     return { success: true, replayed: false, tombstoned: false };
   },

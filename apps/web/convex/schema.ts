@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { storageReferenceFieldValidator, storageReferenceSourceValidator } from "./storageReferenceContract";
 import { storedImageModelValidator } from "./imageModels";
 
 export default defineSchema({
@@ -301,6 +302,34 @@ export default defineSchema({
     .index("by_completion_key", ["completionKey"])
     .index("by_job", ["jobId"])
     .index("by_provider_request", ["provider", "providerRequestId"]),
+
+  /**
+   * Transactional dual-write ledger. It is explicitly non-authoritative until a
+   * separate historical backfill and verification milestone marks readiness.
+   */
+  storageReferenceLedger: defineTable({
+    referenceKey: v.string(),
+    storageId: v.id("_storage"),
+    source: storageReferenceSourceValidator,
+    documentId: v.string(),
+    field: storageReferenceFieldValidator,
+    position: v.number(),
+    ownerId: v.string(),
+    origin: v.literal("transactional_dual_write_v1"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_reference_key", ["referenceKey"])
+    .index("by_storage", ["storageId"])
+    .index("by_source_document", ["source", "documentId"])
+    .index("by_source_document_field", ["source", "documentId", "field"]),
+
+  storageReferenceLedgerState: defineTable({
+    stateKey: v.literal("global"),
+    status: v.literal("collecting"),
+    startedAt: v.number(),
+  })
+    .index("by_state_key", ["stateKey"]),
 
   // Video generations
   videoGenerations: defineTable({
