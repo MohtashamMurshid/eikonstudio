@@ -98,7 +98,8 @@ Phase 2 resumable historical storage-reference ledger backfill:
 - Completed and blocked checkpoints replay as read-only no-ops; no reset/restart API exists in this slice.
 - Backfill status and page results always report `authoritative: false` and `physicalDeletionEnabled: false`; no storage deletion or orphan classification exists.
 - Four real Convex scenarios plus three source-boundary tests cover five-source mapping, exact duplicate positions, stable two-page resumption, post-cutoff exclusion, exact live-row replay, whole-page conflict atomicity, terminal no-op replay, duplicate-checkpoint rejection, retained blobs, internal-only exposure, and bounds.
-- All 116 web tests and typecheck passed; independent Codex review returned clean, and the specialist checkpoint audit was dispositioned before commit.
+- Full verification passed **164/164 tests**: 39 core, 9 providers, and 116 web; typecheck passed 4/4, lint passed with 0 errors and 30 existing warnings, the placeholder production build produced 22 routes, and `git diff --check` passed.
+- Independent Codex review returned clean, and the specialist checkpoint audit was dispositioned before commit.
 - Verification/promotion, checkpoint reset, deployment, production execution, provider calls, orphan classification, and physical storage cleanup remain out of scope.
 
 Phase 2 transactional storage-reference ledger foundation:

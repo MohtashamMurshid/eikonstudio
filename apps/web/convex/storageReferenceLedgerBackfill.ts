@@ -69,7 +69,7 @@ async function sourcePage(
   switch (source) {
     case "generations": {
       const result = await ctx.db.query("generations")
-        .filter((q) => q.lte(q.field("_creationTime"), cutoffAt))
+        .withIndex("by_creation_time", (q) => q.lte("_creationTime", cutoffAt))
         .order("asc")
         .paginate(paginationOpts);
       return {
@@ -87,7 +87,7 @@ async function sourcePage(
     }
     case "gallery": {
       const result = await ctx.db.query("gallery")
-        .filter((q) => q.lte(q.field("_creationTime"), cutoffAt))
+        .withIndex("by_creation_time", (q) => q.lte("_creationTime", cutoffAt))
         .order("asc")
         .paginate(paginationOpts);
       return {
@@ -101,7 +101,7 @@ async function sourcePage(
     }
     case "characters": {
       const result = await ctx.db.query("characters")
-        .filter((q) => q.lte(q.field("_creationTime"), cutoffAt))
+        .withIndex("by_creation_time", (q) => q.lte("_creationTime", cutoffAt))
         .order("asc")
         .paginate(paginationOpts);
       return {
@@ -115,7 +115,7 @@ async function sourcePage(
     }
     case "durable_outputs": {
       const result = await ctx.db.query("durableGenerationOutputs")
-        .filter((q) => q.lte(q.field("_creationTime"), cutoffAt))
+        .withIndex("by_creation_time", (q) => q.lte("_creationTime", cutoffAt))
         .order("asc")
         .paginate(paginationOpts);
       return {
@@ -129,7 +129,7 @@ async function sourcePage(
     }
     case "video_generations": {
       const result = await ctx.db.query("videoGenerations")
-        .filter((q) => q.lte(q.field("_creationTime"), cutoffAt))
+        .withIndex("by_creation_time", (q) => q.lte("_creationTime", cutoffAt))
         .order("asc")
         .paginate(paginationOpts);
       return {

@@ -19,7 +19,9 @@ describe("storage-reference ledger backfill source boundary", () => {
     expect(backfill).toContain("cutoffCreationTime");
     expect(backfill).toContain("lastDocumentId");
     expect(backfill).not.toContain("resolveDocumentAnchor");
-    expect(backfill).toContain('q.lte(q.field("_creationTime"), cutoffAt)');
+    expect(backfill).toContain('withIndex("by_creation_time"');
+    expect(backfill).toMatch(/_creationTime[\s\S]{0,40}cutoffAt/);
+    expect(backfill).toContain(".paginate(paginationOpts)");
     expect(backfill.match(/case "(generations|gallery|characters|durable_outputs|video_generations)"/g)).toHaveLength(10);
   });
 
