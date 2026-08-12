@@ -6,10 +6,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 2 — Transactional storage-reference ledger foundation
-- **Status:** All live storage-reference writers dual-write a non-authoritative ledger; PR delivery pending
-- **Branch:** `feature/storage-reference-ledger`
-- **Base:** Shared storage retention merge `origin/main@17a2ff5` (PR #22)
+- **Active phase:** Phase 2 — Resumable historical storage-reference ledger backfill
+- **Status:** Bounded source-scoped backfill is implemented and remains non-authoritative; PR delivery pending
+- **Branch:** `feature/storage-ledger-backfill`
+- **Base:** Transactional ledger merge `origin/main@f7f21af` (PR #23)
 - **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
 
 ## Phase 1 foundation slice
@@ -85,6 +85,22 @@ Deliberately out of scope:
 - Added crypto, AAD isolation, metadata, resolution-policy, and source-boundary regressions. No real provider calls or production migration were performed.
 
 ## Verification evidence
+
+Phase 2 resumable historical storage-reference ledger backfill:
+
+- Added one internal versioned checkpoint per logical source with `running|completed|blocked` status, immutable inclusive `cutoffDocumentId` plus `cutoffCreationTime`, audit-only `lastDocumentId`, checkpoint-owned cursor, cumulative page/document/occurrence counters, and blocked-document diagnostics.
+- Each run processes at most 16 source rows in one Convex transaction; callers provide neither cursor nor cutoff.
+- The initial cutoff is the source table's latest committed document ID and immutable creation time; later inserts remain outside the historical run, while normal deletion of processed/cutoff documents does not strand cursor resumption.
+- Checkpoints are cross-validated through bounded key and source/version indexes; immutable version/source/table shape must agree before a page runs.
+- Every page preflights all documents before any historical ledger write, so an oversized, partial, conflicting, corrupt, or owner-mismatched row blocks the source without partial page inserts or cursor advancement.
+- Exact transactional or historical ledger snapshots replay without writes; missing snapshots are inserted with `historical_backfill_v1`; partial/conflicting snapshots fail closed.
+- Duplicate array occurrences and positions are preserved exactly across all five sources and 11 field pairs.
+- Completed and blocked checkpoints replay as read-only no-ops; no reset/restart API exists in this slice.
+- Backfill status and page results always report `authoritative: false` and `physicalDeletionEnabled: false`; no storage deletion or orphan classification exists.
+- Four real Convex scenarios plus three source-boundary tests cover five-source mapping, exact duplicate positions, stable two-page resumption, post-cutoff exclusion, exact live-row replay, whole-page conflict atomicity, terminal no-op replay, duplicate-checkpoint rejection, retained blobs, internal-only exposure, and bounds.
+- Full verification passed **164/164 tests**: 39 core, 9 providers, and 116 web; typecheck passed 4/4, lint passed with 0 errors and 30 existing warnings, the placeholder production build produced 22 routes, and `git diff --check` passed.
+- Independent Codex review returned clean, and the specialist checkpoint audit was dispositioned before commit.
+- Verification/promotion, checkpoint reset, deployment, production execution, provider calls, orphan classification, and physical storage cleanup remain out of scope.
 
 Phase 2 transactional storage-reference ledger foundation:
 
