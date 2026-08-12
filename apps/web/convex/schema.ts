@@ -315,7 +315,7 @@ export default defineSchema({
     field: storageReferenceFieldValidator,
     position: v.number(),
     ownerId: v.string(),
-    origin: v.literal("transactional_dual_write_v1"),
+    origin: v.union(v.literal("transactional_dual_write_v1"), v.literal("historical_backfill_v1")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -330,6 +330,30 @@ export default defineSchema({
     startedAt: v.number(),
   })
     .index("by_state_key", ["stateKey"]),
+
+  storageReferenceLedgerBackfillCheckpoints: defineTable({
+    checkpointKey: v.string(),
+    version: v.literal("historical_backfill_v1"),
+    source: storageReferenceSourceValidator,
+    sourceTable: v.string(),
+    status: v.union(v.literal("running"), v.literal("completed"), v.literal("blocked")),
+    cutoffDocumentId: v.optional(v.string()),
+    cutoffCreationTime: v.optional(v.number()),
+    lastDocumentId: v.optional(v.string()),
+    cursor: v.optional(v.string()),
+    pagesCompleted: v.number(),
+    documentsScanned: v.number(),
+    documentsInserted: v.number(),
+    documentsReplayed: v.number(),
+    occurrencesInserted: v.number(),
+    blockedDocumentId: v.optional(v.string()),
+    blockedReason: v.optional(v.string()),
+    startedAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_checkpoint_key", ["checkpointKey"])
+    .index("by_source_version", ["source", "version"]),
 
   // Video generations
   videoGenerations: defineTable({

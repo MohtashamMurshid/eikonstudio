@@ -30,7 +30,8 @@ describe("storage reference ledger source boundary", () => {
     expect(schema).toContain('.index("by_storage", ["storageId"])');
     expect(schema).toContain('.index("by_source_document", ["source", "documentId"])');
     expect(schema).toContain('.index("by_source_document_field", ["source", "documentId", "field"])');
-    expect(schema).toContain('origin: v.literal("transactional_dual_write_v1")');
+    expect(schema).toContain('v.literal("transactional_dual_write_v1")');
+    expect(schema).toContain('v.literal("historical_backfill_v1")');
     expect(schema).toContain("storageReferenceLedgerState: defineTable");
     expect(schema).toContain('.index("by_state_key", ["stateKey"])');
   });

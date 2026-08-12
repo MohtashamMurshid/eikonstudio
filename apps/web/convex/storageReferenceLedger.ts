@@ -80,7 +80,7 @@ function validateLedgerRows(
       row.position < 0 ||
       row.position >= limit ||
       row.referenceKey !== referenceKey(source, documentId, row.field, row.position) ||
-      row.origin !== "transactional_dual_write_v1" ||
+      (row.origin !== "transactional_dual_write_v1" && row.origin !== "historical_backfill_v1") ||
       keys.has(row.referenceKey) ||
       positions.has(positionKey)
     ) {
@@ -113,8 +113,7 @@ async function ensureCollectingState(ctx: MutationCtx, now: number) {
   }
 }
 
-/** Inserts the complete storage-reference snapshot for a newly inserted source document. */
-export async function insertDocumentStorageReferences(ctx: MutationCtx, args: DocumentReferencesArgs) {
+function completeOccurrences(args: DocumentReferencesArgs) {
   const expectedFields = STORAGE_REFERENCE_SOURCE_FIELDS[args.source];
   const providedFields = args.references.map((reference) => reference.field);
   if (
@@ -130,10 +129,23 @@ export async function insertDocumentStorageReferences(ctx: MutationCtx, args: Do
   if (occurrences.length > STORAGE_REFERENCE_SOURCE_TOTAL_LIMITS[args.source]) {
     throw new Error("STORAGE_REFERENCE_LEDGER_DOCUMENT_OVERFLOW");
   }
-  const existing = await ctx.db
+  return occurrences;
+}
+
+async function readDocumentLedgerRows(ctx: MutationCtx, source: StorageReferenceSource, documentId: string) {
+  const limit = STORAGE_REFERENCE_SOURCE_TOTAL_LIMITS[source];
+  const rows = await ctx.db
     .query("storageReferenceLedger")
-    .withIndex("by_source_document", (q) => q.eq("source", args.source).eq("documentId", args.documentId))
-    .take(STORAGE_REFERENCE_SOURCE_TOTAL_LIMITS[args.source] + 1);
+    .withIndex("by_source_document", (q) => q.eq("source", source).eq("documentId", documentId))
+    .take(limit + 1);
+  if (rows.length > limit) throw new Error("STORAGE_REFERENCE_LEDGER_CORRUPT");
+  return rows;
+}
+
+/** Inserts the complete storage-reference snapshot for a newly inserted source document. */
+export async function insertDocumentStorageReferences(ctx: MutationCtx, args: DocumentReferencesArgs) {
+  const occurrences = completeOccurrences(args);
+  const existing = await readDocumentLedgerRows(ctx, args.source, args.documentId);
   if (existing.length !== 0) throw new Error("STORAGE_REFERENCE_LEDGER_ALREADY_EXISTS");
 
   const now = Date.now();
@@ -149,6 +161,54 @@ export async function insertDocumentStorageReferences(ctx: MutationCtx, args: Do
       updatedAt: now,
     });
   }
+}
+
+/** Preflights one historical snapshot without writing, for whole-page atomic validation. */
+export async function preflightBackfillDocumentStorageReferences(ctx: MutationCtx, args: DocumentReferencesArgs) {
+  const occurrences = completeOccurrences(args);
+  const existing = await readDocumentLedgerRows(ctx, args.source, args.documentId);
+  if (existing.length > 0) {
+    validateLedgerRows(existing, args.source, args.documentId, args.ownerId);
+    const existingByKey = new Map(existing.map((row) => [row.referenceKey, row]));
+    if (
+      existing.length !== occurrences.length ||
+      occurrences.some((occurrence) => existingByKey.get(occurrence.referenceKey)?.storageId !== occurrence.storageId)
+    ) {
+      throw new Error("STORAGE_REFERENCE_LEDGER_BACKFILL_CONFLICT");
+    }
+    return { args, occurrences, inserted: 0, replayed: true };
+  }
+  return { args, occurrences, inserted: occurrences.length, replayed: false };
+}
+
+/** Applies a previously preflighted historical snapshot in the same transaction. */
+export async function applyBackfilledDocumentStorageReferences(
+  ctx: MutationCtx,
+  prepared: Awaited<ReturnType<typeof preflightBackfillDocumentStorageReferences>>,
+) {
+  if (prepared.replayed) return { inserted: 0, replayed: true };
+  const now = Date.now();
+  await ensureCollectingState(ctx, now);
+  for (const occurrence of prepared.occurrences) {
+    await ctx.db.insert("storageReferenceLedger", {
+      ...occurrence,
+      source: prepared.args.source,
+      documentId: prepared.args.documentId,
+      ownerId: prepared.args.ownerId,
+      origin: "historical_backfill_v1",
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  return { inserted: prepared.occurrences.length, replayed: false };
+}
+
+/** Historical backfill is insert-only and exact-replay-safe. */
+export async function backfillDocumentStorageReferences(ctx: MutationCtx, args: DocumentReferencesArgs) {
+  return await applyBackfilledDocumentStorageReferences(
+    ctx,
+    await preflightBackfillDocumentStorageReferences(ctx, args),
+  );
 }
 
 /** Replaces only the storage field actually patched; unrelated historical fields remain untouched. */
