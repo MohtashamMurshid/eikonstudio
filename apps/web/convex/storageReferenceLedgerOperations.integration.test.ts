@@ -56,6 +56,12 @@ async function verificationSnapshot(t: Harness) {
     checkpoints: await ctx.db.query("storageReferenceLedgerVerificationCheckpoints").collect(),
     evidence: await ctx.db.query("storageReferenceLedgerVerificationEvidencePages").collect(),
     failures: await ctx.db.query("storageReferenceLedgerVerificationFailures").collect(),
+    commitments: await ctx.db
+      .query("storageReferenceLedgerVerificationFinalizationCommitments")
+      .collect(),
+    attestations: await ctx.db
+      .query("storageReferenceLedgerVerificationAttestations")
+      .collect(),
   }));
 }
 
@@ -139,9 +145,19 @@ describe("storage reference ledger operations", () => {
     "rejects noncanonical run key %j before mutation", async (runKey) => {
       const t = convexTest(schema, modules);
       await expect(t.action(advance, { runKey })).rejects.toThrow("INVALID_STORAGE_REFERENCE_LEDGER_OPERATION_RUN_KEY");
+      await expect(t.query(status, { runKey })).rejects.toThrow(
+        "INVALID_STORAGE_REFERENCE_LEDGER_OPERATION_RUN_KEY",
+      );
       expect(await t.run((ctx) => ctx.db.query("storageReferenceLedgerBackfillCheckpoints").collect())).toEqual([]);
     },
   );
+
+  it("accepts the maximum-length canonical run key", async () => {
+    const t = convexTest(schema, modules);
+    expect(
+      (await t.query(status, { runKey: "a".repeat(128) })).nextStep,
+    ).toEqual({ kind: "backfill_page", source: "generations" });
+  });
 
   it("fails closed on duplicate natural-key rows", async () => {
     const t = convexTest(schema, modules);

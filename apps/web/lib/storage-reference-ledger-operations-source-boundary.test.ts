@@ -12,13 +12,14 @@ describe("storage-reference ledger operations source boundary", () => {
     ]);
     expect(source).toContain("internalQuery({");
     expect(source).toContain("internalAction({");
-    expect(source).not.toMatch(/\b(query|mutation|action)\(\{/);
+    expect(source).not.toMatch(/(?<![A-Za-z])(query|mutation|action)\s*\(\s*\{/);
   });
 
   it("pins ordering, page size, run keys, and one status dispatch", () => {
     expect(source).toContain("const PAGE_SIZE = 16");
     expect(source).toContain("/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/");
     expect(source.match(/ctx\.runQuery\(/g)).toHaveLength(1);
+    expect(source.match(/ctx\.runMutation\(/g)).toHaveLength(5);
     expect(source).not.toMatch(/\b(for|while)\s*\([^)]*ctx\.runMutation/);
     expect(source.match(/pageSize: PAGE_SIZE/g)).toHaveLength(2);
   });

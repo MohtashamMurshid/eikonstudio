@@ -25,6 +25,8 @@ const SOURCES: readonly StorageReferenceSource[] = [
 ];
 const DIRECTIONS = ["source_to_ledger", "ledger_to_source"] as const;
 type Direction = (typeof DIRECTIONS)[number];
+const SOURCE_COUNT = SOURCES.length;
+const CHECKPOINT_COUNT = DIRECTIONS.length * SOURCE_COUNT;
 
 const SOURCE_TABLES = {
   generations: "generations",
@@ -165,7 +167,7 @@ async function verificationRun(ctx: QueryCtx, runKey: string) {
   const coordinates = [run.finalizationCheckpointOrdinal, run.finalizationPageOrdinal,
     run.finalizationBatchOrdinal];
   if (coordinates.some((n) => n !== undefined && !nonnegativeInteger(n)) ||
-      (run.finalizationCheckpointOrdinal !== undefined && run.finalizationCheckpointOrdinal > 10) ||
+      (run.finalizationCheckpointOrdinal !== undefined && run.finalizationCheckpointOrdinal > CHECKPOINT_COUNT) ||
       (run.finalizationPreviousFingerprint !== undefined && !FINGERPRINT.test(run.finalizationPreviousFingerprint)) ||
       (run.finalizationPreviousCommitmentFingerprint !== undefined && !FINGERPRINT.test(run.finalizationPreviousCommitmentFingerprint)))
     corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_RUN_CORRUPT");
@@ -176,10 +178,10 @@ async function verificationRun(ctx: QueryCtx, runKey: string) {
     corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_RUN_CORRUPT");
   if ((run.phase === "finalizing" || run.phase === "completed") &&
       finalizationValues.some((value) => value === undefined)) corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_RUN_CORRUPT");
-  if (run.phase === "finalizing" && run.finalizationCheckpointOrdinal === 10)
+  if (run.phase === "finalizing" && run.finalizationCheckpointOrdinal === CHECKPOINT_COUNT)
     corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_RUN_CORRUPT");
   if (run.phase === "completed" &&
-      (run.finalizationCheckpointOrdinal !== 10 || run.finalizationPageOrdinal !== 0))
+      (run.finalizationCheckpointOrdinal !== CHECKPOINT_COUNT || run.finalizationPageOrdinal !== 0))
     corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_RUN_CORRUPT");
   if (run.phase === "completed" && !finite(run.completedAt)) corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_RUN_CORRUPT");
   if (run.phase !== "completed" && run.completedAt !== undefined) corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_RUN_CORRUPT");
@@ -299,19 +301,19 @@ async function checkedVerificationState(ctx: QueryCtx, run: CheckedRun,
     .withIndex("by_run", (q) => q.eq("runId", run._id)).take(11);
   const storedCheckpoints = await ctx.db.query("storageReferenceLedgerVerificationCheckpoints")
     .withIndex("by_run_status", (q) => q.eq("runId", run._id)).take(11);
-  if (storedCheckpoints.length !== 10) corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_CHECKPOINT_CORRUPT");
+  if (storedCheckpoints.length !== CHECKPOINT_COUNT) corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_CHECKPOINT_CORRUPT");
   const scopeCount = storedScopes.length;
-  if (scopeCount !== 5 && scopeCount !== 10)
+  if (scopeCount !== SOURCE_COUNT && scopeCount !== CHECKPOINT_COUNT)
     corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_SCOPE_CORRUPT");
-  if (run.phase === "source_scan" && scopeCount !== 5)
+  if (run.phase === "source_scan" && scopeCount !== SOURCE_COUNT)
     corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_SCOPE_CORRUPT");
-  if (run.phase !== "source_scan" && run.phase !== "blocked" && scopeCount !== 10)
+  if (run.phase !== "source_scan" && run.phase !== "blocked" && scopeCount !== CHECKPOINT_COUNT)
     corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_SCOPE_CORRUPT");
 
   const summaries = [];
   for (const direction of DIRECTIONS) for (const sourceName of SOURCES) {
     const checkpoint = await verificationCheckpoint(ctx, run._id, direction, sourceName);
-    const scopeRow = direction === "source_to_ledger" || scopeCount === 10
+    const scopeRow = direction === "source_to_ledger" || scopeCount === CHECKPOINT_COUNT
       ? await scope(ctx, run._id, direction, sourceName) : undefined;
     if (direction === "source_to_ledger") {
       const backfill = backfills[SOURCES.indexOf(sourceName)];
@@ -327,12 +329,12 @@ async function checkedVerificationState(ctx: QueryCtx, run: CheckedRun,
   if ((run.phase === "finalizing" || run.phase === "completed") && summaries.some((row) => row.status !== "completed"))
     corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_CHECKPOINT_CORRUPT");
   if ((run.phase === "ledger_scan" || run.phase === "finalizing" || run.phase === "completed") &&
-      summaries.slice(0, 5).some((row) => row.status !== "completed"))
+      summaries.slice(0, SOURCE_COUNT).some((row) => row.status !== "completed"))
     corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_CHECKPOINT_CORRUPT");
   if (
     (run.phase === "source_scan" ||
       (run.phase === "blocked" && scopeCount === 5)) &&
-    summaries.slice(5).some(
+    summaries.slice(SOURCE_COUNT).some(
       (row) =>
         row.status !== "running" ||
         row.pagesCompleted !== 0 ||
@@ -343,8 +345,8 @@ async function checkedVerificationState(ctx: QueryCtx, run: CheckedRun,
   }
   if (
     run.phase === "blocked" &&
-    scopeCount === 10 &&
-    summaries.slice(0, 5).some((row) => row.status !== "completed")
+    scopeCount === CHECKPOINT_COUNT &&
+    summaries.slice(0, SOURCE_COUNT).some((row) => row.status !== "completed")
   ) {
     corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_CHECKPOINT_CORRUPT");
   }
@@ -353,7 +355,7 @@ async function checkedVerificationState(ctx: QueryCtx, run: CheckedRun,
     const checkpointOrdinal = run.finalizationCheckpointOrdinal!;
     const pageOrdinal = run.finalizationPageOrdinal!;
     const previousFingerprint = run.finalizationPreviousFingerprint!;
-    if (checkpointOrdinal === 10) {
+    if (checkpointOrdinal === CHECKPOINT_COUNT) {
       if (pageOrdinal !== 0 || previousFingerprint !== GENESIS_FINGERPRINT ||
           summaries.some((row) => row.status !== "completed"))
         corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_RUN_CORRUPT");
@@ -391,17 +393,19 @@ async function checkedVerificationState(ctx: QueryCtx, run: CheckedRun,
           byCheckpointPage,
           "STORAGE_REFERENCE_LEDGER_VERIFICATION_RUN_CORRUPT",
         );
+        if (!precedingEvidence) {
+          corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_RUN_CORRUPT");
+        }
         let recomputedFingerprint: string;
         try {
           recomputedFingerprint = __verificationTestOnly.canonicalHash([
-            precedingEvidence?.previousFingerprint,
-            JSON.parse(precedingEvidence?.payloadJson ?? ""),
+            precedingEvidence.previousFingerprint,
+            JSON.parse(precedingEvidence.payloadJson),
           ]);
         } catch {
           corrupt("STORAGE_REFERENCE_LEDGER_VERIFICATION_RUN_CORRUPT");
         }
         if (
-          !precedingEvidence ||
           precedingEvidence.evidenceKey !== evidenceKey ||
           precedingEvidence.runId !== run._id ||
           precedingEvidence.checkpointId !== checkpoint._id ||
