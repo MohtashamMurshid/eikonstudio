@@ -322,7 +322,8 @@ export default defineSchema({
     .index("by_reference_key", ["referenceKey"])
     .index("by_storage", ["storageId"])
     .index("by_source_document", ["source", "documentId"])
-    .index("by_source_document_field", ["source", "documentId", "field"]),
+    .index("by_source_document_field", ["source", "documentId", "field"])
+    .index("by_source_creation", ["source"]),
 
   storageReferenceLedgerState: defineTable({
     stateKey: v.literal("global"),
@@ -355,6 +356,138 @@ export default defineSchema({
     .index("by_checkpoint_key", ["checkpointKey"])
     .index("by_source_version", ["source", "version"]),
 
+  storageReferenceLedgerVerificationRuns: defineTable({
+    runKey: v.string(),
+    version: v.literal("source_ledger_verification_v1"),
+    contractFingerprint: v.string(),
+    phase: v.union(
+      v.literal("source_scan"),
+      v.literal("ledger_cutoff"),
+      v.literal("ledger_scan"),
+      v.literal("finalizing"),
+      v.literal("completed"),
+      v.literal("blocked"),
+    ),
+    startedAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    finalizationCheckpointOrdinal: v.optional(v.number()),
+    finalizationPageOrdinal: v.optional(v.number()),
+    finalizationPreviousFingerprint: v.optional(v.string()),
+    finalizationBatchOrdinal: v.optional(v.number()),
+    finalizationPreviousCommitmentFingerprint: v.optional(v.string()),
+    authoritative: v.literal(false),
+    physicalDeletionEnabled: v.literal(false),
+  })
+    .index("by_run_key", ["runKey"])
+    .index("by_version_run_key", ["version", "runKey"])
+    .index("by_status", ["phase"]),
+
+  storageReferenceLedgerVerificationScopes: defineTable({
+    scopeKey: v.string(),
+    runId: v.id("storageReferenceLedgerVerificationRuns"),
+    direction: v.union(v.literal("source_to_ledger"), v.literal("ledger_to_source")),
+    source: storageReferenceSourceValidator,
+    sourceTable: v.string(),
+    empty: v.boolean(),
+    cutoffDocumentId: v.optional(v.string()),
+    cutoffCreationTime: v.optional(v.number()),
+    backfillCheckpointId: v.optional(v.id("storageReferenceLedgerBackfillCheckpoints")),
+    backfillVersion: v.optional(v.literal("historical_backfill_v1")),
+    backfillCompletedAt: v.optional(v.number()),
+  })
+    .index("by_scope_key", ["scopeKey"])
+    .index("by_run_direction_source", ["runId", "direction", "source"])
+    .index("by_run", ["runId"]),
+
+  storageReferenceLedgerVerificationCheckpoints: defineTable({
+    checkpointKey: v.string(),
+    runId: v.id("storageReferenceLedgerVerificationRuns"),
+    direction: v.union(v.literal("source_to_ledger"), v.literal("ledger_to_source")),
+    source: storageReferenceSourceValidator,
+    status: v.union(v.literal("running"), v.literal("completed"), v.literal("blocked")),
+    cursor: v.optional(v.string()),
+    nextPageOrdinal: v.number(),
+    previousPageFingerprint: v.string(),
+    pagesCompleted: v.number(),
+    rowsScanned: v.number(),
+    documentsCompared: v.number(),
+    blockedCode: v.optional(v.string()),
+    blockedDocumentId: v.optional(v.string()),
+    blockedLedgerRowId: v.optional(v.string()),
+    startedAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_checkpoint_key", ["checkpointKey"])
+    .index("by_run_direction_source", ["runId", "direction", "source"])
+    .index("by_run_status", ["runId", "status"]),
+
+  storageReferenceLedgerVerificationEvidencePages: defineTable({
+    evidenceKey: v.string(),
+    runId: v.id("storageReferenceLedgerVerificationRuns"),
+    checkpointId: v.id("storageReferenceLedgerVerificationCheckpoints"),
+    direction: v.union(v.literal("source_to_ledger"), v.literal("ledger_to_source")),
+    source: storageReferenceSourceValidator,
+    pageOrdinal: v.number(),
+    previousFingerprint: v.string(),
+    pageFingerprint: v.string(),
+    payloadJson: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_evidence_key", ["evidenceKey"])
+    .index("by_checkpoint_page", ["checkpointId", "pageOrdinal"])
+    .index("by_run", ["runId"]),
+
+  storageReferenceLedgerVerificationFinalizationCommitments: defineTable({
+    batchKey: v.string(),
+    runId: v.id("storageReferenceLedgerVerificationRuns"),
+    batchOrdinal: v.number(),
+    startCheckpointOrdinal: v.number(),
+    startPageOrdinal: v.number(),
+    endCheckpointOrdinal: v.number(),
+    endPageOrdinal: v.number(),
+    previousFingerprint: v.string(),
+    endFingerprint: v.string(),
+    batchFingerprint: v.string(),
+    evidencePageFingerprints: v.array(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_batch_key", ["batchKey"])
+    .index("by_run_batch", ["runId", "batchOrdinal"]),
+
+  storageReferenceLedgerVerificationFailures: defineTable({
+    failureKey: v.string(),
+    runId: v.id("storageReferenceLedgerVerificationRuns"),
+    checkpointId: v.id("storageReferenceLedgerVerificationCheckpoints"),
+    pageOrdinal: v.number(),
+    code: v.string(),
+    documentId: v.optional(v.string()),
+    ledgerRowId: v.optional(v.string()),
+    expectedFingerprint: v.optional(v.string()),
+    actualFingerprint: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_failure_key", ["failureKey"])
+    .index("by_checkpoint_page", ["checkpointId", "pageOrdinal"])
+    .index("by_run", ["runId"]),
+
+  storageReferenceLedgerVerificationAttestations: defineTable({
+    attestationKey: v.string(),
+    runId: v.id("storageReferenceLedgerVerificationRuns"),
+    attestationKind: v.literal("observed_pairs_passed"),
+    result: v.literal("passed"),
+    contractFingerprint: v.string(),
+    checkpointFingerprints: v.array(v.string()),
+    scopeManifestJson: v.string(),
+    manifestFingerprint: v.string(),
+    createdAt: v.number(),
+    authoritative: v.literal(false),
+    physicalDeletionEnabled: v.literal(false),
+  })
+    .index("by_attestation_key", ["attestationKey"])
+    .index("by_run", ["runId"]),
+
   // Video generations
   videoGenerations: defineTable({
     userId: v.string(),
@@ -378,4 +511,3 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_created", ["userId", "createdAt"]),
 });
-
