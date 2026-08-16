@@ -788,7 +788,7 @@ describe("resumable storage-reference ledger verification", () => {
     ).toBe("d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592");
   });
 
-  it("excludes later equal-timestamp rows at the inclusive terminal ID", () => {
+  it("uses cursor order for equal-time terminal rows and stays conservative when the terminal is deleted", () => {
     const rows = [
       { _id: "a", _creationTime: 10 },
       { _id: "b", _creationTime: 10 },
@@ -803,7 +803,7 @@ describe("resumable storage-reference ledger verification", () => {
         10,
         "b",
       ),
-    ).toEqual({ rows: [rows[0]], reachedTerminal: true });
+    ).toEqual({ rows: [rows[0], rows[2]], reachedTerminal: false });
   });
 
   it("rejects duplicate and incomplete backfill checkpoints", async () => {

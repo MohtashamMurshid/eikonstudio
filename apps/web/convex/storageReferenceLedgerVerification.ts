@@ -236,16 +236,15 @@ function inclusiveTerminalRows<T extends { _id: string; _creationTime: number }>
   cutoffDocumentId: string,
 ): { rows: T[]; reachedTerminal: boolean } {
   const terminalIndex = rows.findIndex((row) => row._id === cutoffDocumentId);
+  if (terminalIndex >= 0) {
+    return { rows: rows.slice(0, terminalIndex + 1), reachedTerminal: true };
+  }
   const bounded = rows.filter(
-    (row, index) =>
-      (row._creationTime < cutoffCreationTime ||
-        (row._creationTime === cutoffCreationTime &&
-          row._id <= cutoffDocumentId)) &&
-      (terminalIndex < 0 || index <= terminalIndex),
+    (row) => row._creationTime <= cutoffCreationTime,
   );
   return {
     rows: bounded,
-    reachedTerminal: terminalIndex >= 0 || bounded.length !== rows.length,
+    reachedTerminal: bounded.length !== rows.length,
   };
 }
 
@@ -696,7 +695,6 @@ async function readDocumentLedgerRows(
   source: StorageReferenceSource,
   documentId: string,
   cutoffCreationTime?: number,
-  cutoffLedgerRowId?: string,
 ): Promise<LedgerRow[]> {
   const limit = STORAGE_REFERENCE_SOURCE_TOTAL_LIMITS[source];
   const query = ctx.db
@@ -709,13 +707,7 @@ async function readDocumentLedgerRows(
       ? await query.take(limit + 1)
       : await query
           .filter((builder) =>
-            builder.or(
-              builder.lt(builder.field("_creationTime"), cutoffCreationTime),
-              builder.and(
-                builder.eq(builder.field("_creationTime"), cutoffCreationTime),
-                builder.lte(builder.field("_id"), cutoffLedgerRowId!),
-              ),
-            ),
+            builder.lte(builder.field("_creationTime"), cutoffCreationTime),
           )
           .take(limit + 1);
   if (rows.length > limit)
@@ -1131,7 +1123,6 @@ export const runStorageReferenceLedgerVerificationPage = internalMutation({
             args.source,
             seed.documentId,
             scope.cutoffCreationTime,
-            scope.cutoffDocumentId,
           );
           const comparison = compareDocument(args.source, document, ledgerRows);
           observed.push([
