@@ -286,6 +286,20 @@ Expected existing warnings remain:
 3. Regenerate Convex bindings against a configured deployment before release.
 4. Keep video and additional provider transports out of scope until this cutover is accepted.
 
+## Independent storage-reference ledger verification milestone
+
+- Added an internal-only, resumable `source_ledger_verification_v1` coordinator over all five physical sources and all 11 declared storage-reference fields.
+- Initialization requires exactly one completed `historical_backfill_v1` checkpoint per source and atomically captures immutable inclusive source cutoffs; five ledger cutoffs are captured only after every source-direction checkpoint completes.
+- Added ten independently resumable scan checkpoints, bounded resumable finalization progress, immutable scope bindings, append-only canonical evidence pages and failures, append-only chained finalization batch commitments (at most 16 evidence pages each), and one immutable `observed_pairs_passed` attestation. Every returned/persisted authority and physical-deletion flag remains literal `false`.
+- Verification compares exact occurrence identities and values, preserving duplicate array entries and positions, validates bounded cardinality/fields/origins/timestamps/keys/contiguity, and detects ledger-only or wrong-table source identities.
+- Added a bounded ledger source-creation sweep index and enforced a maximum page size of 16 with whole-page preflight before evidence/checkpoint writes.
+- Evidence uses deterministic ordered-array serialization and a pinned pure-TypeScript SHA-256 chain; finalization replays at most 16 evidence pages per mutation across all ten chains and refuses incomplete or tampered manifests.
+- Application-level append-only enforcement for evidence pages and finalization commitments is the trust boundary for this non-authoritative evidence model. Direct, out-of-band database mutation is outside the model and is not claimed to be detected or prevented.
+- Source and ledger directions are intentionally separate bounded observations, not a global point-in-time snapshot: they compare the exact pairs observed in each page, are explicitly non-authoritative, and may become stale immediately.
+- The slice does not write source rows, ledger rows, backfill checkpoints, readiness state, or storage; it exposes no public functions, scheduling/provider calls, promotion/reset/orphan/deletion APIs, or storage deletion capability.
+- Added convex-test coverage for multipage bidirectional completion, ten scopes/checkpoints, immutable observed-pair attestation, ledger-only detection, append-only failure recording, exact offending-row identity, equal-time cutoff ties, bounded multi-call finalization, commitment corruption, completed replay reconstruction, SHA-256 vectors, and failure atomicity, plus static source-boundary coverage for internal exposure, bounded scans, all sources/fields, immutability, SHA-256, and forbidden capabilities.
+- Full verification passed **182/182 tests**: 39 core, 9 providers, and 134 web; typecheck passed 4/4 and `git diff --check` passed. Iterative specialist and context-aware adversarial reviews were dispositioned before commit.
+
 ## Phase roadmap
 
 - [x] Phase 0 monorepo migration merged via PR #10 (`088a53f`)
