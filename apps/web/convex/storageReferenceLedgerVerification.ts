@@ -781,13 +781,14 @@ function compareDocument(
     ]);
   }
   for (const [field, positions] of positionsByField) {
-    if (
-      positions
-        .sort((left, right) => left - right)
-        .some((position, index) => position !== index)
-    ) {
+    const sortedPositions = [...positions].sort((left, right) => left - right);
+    const gapIndex = sortedPositions.findIndex(
+      (position, index) => position !== index,
+    );
+    if (gapIndex >= 0) {
+      const offendingPosition = sortedPositions[gapIndex];
       const offending = ledgerRows.find(
-        (row) => row.field === field && row.position !== 0,
+        (row) => row.field === field && row.position === offendingPosition,
       );
       comparisonError(
         "LEDGER_POSITION_GAP",
@@ -1380,9 +1381,11 @@ async function readAndValidatePriorCommitment(
     commitment.endPageOrdinal !== (run.finalizationPageOrdinal ?? 0) ||
     commitment.endFingerprint !==
       (run.finalizationPreviousFingerprint ?? GENESIS_FINGERPRINT) ||
-    commitment.evidencePageFingerprints.length < 1 ||
     commitment.evidencePageFingerprints.length >
       MAX_FINALIZATION_EVIDENCE_PAGES ||
+    (commitment.evidencePageFingerprints.length === 0 &&
+      commitment.startCheckpointOrdinal === commitment.endCheckpointOrdinal &&
+      commitment.startPageOrdinal === commitment.endPageOrdinal) ||
     commitment.batchFingerprint !==
       finalizationBatchFingerprint(commitment)
   ) {
@@ -1605,7 +1608,10 @@ export const finalizeStorageReferenceLedgerVerification = internalMutation({
     const now = Date.now();
     let nextBatchOrdinal = batchOrdinal;
     let nextCommitmentFingerprint = previousCommitmentFingerprint;
-    if (evidencePageFingerprints.length > 0) {
+    const advancedCoordinates =
+      startCheckpointOrdinal !== checkpointOrdinal ||
+      startPageOrdinal !== pageOrdinal;
+    if (evidencePageFingerprints.length > 0 || advancedCoordinates) {
       const batchKey = `${run._id}:${batchOrdinal}`;
       const byKey = await ctx.db
         .query("storageReferenceLedgerVerificationFinalizationCommitments")

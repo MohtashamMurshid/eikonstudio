@@ -236,7 +236,7 @@ describe("resumable storage-reference ledger verification", () => {
   it("bounds finalization to 16 evidence pages per call and completes across calls", async () => {
     const t = convexTest(schema, modules);
     await prerequisites(t);
-    await seedCharacterPairs(t, 18);
+    await seedCharacterPairs(t, 16);
     await t.mutation(init, { runKey: "bounded-finalize" });
     await drainWithPageSize(t, "bounded-finalize", "source_to_ledger", 1);
     await t.mutation(cutoffs, { runKey: "bounded-finalize" });
@@ -711,6 +711,66 @@ describe("resumable storage-reference ledger verification", () => {
     ).toMatchObject({
       documentId: "missing-character",
       ledgerRowId: ledgerRowIds[1],
+    });
+  });
+
+  it("identifies the exact row that creates a multi-position gap", async () => {
+    const t = convexTest(schema, modules);
+    await prerequisites(t);
+    const storageIds = await t.run(async (ctx) => [
+      await ctx.storage.store(new Blob(["a"])),
+      await ctx.storage.store(new Blob(["b"])),
+      await ctx.storage.store(new Blob(["c"])),
+      await ctx.storage.store(new Blob(["d"])),
+    ] as const);
+    const fixture = await t.run(async (ctx) => {
+      const documentId = await ctx.db.insert("generations", {
+        userId: "owner",
+        prompt: "gap",
+        mode: "image-editing",
+        aspectRatio: "1:1",
+        imageSize: "1K",
+        createdAt: 1,
+        referenceImageIds: [...storageIds],
+      });
+      const rowIds: string[] = [];
+      for (const position of [0, 1, 3]) {
+        rowIds[position] = await ctx.db.insert("storageReferenceLedger", {
+          referenceKey: JSON.stringify([
+            "generations",
+            documentId,
+            "referenceImageIds",
+            position,
+          ]),
+          storageId: storageIds[position],
+          source: "generations",
+          documentId,
+          field: "referenceImageIds",
+          position,
+          ownerId: "owner",
+          origin: "historical_backfill_v1",
+          createdAt: 1,
+          updatedAt: 1,
+        });
+      }
+      return { documentId, gapRowId: rowIds[3] };
+    });
+    await t.mutation(init, { runKey: "position-gap" });
+    expect(
+      await t.mutation(page, {
+        runKey: "position-gap",
+        direction: "source_to_ledger",
+        source: "generations",
+        pageSize: 16,
+      }),
+    ).toMatchObject({ status: "blocked", code: "LEDGER_POSITION_GAP" });
+    expect(
+      await t.run((ctx) =>
+        ctx.db.query("storageReferenceLedgerVerificationFailures").unique(),
+      ),
+    ).toMatchObject({
+      documentId: fixture.documentId,
+      ledgerRowId: fixture.gapRowId,
     });
   });
 

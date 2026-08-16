@@ -298,7 +298,7 @@ Expected existing warnings remain:
 - Source and ledger directions are intentionally separate bounded observations, not a global point-in-time snapshot: they compare the exact pairs observed in each page, are explicitly non-authoritative, and may become stale immediately.
 - The slice does not write source rows, ledger rows, backfill checkpoints, readiness state, or storage; it exposes no public functions, scheduling/provider calls, promotion/reset/orphan/deletion APIs, or storage deletion capability.
 - Added convex-test coverage for multipage bidirectional completion, ten scopes/checkpoints, immutable observed-pair attestation, ledger-only detection, append-only failure recording, exact offending-row identity, equal-time cutoff ties, bounded multi-call finalization, commitment corruption, completed replay reconstruction, SHA-256 vectors, and failure atomicity, plus static source-boundary coverage for internal exposure, bounded scans, all sources/fields, immutability, SHA-256, and forbidden capabilities.
-- Full verification passed **182/182 tests**: 39 core, 9 providers, and 134 web; typecheck passed 4/4 and `git diff --check` passed. Iterative specialist and context-aware adversarial reviews were dispositioned before commit.
+- Full verification passed **183/183 tests**: 39 core, 9 providers, and 135 web; typecheck passed 4/4 and `git diff --check` passed. Iterative specialist and context-aware adversarial reviews were dispositioned before commit.
 
 ## Phase roadmap
 
