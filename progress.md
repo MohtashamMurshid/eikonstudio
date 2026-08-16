@@ -2,6 +2,15 @@
 
 _Last updated: August 2, 2026_
 
+## Audited internal ledger operations control plane — August 16, 2026
+
+- Added an internal-only aggregate status query and explicit one-step advancement action for the storage-reference ledger backfill and verification workflow.
+- Pinned canonical source/direction ordering, the 16-row page size, and canonical caller-supplied run keys; the action reads status once and invokes zero or one existing mutation.
+- Added bounded dual-index uniqueness sentinels and fail-closed validation for checkpoint, run, scope, counter, fingerprint, cutoff, blocked-state, and finalization-coordinate metadata.
+- Preserved literal-false authority and physical-deletion fields in every status and advancement result. No public endpoint, storage/provider access, scheduler, reset, repair, promotion, classification, or deletion capability was added.
+- Added `convex-test` integration coverage and static source-boundary tests for ordering, one-step dispatch, blocked 5/10-scope no-op behavior, initialization/resume/cutoff behavior, exact run-key rejection, independent keys, duplicate corruption, phase/checkpoint invariants, resumable mid-checkpoint finalization, commitment/evidence validation, exact page-result unions, and prohibited capabilities.
+- Full verification passed **209/209 tests**: 39 core, 9 providers, and 161 web; typecheck passed 4/4, lint passed with 0 errors and the existing 30-warning baseline, the placeholder production build produced 22 routes, and `git diff --check` passed. Specialist and iterative context-aware adversarial reviews were dispositioned before commit.
+
 This document records implementation progress against [`PRD.md`](./PRD.md) so work can resume safely across development sessions.
 
 ## Current delivery state
