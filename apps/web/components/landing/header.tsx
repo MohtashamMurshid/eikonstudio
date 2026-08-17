@@ -8,11 +8,11 @@ import { LogoIcon } from "@/components/logo-icon";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const navigation = [
-  ["Workbench", "/studio"],
-  ["Models", "/models"],
-  ["Capabilities", "/#capabilities"],
+  ["Features", "/#features"],
   ["Process", "/#process"],
+  ["Models", "/models"],
   ["API", "/api-docs"],
+  ["About", "/#about"],
 ] as const;
 
 export function LandingHeader() {
@@ -21,55 +21,52 @@ export function LandingHeader() {
 
   return (
     <header
-      className="relative z-50 border-b border-foreground/10 bg-background/95"
+      className="landing-header landing-border relative z-50 border-b backdrop-blur-md"
       onKeyDown={(event) => {
         if (event.key === "Escape") setMenuOpen(false);
       }}
     >
-      <div className="grid h-11 grid-cols-[1fr_auto] items-stretch lg:grid-cols-[1.2fr_2fr_1.2fr]">
+      <div className="mx-auto grid h-[60px] max-w-[1540px] grid-cols-[1fr_auto] items-stretch px-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-10">
         <Link
           href="/"
-          className="ui-pressable flex items-center gap-2.5 px-4 sm:px-6"
+          className="ui-pressable flex items-center gap-2.5"
           aria-label="Eikon home"
         >
-          <span className="flex size-6 items-center justify-center bg-foreground text-background">
-            <LogoIcon className="size-3.5" strokeWidth={2} />
+          <span className="landing-inverse flex size-7 items-center justify-center rounded-full">
+            <LogoIcon className="size-4" strokeWidth={2} />
           </span>
-          <span className="text-[13px] font-semibold tracking-[-0.02em]">Eikon</span>
-          <span className="hidden text-[8px] uppercase tracking-[0.2em] text-foreground/35 sm:inline">
-            Studio v1.0
-          </span>
+          <span className="font-sans text-[19px] font-semibold tracking-[-0.055em]">eikon</span>
         </Link>
 
         <nav
-          className="hidden items-stretch justify-center border-x border-foreground/10 lg:flex"
+          className="hidden items-center justify-center gap-9 lg:flex"
           aria-label="Primary navigation"
         >
           {navigation.map(([label, href]) => (
             <Link
               key={label}
               href={href}
-              className="ui-pressable flex items-center border-r border-foreground/10 px-6 text-[9px] uppercase tracking-[0.16em] text-foreground/55 first:border-l hover:bg-foreground/[0.035] hover:text-foreground"
+              className="ui-pressable landing-muted font-sans text-[12px] font-medium tracking-[-0.02em] hover:text-[var(--landing-ink)]"
             >
               {label}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-stretch justify-end">
-          <div className="flex items-center border-l border-foreground/10 px-1.5">
+        <div className="flex items-center justify-end gap-1.5">
+          <div className="landing-theme-toggle">
             <ThemeToggle />
           </div>
           <Link
             href={isAuthenticated ? "/studio" : "/auth"}
-            className="ui-pressable hidden items-center gap-2 border-l border-foreground/10 bg-foreground px-5 text-[9px] font-medium uppercase tracking-[0.14em] text-background hover:opacity-85 sm:flex"
+            className="ui-pressable landing-soft hidden h-10 items-center gap-2 rounded-full px-5 font-sans text-[12px] font-semibold tracking-[-0.025em] sm:flex"
           >
             {isAuthenticated ? "Open studio" : "Start creating"}
             <ArrowUpRight className="size-3" strokeWidth={1.5} />
           </Link>
           <button
             type="button"
-            className="ui-pressable flex items-center border-l border-foreground/10 px-4 lg:hidden"
+            className="ui-pressable landing-border ml-1 flex size-10 items-center justify-center rounded-full border lg:hidden"
             aria-label={menuOpen ? "Close navigation" : "Open navigation"}
             aria-expanded={menuOpen}
             aria-controls="landing-mobile-nav"
@@ -87,7 +84,7 @@ export function LandingHeader() {
       {menuOpen && (
         <nav
           id="landing-mobile-nav"
-          className="absolute inset-x-0 top-full grid grid-cols-2 border-b border-foreground/10 bg-background shadow-[0_18px_40px_rgba(0,0,0,0.12)] sm:grid-cols-5 lg:hidden"
+          className="landing-header landing-border absolute inset-x-0 top-full grid grid-cols-2 border-y p-3 shadow-[0_18px_40px_rgba(0,0,0,0.12)] sm:grid-cols-5 lg:hidden"
           aria-label="Compact navigation"
         >
           {navigation.map(([label, href]) => (
@@ -95,7 +92,7 @@ export function LandingHeader() {
               key={label}
               href={href}
               onClick={() => setMenuOpen(false)}
-              className="ui-pressable flex h-12 items-center justify-between border-r border-t border-foreground/10 px-5 text-[8px] uppercase tracking-[0.16em] text-foreground/55 hover:bg-foreground/[0.035] hover:text-foreground"
+              className="ui-pressable landing-muted flex h-12 items-center justify-between rounded-md px-4 font-sans text-[12px] font-medium hover:bg-[var(--landing-soft)] hover:text-[var(--landing-ink)]"
             >
               {label}
               <ArrowUpRight className="size-3" strokeWidth={1.5} />

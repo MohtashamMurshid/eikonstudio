@@ -52,7 +52,11 @@ export default async function RootLayout({
   const initialToken = await getToken()
 
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
       <body className="font-mono antialiased">
         <ThemeProvider
           attribute="class"
