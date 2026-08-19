@@ -1,26 +1,25 @@
 "use client";
 
-import type { ModelCatalogEntry } from "@eikonstudio/core";
-import { ArrowUpRight, Search, SlidersHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { MODEL_FAMILY_REGISTRY, type ModelCatalogEntry, type ProviderId } from "@eikonstudio/core";
+import { ArrowUpRight, Search } from "lucide-react";
+import { startTransition, useMemo, useState, type ReactNode } from "react";
 
-const PROVIDER_LABELS = {
+import { PROVIDER_META, ProviderLogo } from "@/components/models/provider-logo";
+import { cn } from "@/lib/utils";
+
+const PROVIDERS = Object.keys(PROVIDER_META) as ProviderId[];
+const CHIP_LABELS = {
   openai: "OpenAI",
   google: "Google",
-  bfl: "Black Forest Labs",
+  bfl: "BFL",
   byteplus: "BytePlus",
-  kling: "Kling AI",
+  kling: "Kling",
   xai: "xAI",
-} as const;
+} as const satisfies Record<ProviderId, string>;
 
-const lifecycleClasses = {
-  active: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  preview: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  deprecated: "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300",
-  uncertain: "border-foreground/20 bg-foreground/5 text-foreground/60",
-} as const;
-
-const selectClass = "h-10 border border-foreground/15 bg-background px-3 text-[10px] uppercase tracking-[0.12em] text-foreground outline-none focus:border-foreground/50";
+const chipClass = "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[12px] transition-colors";
+const chipIdle = "border-foreground/10 text-foreground/55 hover:border-foreground/20 hover:text-foreground";
+const chipActive = "border-foreground/80 bg-foreground text-background";
 
 export function ModelCatalog({ models }: { models: readonly ModelCatalogEntry[] }) {
   const [query, setQuery] = useState("");
@@ -43,103 +42,145 @@ export function ModelCatalog({ models }: { models: readonly ModelCatalogEntry[] 
 
   return (
     <section aria-labelledby="catalog-heading">
-      <div className="sticky top-0 z-20 border-y border-foreground/10 bg-background/95 backdrop-blur-xl">
-        <div className="mx-auto grid max-w-[1500px] gap-px bg-foreground/10 sm:grid-cols-2 xl:grid-cols-[1.6fr_repeat(3,0.7fr)_auto]">
-          <label className="relative flex items-center bg-background">
-            <Search className="absolute left-4 size-3.5 text-foreground/40" strokeWidth={1.5} />
-            <span className="sr-only">Search models</span>
+      <h2 id="catalog-heading" className="sr-only">Model variants</h2>
+
+      <div className="sticky top-0 z-20 border-y border-foreground/8 bg-background/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1400px] flex-col gap-3 px-5 py-3 sm:px-8">
+          <div className="relative flex items-center">
+            <Search className="pointer-events-none absolute left-0 size-3.5 text-foreground/35" strokeWidth={1.75} />
+            <label className="sr-only" htmlFor="model-search">Search models</label>
             <input
+              id="model-search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search name, ID, family, or task"
-              className="h-12 w-full bg-transparent pl-11 pr-4 text-xs outline-none placeholder:text-foreground/35"
+              onChange={(event) => {
+                const next = event.target.value;
+                startTransition(() => setQuery(next));
+              }}
+              placeholder="Search models"
+              className="h-9 w-full bg-transparent pl-7 pr-16 text-[13px] outline-none placeholder:text-foreground/35"
             />
-          </label>
-          <select aria-label="Filter by provider" value={provider} onChange={(event) => setProvider(event.target.value)} className={selectClass}>
-            <option value="all">All providers</option>
-            {Object.entries(PROVIDER_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-          </select>
-          <select aria-label="Filter by media" value={media} onChange={(event) => setMedia(event.target.value)} className={selectClass}>
-            <option value="all">Image + video</option>
-            <option value="image">Image</option>
-            <option value="video">Video</option>
-          </select>
-          <select aria-label="Filter by Eikon readiness" value={readiness} onChange={(event) => setReadiness(event.target.value)} className={selectClass}>
-            <option value="all">All readiness</option>
-            <option value="ready">Eikon ready</option>
-            <option value="discovered">Discovered</option>
-            <option value="deprecated">Deprecated</option>
-          </select>
-          <div className="flex h-12 items-center gap-2 bg-background px-4 text-[9px] uppercase tracking-[0.14em] text-foreground/45 sm:col-span-2 xl:col-span-1">
-            <SlidersHorizontal className="size-3" strokeWidth={1.5} />
-            {filteredModels.length} / {models.length}
+            <span className="pointer-events-none absolute right-0 text-[11px] tabular-nums text-foreground/35">
+              {filteredModels.length}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {PROVIDERS.map((id) => (
+              <FilterChip key={id} active={provider === id} onClick={() => setProvider(provider === id ? "all" : id)}>
+                <ProviderLogo providerId={id} className="size-3.5" />
+                {CHIP_LABELS[id]}
+              </FilterChip>
+            ))}
+            <span className="mx-1 hidden h-3.5 w-px bg-foreground/10 sm:block" />
+            <FilterChip active={media === "image"} onClick={() => setMedia(media === "image" ? "all" : "image")}>Image</FilterChip>
+            <FilterChip active={media === "video"} onClick={() => setMedia(media === "video" ? "all" : "video")}>Video</FilterChip>
+            <span className="mx-1 hidden h-3.5 w-px bg-foreground/10 sm:block" />
+            <FilterChip active={readiness === "ready"} onClick={() => setReadiness(readiness === "ready" ? "all" : "ready")}>Ready</FilterChip>
+            <FilterChip active={readiness === "discovered"} onClick={() => setReadiness(readiness === "discovered" ? "all" : "discovered")}>Cataloged</FilterChip>
+            <FilterChip active={readiness === "deprecated"} onClick={() => setReadiness(readiness === "deprecated" ? "all" : "deprecated")}>Deprecated</FilterChip>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1500px] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        <h2 id="catalog-heading" className="sr-only">Model variants</h2>
+      <div className="mx-auto max-w-[1400px] overflow-x-auto px-5 sm:px-8">
         {filteredModels.length ? (
-          <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-            {filteredModels.map((model, index) => (
-              <article key={model.id} className="group flex min-h-[300px] flex-col border border-foreground/12 bg-card/50 transition-colors hover:border-foreground/30 hover:bg-card">
-                <div className="flex items-start justify-between gap-4 border-b border-foreground/10 p-5">
-                  <div className="min-w-0">
-                    <p className="mb-3 text-[8px] uppercase tracking-[0.18em] text-foreground/40">
-                      {String(index + 1).padStart(2, "0")} / {PROVIDER_LABELS[model.providerId]}
-                    </p>
-                    <h3 className="text-xl font-medium tracking-[-0.035em] text-foreground">{model.displayName}</h3>
-                    {model.aliases.length > 0 && <p className="mt-1 text-xs text-foreground/50">{model.aliases.join(" · ")}</p>}
-                  </div>
-                  <span className={`shrink-0 border px-2 py-1 text-[8px] uppercase tracking-[0.14em] ${lifecycleClasses[model.providerLifecycle]}`}>
-                    {model.providerLifecycle}
-                  </span>
-                </div>
-
-                <div className="flex flex-1 flex-col gap-5 p-5">
-                  <div>
-                    <p className="mb-1.5 text-[8px] uppercase tracking-[0.16em] text-foreground/35">Native ID</p>
-                    <code className="block break-all text-[11px] leading-relaxed text-foreground/75">{model.nativeId ?? "Not published"}</code>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-[10px]">
-                    <div>
-                      <p className="mb-1 text-[8px] uppercase tracking-[0.14em] text-foreground/35">Family</p>
-                      <p className="capitalize text-foreground/70">{model.familyId.replaceAll("-", " ")}</p>
-                    </div>
-                    <div>
-                      <p className="mb-1 text-[8px] uppercase tracking-[0.14em] text-foreground/35">Surface</p>
-                      <p className="text-foreground/70">{model.apiSurface}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {model.tasks.map((task) => <span key={task} className="border border-foreground/10 bg-foreground/[0.035] px-2 py-1 text-[8px] tracking-[0.04em] text-foreground/55">{task}</span>)}
-                  </div>
-
-                  <p className="text-[10px] leading-relaxed text-foreground/48">{model.availabilityNotes}</p>
-                </div>
-
-                <div className="flex items-stretch border-t border-foreground/10">
-                  <span className={`flex flex-1 items-center px-5 py-3 text-[8px] font-medium uppercase tracking-[0.15em] ${model.readiness === "ready" ? "text-emerald-600 dark:text-emerald-300" : "text-foreground/45"}`}>
-                    {model.readiness === "ready" ? "Eikon ready" : `${model.readiness} · not integrated`}
-                  </span>
-                  <a href={model.sourceUrl} target="_blank" rel="noopener noreferrer" className="ui-pressable flex items-center gap-2 border-l border-foreground/10 px-4 py-3 text-[8px] uppercase tracking-[0.14em] text-foreground/55 hover:bg-foreground/5 hover:text-foreground">
-                    Source <ArrowUpRight className="size-3" strokeWidth={1.5} />
-                  </a>
-                </div>
-              </article>
-            ))}
-          </div>
+          <table className="w-full min-w-[860px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-foreground/8 text-[10px] font-medium uppercase tracking-[0.14em] text-foreground/35">
+                <th className="py-3 pr-4 font-medium">Model</th>
+                <th className="py-3 pr-4 font-medium">Provider</th>
+                <th className="py-3 pr-4 font-medium">Family</th>
+                <th className="py-3 pr-4 font-medium">Media</th>
+                <th className="py-3 pr-4 font-medium">Lifecycle</th>
+                <th className="py-3 pr-4 font-medium">Eikon</th>
+                <th className="py-3 font-medium">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredModels.map((model) => (
+                <ModelRow key={model.id} model={model} />
+              ))}
+            </tbody>
+          </table>
         ) : (
-          <div className="flex min-h-80 items-center justify-center border border-dashed border-foreground/15 text-center">
+          <div className="flex min-h-72 items-center justify-center text-center">
             <div>
-              <p className="text-sm font-medium">No matching variants</p>
-              <button type="button" onClick={() => { setQuery(""); setProvider("all"); setMedia("all"); setReadiness("all"); }} className="mt-3 text-[9px] uppercase tracking-[0.15em] text-foreground/50 underline underline-offset-4 hover:text-foreground">Reset filters</button>
+              <p className="text-sm">No matching models</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setProvider("all");
+                  setMedia("all");
+                  setReadiness("all");
+                }}
+                className="mt-2 text-[12px] text-foreground/45 underline underline-offset-4 hover:text-foreground"
+              >
+                Reset filters
+              </button>
             </div>
           </div>
         )}
       </div>
     </section>
+  );
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button type="button" onClick={onClick} className={cn(chipClass, active ? chipActive : chipIdle)}>
+      {children}
+    </button>
+  );
+}
+
+function ModelRow({ model }: { model: ModelCatalogEntry }) {
+  const family = MODEL_FAMILY_REGISTRY[model.familyId];
+
+  return (
+    <tr
+      className="border-b border-foreground/[0.06] [contain-intrinsic-size:0_56px] [content-visibility:auto] hover:bg-foreground/[0.03]"
+      title={model.availabilityNotes}
+    >
+      <td className="py-3.5 pr-4 align-middle">
+        <p className="text-[13.5px] font-medium tracking-[-0.015em]">{model.displayName}</p>
+        <p className="mt-0.5 font-mono text-[11px] text-foreground/40">{model.nativeId ?? model.id}</p>
+      </td>
+      <td className="py-3.5 pr-4 align-middle">
+        <span className="inline-flex items-center gap-2 text-[13px] text-foreground/70">
+          <ProviderLogo providerId={model.providerId} className="size-3.5" />
+          {PROVIDER_META[model.providerId].label}
+        </span>
+      </td>
+      <td className="py-3.5 pr-4 align-middle text-[13px] text-foreground/60">{family.displayName}</td>
+      <td className="py-3.5 pr-4 align-middle text-[13px] capitalize text-foreground/60">{model.mediaTypes.join(" · ")}</td>
+      <td className="py-3.5 pr-4 align-middle text-[13px] capitalize text-foreground/55">{model.providerLifecycle}</td>
+      <td className="py-3.5 pr-4 align-middle text-[13px]">
+        {model.readiness === "ready" ? (
+          <span className="text-emerald-600 dark:text-emerald-400">Ready</span>
+        ) : (
+          <span className="text-foreground/35">{model.readiness === "deprecated" ? "Deprecated" : "—"}</span>
+        )}
+      </td>
+      <td className="py-3.5 align-middle">
+        <a
+          href={model.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-[12px] text-foreground/40 hover:text-foreground"
+        >
+          Docs
+          <ArrowUpRight className="size-3" strokeWidth={1.75} />
+        </a>
+      </td>
+    </tr>
   );
 }

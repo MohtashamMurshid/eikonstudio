@@ -1,12 +1,15 @@
+import type { ProviderId } from "@eikonstudio/core";
 import { CircleCheck } from "lucide-react";
 
-const providers = [
-  { name: "OpenAI", detail: "GPT Image · Sora" },
-  { name: "Google", detail: "Nano Banana · Veo" },
-  { name: "Black Forest Labs", detail: "FLUX" },
-  { name: "BytePlus", detail: "Seedream · Seedance" },
-  { name: "Kling AI", detail: "Kling" },
-  { name: "xAI", detail: "Grok Imagine" },
+import { PROVIDER_META, ProviderLogo } from "@/components/models/provider-logo";
+
+const providers: { id: ProviderId; detail: string }[] = [
+  { id: "openai", detail: "GPT Image · Sora" },
+  { id: "google", detail: "Nano Banana · Veo" },
+  { id: "bfl", detail: "FLUX" },
+  { id: "byteplus", detail: "Seedream · Seedance" },
+  { id: "kling", detail: "Kling" },
+  { id: "xai", detail: "Grok Imagine" },
 ];
 
 export function ProvidersStrip() {
@@ -26,9 +29,12 @@ export function ProvidersStrip() {
 
           <div className="scrollbar-hide flex gap-1.5 overflow-x-auto">
             {providers.map((provider) => (
-              <div key={provider.name} className="shrink-0 rounded-xl border border-foreground/[0.07] bg-muted/60 px-3.5 py-2.5">
-                <p className="font-sans text-[10px] font-semibold text-foreground/75">{provider.name}</p>
-                <p className="mt-0.5 font-sans text-[8px] text-foreground/35">{provider.detail}</p>
+              <div key={provider.id} className="flex shrink-0 items-center gap-2 rounded-xl border border-foreground/[0.07] bg-muted/60 px-3 py-2">
+                <ProviderLogo providerId={provider.id} variant="color" className="size-4" />
+                <div>
+                  <p className="font-sans text-[10px] font-semibold text-foreground/75">{PROVIDER_META[provider.id].label}</p>
+                  <p className="mt-0.5 font-sans text-[8px] text-foreground/35">{provider.detail}</p>
+                </div>
               </div>
             ))}
           </div>
