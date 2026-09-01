@@ -2,6 +2,18 @@
 
 _Last updated: August 2, 2026_
 
+## Audited first provider artifact: OpenAI GPT Image 2 text-to-image, September 1, 2026
+
+- Added the first network-capable `@eikonstudio/providers` adapter for synchronous `gpt-image-2` text-to-image generation. No Convex, route, schema, generated binding, deployment, or live-provider behavior changed.
+- Added a constructor-injected server credential broker. Plaintext credentials exist only inside its callback and are passed only to the SDK authorization header.
+- Extended the stable eleven-method adapter boundary with an explicit synchronous result carrying ephemeral image bytes. Durable asset creation remains outside the provider package.
+- Pinned the OpenAI SDK to the official API base URL with injected fetch, zero SDK retries, a bounded timeout, caller abort support, one PNG/base64 output, and native request IDs from `.withResponse()`. The injected transport bounds declared and chunked response bodies before SDK JSON parsing, cancels oversized streams, and maps overflow to a non-retryable validation failure.
+- Added fail-closed model, task, operation, schema, prompt, reference, and output-count validation before credential resolution. Malformed, empty, URL-based, oversized, or unidentified successful responses are rejected.
+- Added typed local failures for unsupported credential validation, cost estimation, polling, cancellation, output normalization, and webhook verification. These paths make no network request.
+- Normalized only allowlisted HTTP status and native error codes. Provider messages, bodies, headers, stacks, prompts, URLs, and credentials are excluded from public and private error envelopes. Retryability describes the failure only; the adapter never resubmits.
+- Added injected one-shot fetch coverage for exact URL, request JSON and authorization, secret confinement, exact output bytes and metadata, malformed responses, declared/chunked response bounds, preflight rejection, status/network/timeout/abort mappings, hostile-message redaction, and zero hidden retries.
+- Full verification passed **238/238 tests**: 39 core, 38 providers, and 161 web; typecheck passed 4/4, lint passed with 0 errors and 31 existing warnings, the placeholder production build produced 22 routes, and `git diff --check` passed. Specialist and iterative independent reviews were clean before commit.
+
 ## Audited internal ledger operations control plane — August 16, 2026
 
 - Added an internal-only aggregate status query and explicit one-step advancement action for the storage-reference ledger backfill and verification workflow.

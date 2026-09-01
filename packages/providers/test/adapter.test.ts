@@ -20,10 +20,9 @@ import {
   requireSubmissionCapability,
   safePublicProviderError,
   type AdapterContext,
-  type OpaqueCredentialResolver,
   type ProviderAdapter,
   type ProviderCredentialReference,
-  type ResolvedCredential,
+  type ServerCredentialBroker,
   type WebhookVerificationRequest,
 } from "../src/index.js";
 
@@ -71,9 +70,9 @@ const credential = { providerId: "openai", handle: CredentialHandleSchema.parse(
 const webhookHandle = WebhookHandleSchema.parse("webhook_123456789012");
 const context: AdapterContext = { credential, requestId: "eikon_req_123" };
 
-const resolver: OpaqueCredentialResolver = {
-  async withResolvedCredential(_handle, operation) {
-    return operation({} as ResolvedCredential);
+const resolver: ServerCredentialBroker = {
+  async withCredential(_reference, operation) {
+    return operation("fixture-secret");
   },
 };
 
@@ -129,8 +128,8 @@ function verifyFixtureWebhook(input: WebhookVerificationRequest) {
 
 const mockAdapter: ProviderAdapter = {
   providerId: "openai",
-  async validateCredentials(reference, opaqueResolver) {
-    return opaqueResolver.withResolvedCredential(reference.handle, async () => ({ valid: true, code: "valid", checkedAt: now } as const));
+  async validateCredentials(reference) {
+    return resolver.withCredential(reference, async () => ({ valid: true, code: "valid", checkedAt: now } as const));
   },
   async discoverModels() {
     return {
@@ -156,7 +155,7 @@ const mockAdapter: ProviderAdapter = {
     return { available: true, estimate } as const;
   },
   async submitGeneration() {
-    return { providerRequestId: "req_123", status: "processing", providerContext: redactedContext } as const;
+    return { delivery: "asynchronous", providerRequestId: "req_123", status: "processing", providerContext: redactedContext } as const;
   },
   async getGenerationStatus(providerRequestId) {
     return { providerRequestId, status: "processing", progress: 0.5, providerContext: redactedContext } as const;
@@ -188,7 +187,7 @@ describe("ProviderAdapter architecture and security contract", () => {
   });
 
   it("uses only opaque credential handles and resolves inside trusted validation", async () => {
-    const validation = await mockAdapter.validateCredentials(credential, resolver);
+    const validation = await mockAdapter.validateCredentials(credential);
     expect(validation).toEqual({ valid: true, code: "valid", checkedAt: now });
     expect(JSON.stringify({ credential, context, validation })).not.toMatch(/apiKey|token|plaintext|secret/i);
   });
