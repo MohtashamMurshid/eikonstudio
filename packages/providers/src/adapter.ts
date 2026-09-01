@@ -28,15 +28,9 @@ import {
 export const ProviderCredentialReferenceSchema = z.object({ providerId: ProviderIdSchema, handle: CredentialHandleSchema }).strict();
 export type ProviderCredentialReference = z.infer<typeof ProviderCredentialReferenceSchema>;
 
-/** Nominal server-only credential. It has no public fields or value-returning API. */
-declare const resolvedCredentialBrand: unique symbol;
-export interface ResolvedCredential {
-  readonly [resolvedCredentialBrand]: true;
-}
-
-/** Implemented in trusted server infrastructure; plaintext is never represented by adapter DTOs. */
-export interface OpaqueCredentialResolver {
-  withResolvedCredential<T>(handle: CredentialHandle, operation: (credential: ResolvedCredential) => Promise<T>): Promise<T>;
+/** Implemented by trusted server infrastructure. Plaintext exists only for the callback's lifetime. */
+export interface ServerCredentialBroker {
+  withCredential<T>(reference: ProviderCredentialReference, use: (plaintext: string) => Promise<T>): Promise<T>;
 }
 
 export type CredentialValidationCode =
@@ -106,11 +100,27 @@ export type CostEstimate =
   | { readonly available: true; readonly estimate: SubmittedCostEstimate }
   | { readonly available: false; readonly reasonCode: "pricing-unavailable" | "unsupported-quantity" | "provider-unavailable" };
 
-export interface SubmissionResult {
-  readonly providerRequestId: string;
-  readonly status: GenerationStatus;
-  readonly providerContext?: RedactedProviderData;
+export interface EphemeralProviderAsset {
+  readonly mediaType: "image";
+  readonly contentType: string;
+  readonly bytes: Uint8Array;
+  readonly checksumSha256?: string;
 }
+
+export type SubmissionResult =
+  | {
+      readonly delivery: "synchronous";
+      readonly providerRequestId: string;
+      readonly status: "completed";
+      readonly outputs: readonly EphemeralProviderAsset[];
+      readonly providerContext?: RedactedProviderData;
+    }
+  | {
+      readonly delivery: "asynchronous";
+      readonly providerRequestId: string;
+      readonly status: GenerationStatus;
+      readonly providerContext?: RedactedProviderData;
+    };
 
 export interface GenerationStatusResult {
   readonly providerRequestId: string;
@@ -179,7 +189,7 @@ export const WebhookVerificationResultSchema = z.discriminatedUnion("outcome", [
 export type WebhookVerificationResult = z.infer<typeof WebhookVerificationResultSchema>;
 
 export interface CredentialOperations {
-  validateCredentials(reference: ProviderCredentialReference, resolver: OpaqueCredentialResolver): Promise<CredentialValidationResult>;
+  validateCredentials(reference: ProviderCredentialReference): Promise<CredentialValidationResult>;
 }
 export interface CatalogOperations {
   discoverModels(context: AdapterContext): Promise<ModelDiscoveryResult>;

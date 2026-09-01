@@ -13,12 +13,16 @@
   },
   "files": ["dist"],
   "scripts": {
+    "prebuild": "pnpm --filter @eikonstudio/core build",
     "build": "tsc -p tsconfig.build.json",
+    "pretest": "pnpm --filter @eikonstudio/core build",
     "test": "vitest run",
+    "pretypecheck": "pnpm --filter @eikonstudio/core build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@eikonstudio/core": "workspace:*",
+    "openai": "^6.34.0",
     "zod": "3.25.67"
   },
   "devDependencies": {
