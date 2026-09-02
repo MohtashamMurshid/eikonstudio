@@ -87,7 +87,7 @@ export async function generateDurableOpenAITextToImage(args: ExecuteArgs): Promi
   }
 }
 
-function studioAspectRatio(value: string): string {
+export function studioAspectRatio(value: string): string {
   if (value === "portrait") return "9:16";
   if (value === "landscape") return "16:9";
   if (value === "wide") return "21:9";

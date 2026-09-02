@@ -68,6 +68,7 @@ describe("durable image execution source boundary", () => {
     expect(worker).toContain("maxRetries: 0");
     expect(worker).toContain("timeout: 240_000");
     expect(worker).not.toContain("Final prompt with skills");
+    expect(worker).toContain('replace(new RegExp(`\\\\/${skillName}\\\\b`, "gi"), () => promptText)');
   });
 
   it("renews leases around provider and storage work and fences every durable write", () => {

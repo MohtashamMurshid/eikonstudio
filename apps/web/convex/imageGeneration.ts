@@ -20,23 +20,10 @@ import { withResolvedCredentialForOperation } from "./credentialActions";
 import {
   DurableOpenAITextToImageError,
   generateDurableOpenAITextToImage,
+  studioAspectRatio,
 } from "./openAiDurableTextToImage";
 import { ProviderCredentialReferenceSchema } from "@eikonstudio/providers";
 
-
-function getAspectRatioString(ratio: string): string {
-  switch (ratio) {
-    case "portrait":
-      return "9:16";
-    case "landscape":
-      return "16:9";
-    case "wide":
-      return "21:9";
-    case "square":
-    default:
-      return "1:1";
-  }
-}
 
 /**
  * Map studio aspect + resolution to OpenAI Image API size/quality.
@@ -174,7 +161,7 @@ async function resolveImagePrompt(ctx: ActionCtx, userId: string, prompt: string
     }
   }
   for (const [skillName, promptText] of Object.entries(skillPromptMap)) {
-    finalPrompt = finalPrompt.replace(new RegExp(`\\/${skillName}\\b`, "gi"), promptText);
+    finalPrompt = finalPrompt.replace(new RegExp(`\\/${skillName}\\b`, "gi"), () => promptText);
   }
   return finalPrompt;
 }
@@ -246,7 +233,7 @@ async function executeExistingImageProvider(
         contents: { parts: [{ text: finalPrompt }] },
         config: {
           imageConfig: {
-            aspectRatio: getAspectRatioString(args.aspectRatio),
+            aspectRatio: studioAspectRatio(args.aspectRatio),
             imageSize: args.imageSize,
           } as any,
         },
@@ -462,7 +449,7 @@ export const generateImageBackground = internalAction({
           httpOptions: { timeout: 240_000 },
         });
 
-        const aspectRatioString = getAspectRatioString(aspectRatio);
+        const aspectRatioString = studioAspectRatio(aspectRatio);
 
         if (mode === "text-to-image") {
           const response = await ai.models.generateContent({
@@ -911,9 +898,13 @@ export const generateDurableImageBackground = internalAction({
         });
       }
     } catch (error) {
+      const adapterError = error instanceof DurableOpenAITextToImageError ? error : undefined;
       try {
         if (!begin) {
           const preparationClaim = await claim("queued", initial.job.revision);
+          const preparationError =
+            adapterError?.normalized.publicError ??
+            safeExecutionError("PROVIDER_PREFLIGHT_FAILED", "Image generation could not be prepared.", "validation");
           await ctx.runMutation(internal.durableJobs.transition, {
             ownerId: initial.job.ownerId,
             jobId,
@@ -926,16 +917,15 @@ export const generateDurableImageBackground = internalAction({
             eventId: `preflight_failed_${randomUUID()}`,
             eventFingerprint: "provider-preflight-failed",
             occurredAt: Date.now(),
-            error: safeExecutionError("PROVIDER_PREFLIGHT_FAILED", "Image generation could not be prepared.", "validation"),
+            error: preparationError,
           });
           await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
             jobId,
-            errorMessage: "Image generation could not be prepared.",
+            errorMessage: preparationError.message,
           });
           return null;
         }
         const renewed = await claim("submitting", begin.revision);
-        const adapterError = error instanceof DurableOpenAITextToImageError ? error : undefined;
         const definitive = adapterError
           ? !adapterError.transportEntered || providerFailureDisposition(adapterError.httpStatus) === "definitive"
           : providerFailureDisposition(providerHttpStatus(error)) === "definitive";
@@ -956,7 +946,7 @@ export const generateDurableImageBackground = internalAction({
           });
           await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
             jobId,
-            errorMessage: getGenerationFailureMessage(error),
+            errorMessage: adapterError?.normalized.publicError.message ?? getGenerationFailureMessage(error),
           });
         } else {
           await ctx.runMutation(internal.durableJobs.recordSubmissionAmbiguous, {

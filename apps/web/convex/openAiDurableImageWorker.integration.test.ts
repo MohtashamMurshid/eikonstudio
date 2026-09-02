@@ -192,8 +192,15 @@ describe("durable OpenAI image production action", () => {
     const rows = await persistedRows(fixture);
     expect(rows.job).toMatchObject({ status: "failed", submissionState: "in_flight", revision: 4 });
     expect(rows.attempts[0]).toMatchObject({ status: "failed", submissionState: "in_flight" });
-    expect(rows.generation).toMatchObject({ status: "failed" });
+    expect(rows.generation).toMatchObject({
+      status: "failed",
+      errorMessage: "The provider rejected the request.",
+    });
     expect(rows.outputs).toHaveLength(0);
+    expect(rows.job).toMatchObject({
+      publicErrorCode: "provider_validation_error",
+      publicErrorMessage: "The provider rejected the request.",
+    });
     expect(rows.job?.publicErrorMessage).not.toContain("hostile detail");
     expect(JSON.stringify(rows)).not.toContain(SECRET_VALUE);
   });

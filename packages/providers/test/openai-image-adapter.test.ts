@@ -90,7 +90,7 @@ describe("OpenAIImageAdapter", () => {
         if (value.includes(secret)) secretHeaders.push([name, value]);
       });
       expect(secretHeaders).toEqual([["authorization", `Bearer ${secret}`]]);
-      expect(JSON.parse(String(init.body))).toEqual({ model: "gpt-image-2", prompt: "Draw a copper fox", n: 1, output_format: "png", stream: false, size: "auto", quality: "medium" });
+      expect(JSON.parse(String(init.body))).toEqual({ model: "gpt-image-2", prompt: "Draw a copper fox", n: 1, output_format: "png", stream: false, size: "1024x1024", quality: "medium" });
       expect(String(init.body)).not.toContain(secret);
     });
     const adapter = new OpenAIImageAdapter({ credentialBroker: broker(), fetch: transport.fetch, now: () => "2026-09-01T00:00:00.000Z" });
@@ -115,10 +115,10 @@ describe("OpenAIImageAdapter", () => {
     ["1K portrait", "9:16", "1K", "1024x1536", "auto"],
     ["1K landscape", "16:9", "1K", "1536x1024", "auto"],
     ["1K wide", "21:9", "1K", "1536x1024", "auto"],
-    ["2K square", "1:1", "2K", "auto", "medium"],
-    ["2K portrait", "9:16", "2K", "auto", "medium"],
-    ["4K wide", "21:9", "4K", "auto", "high"],
-    ["unknown resolution", "16:9", "8K", "auto", "medium"],
+    ["2K square", "1:1", "2K", "1024x1024", "medium"],
+    ["2K portrait", "9:16", "2K", "1024x1536", "medium"],
+    ["4K wide", "21:9", "4K", "1536x1024", "high"],
+    ["unknown resolution", "16:9", "8K", "1536x1024", "medium"],
   ])("maps %s to exact normalized and SDK settings", async (_name, aspectRatio, resolution, size, quality) => {
     const transport = oneShotFetch(successResponse(), (_url, init) => {
       expect(JSON.parse(String(init.body))).toMatchObject({ size, quality });
