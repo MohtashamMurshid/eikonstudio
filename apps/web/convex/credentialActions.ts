@@ -147,6 +147,16 @@ async function resolveCredential(ctx: ActionCtx, args: CredentialResolutionArgs)
     throw new Error("Credential is unavailable for this operation");
 }
 
+/** Resolve plaintext locally, await one operation, and return only its callback result. */
+export async function withResolvedCredentialForOperation<T>(
+  ctx: ActionCtx,
+  args: CredentialResolutionArgs,
+  operation: (secretValue: string) => Promise<T>,
+): Promise<T> {
+  const { secretValue } = await resolveCredential(ctx, args);
+  return await operation(secretValue);
+}
+
 /**
  * Returns plaintext only to an internal action for one provider operation.
  * Ownership, canonical provider, stable handle, health, and AEAD AAD are all checked.

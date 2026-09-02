@@ -29,14 +29,13 @@ function broker(onUse?: () => void): ServerCredentialBroker {
   };
 }
 
-function request(overrides: Record<string, unknown> = {}) {
+function request(inputOverrides: Record<string, unknown> = {}) {
   return GenerationRequestSchema.parse({
     modelId: OPENAI_IMAGE_MODEL_ID,
     task: "text-to-image",
     operation: "generate",
     schemaRevision: OPENAI_IMAGE_SCHEMA_REVISION,
-    input: { prompt: "Draw a copper fox", inputAssets: [], outputCount: 1 },
-    ...overrides,
+    input: { prompt: "Draw a copper fox", inputAssets: [], outputCount: 1, ...inputOverrides },
   });
 }
 
@@ -83,7 +82,7 @@ describe("OpenAIImageAdapter", () => {
         if (value.includes(secret)) secretHeaders.push([name, value]);
       });
       expect(secretHeaders).toEqual([["authorization", `Bearer ${secret}`]]);
-      expect(JSON.parse(String(init.body))).toEqual({ model: "gpt-image-2", prompt: "Draw a copper fox", n: 1, output_format: "png", stream: false });
+      expect(JSON.parse(String(init.body))).toEqual({ model: "gpt-image-2", prompt: "Draw a copper fox", n: 1, output_format: "png", stream: false, size: "auto", quality: "medium" });
       expect(String(init.body)).not.toContain(secret);
     });
     const adapter = new OpenAIImageAdapter({ credentialBroker: broker(), fetch: transport.fetch, now: () => "2026-09-01T00:00:00.000Z" });
@@ -100,6 +99,26 @@ describe("OpenAIImageAdapter", () => {
       expect(result.outputs[0]?.bytes).toEqual(new Uint8Array([0, 1, 2, 255]));
     }
     expect(JSON.stringify(result)).not.toContain(secret);
+  });
+
+  it.each([
+    ["1K square", "1:1", "1K", "1024x1024", "auto"],
+    ["1K default", undefined, "1K", "1024x1024", "auto"],
+    ["1K portrait", "9:16", "1K", "1024x1536", "auto"],
+    ["1K landscape", "16:9", "1K", "1536x1024", "auto"],
+    ["1K wide", "21:9", "1K", "1536x1024", "auto"],
+    ["2K square", "1:1", "2K", "auto", "medium"],
+    ["2K portrait", "9:16", "2K", "auto", "medium"],
+    ["4K wide", "21:9", "4K", "auto", "high"],
+    ["unknown resolution", "16:9", "8K", "auto", "medium"],
+  ])("maps %s to exact normalized and SDK settings", async (_name, aspectRatio, resolution, size, quality) => {
+    const transport = oneShotFetch(successResponse(), (_url, init) => {
+      expect(JSON.parse(String(init.body))).toMatchObject({ size, quality });
+    });
+    const adapter = new OpenAIImageAdapter({ credentialBroker: broker(), fetch: transport.fetch });
+    const normalized = await adapter.normalizeInput(request({ aspectRatio, resolution }), OPENAI_IMAGE_CAPABILITY);
+    expect(normalized.native.values).toEqual({ prompt: "Draw a copper fox", outputCount: 1, size, quality });
+    await adapter.submitGeneration(normalized, context);
   });
 
   it.each([
