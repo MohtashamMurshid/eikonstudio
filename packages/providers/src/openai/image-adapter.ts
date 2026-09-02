@@ -237,10 +237,11 @@ function openAIImageSettings(
   aspectRatio: string | undefined,
   resolution: string | undefined,
 ): { size: (typeof OPENAI_IMAGE_SIZES)[number]; quality: (typeof OPENAI_IMAGE_QUALITIES)[number] } {
-  const quality = resolution === "4K" ? "high" : resolution === "1K" ? "auto" : "medium";
-  if (aspectRatio === "9:16") return { size: "1024x1536", quality };
-  if (aspectRatio === "16:9" || aspectRatio === "21:9") return { size: "1536x1024", quality };
-  return { size: "1024x1024", quality };
+  if (resolution === "4K") return { size: "auto", quality: "high" };
+  if (resolution !== "1K") return { size: "auto", quality: "medium" };
+  if (aspectRatio === "9:16") return { size: "1024x1536", quality: "auto" };
+  if (aspectRatio === "16:9" || aspectRatio === "21:9") return { size: "1536x1024", quality: "auto" };
+  return { size: "1024x1024", quality: "auto" };
 }
 
 function boundedFetch(injectedFetch: typeof fetch): typeof fetch {
