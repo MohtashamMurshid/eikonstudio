@@ -5,6 +5,7 @@ import {
   AssetIdSchema,
   AtomicCreateAndScheduleGenerationSchema,
   CompletionIdentitySchema,
+  CredentialHandleSchema,
   CredentialMetadataSchema,
   EventIdSchema,
   GenerationAttemptIdSchema,
@@ -85,6 +86,18 @@ describe("canonical generation boundary schemas", () => {
     expect(PublicGenerationErrorSchema.safeParse({ ...publicError, providerContext: {} }).success).toBe(false);
     expect(PublicGenerationErrorSchema.safeParse({ ...publicError, stack: "secret stack" }).success).toBe(false);
     expect(RedactedProviderDataSchema.safeParse({ namespace: "provider:openai", providerId: "openai", redacted: true, data: { requestId: "req_safe" } }).success).toBe(true);
+  });
+
+  it("accepts generated base64url and legacy credential handles but rejects unsafe forms", () => {
+    for (const handle of [
+      "cred_AbCdEf012345-_AbCdEf01",
+      "cred_legacy_k57abc123def456ghi789jkl",
+    ]) {
+      expect(CredentialHandleSchema.safeParse(handle).success).toBe(true);
+    }
+    for (const handle of ["cred_short", "cred_has spaces 123456", "cred_slash/123456789012"]) {
+      expect(CredentialHandleSchema.safeParse(handle).success).toBe(false);
+    }
   });
 
   it("exposes credential metadata only, never recoverable values", () => {

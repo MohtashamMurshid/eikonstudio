@@ -77,6 +77,19 @@ function fail(code: string): never {
   throw new ConvexError(code);
 }
 
+function canonicalStorageSha256(value: string): string | undefined {
+  if (/^[a-fA-F0-9]{64}$/.test(value)) return value.toLowerCase();
+  try {
+    const decoded = atob(value);
+    if (decoded.length === 32 && btoa(decoded) === value) {
+      return Array.from(decoded, (character) => character.charCodeAt(0).toString(16).padStart(2, "0")).join("");
+    }
+  } catch {
+    // Invalid storage metadata remains a checksum mismatch.
+  }
+  return undefined;
+}
+
 function bounded(value: string, max: number, code: string): void {
   if (value.length < 1 || value.length > max) fail(code);
 }
@@ -1184,7 +1197,7 @@ export const recordDurableOutput = internalMutation({
     const primaryMetadata = await ctx.db.system.get(args.storageId);
     const thumbnailMetadata = args.thumbnailStorageId ? await ctx.db.system.get(args.thumbnailStorageId) : null;
     if (!primaryMetadata || (args.thumbnailStorageId && !thumbnailMetadata)) fail("DURABLE_STORAGE_NOT_FOUND");
-    if (primaryMetadata.sha256.toLowerCase() !== args.checksumSha256) fail("DURABLE_STORAGE_CHECKSUM_MISMATCH");
+    if (canonicalStorageSha256(primaryMetadata.sha256) !== args.checksumSha256) fail("DURABLE_STORAGE_CHECKSUM_MISMATCH");
     if (
       primaryMetadata.size !== args.byteSize ||
       (primaryMetadata.contentType !== undefined && primaryMetadata.contentType !== args.contentType)

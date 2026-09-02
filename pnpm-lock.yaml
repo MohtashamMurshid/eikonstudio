@@ -20,6 +20,9 @@ importers:
       '@eikonstudio/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@eikonstudio/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       '@fal-ai/client':
         specifier: 1.7.2
         version: 1.7.2

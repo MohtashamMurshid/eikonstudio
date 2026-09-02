@@ -323,6 +323,15 @@ Expected existing warnings remain:
 
 ## Phase roadmap
 
+## Durable OpenAI text-to-image adapter wiring
+
+- The durable worker now routes only OpenAI `gpt-image-2` text-to-image work through the shared provider adapter. Gemini, editing, legacy execution, gateway, and public routes remain unchanged.
+- Canonical aspect ratio and resolution map to exact OpenAI `size` and `quality` values. The adapter validates those normalized fields, preserves the prior 240-second durable-worker timeout, and retains the 25 MB decoded output cap.
+- Adapter preflight runs before credential resolution. Plaintext stays inside a local callback, `in_flight` is persisted immediately before the injected transport, and transport entry controls definitive-versus-ambiguous failure handling.
+- Recovered in-flight, ambiguous, accepted, persisting, and completed work continues through the existing zero-resubmission recovery matrix.
+- Focused provider, helper, source-boundary, and real `convex-test` action scenarios cover exact request bodies, injected-fetch confinement, credential/preflight ordering, definitive rejection, ambiguous outcomes, zero-dispatch redelivery, actual Jimp thumbnailing, Convex storage, checksums, completion/output ledgers, finalization, and legacy mirror recovery. No real provider request or deployment was performed.
+- Full verification passed **266/266 tests**: 40 core, 48 providers, and 178 web; typecheck passed all five Turbo tasks, lint passed with 0 errors and 31 existing warnings, the placeholder production build produced 22 routes, and `git diff --check` passed. Provider/core builds are prerequisites for build, codegen, dev, Convex dev, test, and typecheck. Convex codegen reached the CLI after a clean providers build and stopped only because no `CONVEX_DEPLOYMENT` was configured.
+
 - [x] Phase 0 monorepo migration merged via PR #10 (`088a53f`)
 - [x] Phase 1 foundation implementation: hardened shared contracts, lifecycle, registry vocabulary, and adapter boundary (local)
 - [x] Phase 1 foundation independent review

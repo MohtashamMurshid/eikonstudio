@@ -4,6 +4,8 @@ export const OPENAI_IMAGE_MODEL_ID = "openai/gpt-image/gpt-image-2" as const;
 export const OPENAI_IMAGE_NATIVE_MODEL_ID = "gpt-image-2" as const;
 export const OPENAI_IMAGE_SCHEMA_REVISION = SchemaRevisionIdSchema.parse("schema_openai_gpt_image_2_text_v1");
 export const OPENAI_IMAGE_MAX_OUTPUT_BYTES = 25_000_000;
+export const OPENAI_IMAGE_SIZES = ["auto", "1024x1024", "1536x1024", "1024x1536"] as const;
+export const OPENAI_IMAGE_QUALITIES = ["auto", "medium", "high"] as const;
 
 export const OPENAI_IMAGE_CAPABILITY = ModelOperationCapabilitySchema.parse({
   schemaRevision: OPENAI_IMAGE_SCHEMA_REVISION,

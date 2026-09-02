@@ -34,11 +34,13 @@ import {
   OPENAI_IMAGE_MODEL,
   OPENAI_IMAGE_MODEL_ID,
   OPENAI_IMAGE_NATIVE_MODEL_ID,
+  OPENAI_IMAGE_QUALITIES,
   OPENAI_IMAGE_SCHEMA_REVISION,
+  OPENAI_IMAGE_SIZES,
 } from "./model.js";
 
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
-const REQUEST_TIMEOUT_MS = 120_000;
+const REQUEST_TIMEOUT_MS = 240_000;
 const CONTENT_TYPE = "image/png";
 const RESPONSE_JSON_OVERHEAD_BYTES = 65_536;
 const MAX_RESPONSE_BODY_BYTES = 4 * Math.ceil(OPENAI_IMAGE_MAX_OUTPUT_BYTES / 3) + RESPONSE_JSON_OVERHEAD_BYTES;
@@ -82,7 +84,7 @@ export class OpenAIImageAdapter implements ProviderAdapter {
   constructor(options: OpenAIImageAdapterOptions) {
     const timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
     if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > REQUEST_TIMEOUT_MS) {
-      throw new TypeError("OpenAI timeout must be between 1 and 120000 milliseconds.");
+      throw new TypeError("OpenAI timeout must be between 1 and 240000 milliseconds.");
     }
     this.#credentialBroker = options.credentialBroker;
     this.#fetch = options.fetch;
@@ -116,12 +118,13 @@ export class OpenAIImageAdapter implements ProviderAdapter {
     if (request.input.outputCount !== 1 || request.input.inputAssets.length !== 0 || typeof prompt !== "string" || prompt.length < 1 || prompt.length > 32_000) {
       throw new ProviderInputValidationError();
     }
+    const { size, quality } = openAIImageSettings(request.input.aspectRatio, request.input.resolution);
     return {
       modelId: request.modelId,
       task: "text-to-image",
       operation: "generate",
       schemaRevision: OPENAI_IMAGE_SCHEMA_REVISION,
-      native: { namespace: "provider:openai", providerId: "openai", values: { prompt, outputCount: 1 } },
+      native: { namespace: "provider:openai", providerId: "openai", values: { prompt, outputCount: 1, size, quality } },
     };
   }
 
@@ -132,13 +135,13 @@ export class OpenAIImageAdapter implements ProviderAdapter {
   async submitGeneration(input: NormalizedProviderInput, context: AdapterContext): Promise<SubmissionResult> {
     if (context.signal?.aborted) throw new APIUserAbortError();
     const credential = parseOpenAICredential(context.credential);
-    const prompt = validateSubmission(input);
+    const { prompt, size, quality } = validateSubmission(input);
     return this.#credentialBroker.withCredential(credential, async (plaintext) => {
       const client = new OpenAI({ apiKey: plaintext, baseURL: OPENAI_BASE_URL, fetch: boundedFetch(this.#fetch), maxRetries: 0, timeout: this.#timeoutMs });
       let response;
       try {
         response = await client.images
-          .generate({ model: OPENAI_IMAGE_NATIVE_MODEL_ID, prompt, n: 1, output_format: "png", stream: false }, { signal: context.signal })
+          .generate({ model: OPENAI_IMAGE_NATIVE_MODEL_ID, prompt, n: 1, output_format: "png", stream: false, size, quality }, { signal: context.signal })
           .withResponse();
       } catch (error) {
         if (hasResponseBodyOverflowCause(error)) throw new ProviderInputValidationError();
@@ -201,15 +204,44 @@ function parseOpenAICredential(value: unknown): ProviderCredentialReference {
   return parsed.data;
 }
 
-function validateSubmission(input: NormalizedProviderInput): string {
+function validateSubmission(input: NormalizedProviderInput): {
+  prompt: string;
+  size: (typeof OPENAI_IMAGE_SIZES)[number];
+  quality: (typeof OPENAI_IMAGE_QUALITIES)[number];
+} {
   assertSupported(input.modelId, input.task, input.operation, input.schemaRevision);
   if (input.native.namespace !== "provider:openai" || input.native.providerId !== "openai") throw new ProviderInputValidationError();
   const keys = Object.keys(input.native.values).sort();
-  const prompt = input.native.values.prompt;
-  if (keys.join(",") !== "outputCount,prompt" || input.native.values.outputCount !== 1 || typeof prompt !== "string" || prompt.length < 1 || prompt.length > 32_000) {
+  const { prompt, size, quality } = input.native.values;
+  if (
+    keys.join(",") !== "outputCount,prompt,quality,size" ||
+    input.native.values.outputCount !== 1 ||
+    typeof prompt !== "string" ||
+    prompt.length < 1 ||
+    prompt.length > 32_000 ||
+    typeof size !== "string" ||
+    !OPENAI_IMAGE_SIZES.includes(size as (typeof OPENAI_IMAGE_SIZES)[number]) ||
+    typeof quality !== "string" ||
+    !OPENAI_IMAGE_QUALITIES.includes(quality as (typeof OPENAI_IMAGE_QUALITIES)[number])
+  ) {
     throw new ProviderInputValidationError();
   }
-  return prompt;
+  return {
+    prompt,
+    size: size as (typeof OPENAI_IMAGE_SIZES)[number],
+    quality: quality as (typeof OPENAI_IMAGE_QUALITIES)[number],
+  };
+}
+
+function openAIImageSettings(
+  aspectRatio: string | undefined,
+  resolution: string | undefined,
+): { size: (typeof OPENAI_IMAGE_SIZES)[number]; quality: (typeof OPENAI_IMAGE_QUALITIES)[number] } {
+  if (resolution === "4K") return { size: "auto", quality: "high" };
+  if (resolution !== "1K") return { size: "auto", quality: "medium" };
+  if (aspectRatio === "9:16") return { size: "1024x1536", quality: "auto" };
+  if (aspectRatio === "16:9" || aspectRatio === "21:9") return { size: "1536x1024", quality: "auto" };
+  return { size: "1024x1024", quality: "auto" };
 }
 
 function boundedFetch(injectedFetch: typeof fetch): typeof fetch {
