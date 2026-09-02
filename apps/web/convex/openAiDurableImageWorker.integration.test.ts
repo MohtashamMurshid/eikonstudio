@@ -32,7 +32,7 @@ async function seedFixture(suffix: string): Promise<Fixture> {
   process.env.CREDENTIAL_ENCRYPTION_SECRET = ENCRYPTION_SECRET;
   const t = convexTest(schema, modules);
   const now = Date.now();
-  const credentialHandle = `cred_${createHash("sha256").update(suffix).digest("hex").slice(0, 24)}`;
+  const credentialHandle = `cred_${createHash("sha256").update(suffix).digest("hex").slice(0, 22)}-_`;
   const generationKey = `generation_openai_${suffix}`;
   const created = await t.run(async (ctx) =>
     createDurableJobRecords(ctx, {

@@ -71,6 +71,14 @@ function apiError(status: number, code?: string, message = `hostile ${secret} ht
 }
 
 describe("OpenAIImageAdapter", () => {
+  it("preserves the durable worker's 240-second timeout boundary", () => {
+    const fetch = vi.fn() as unknown as typeof globalThis.fetch;
+    expect(() => new OpenAIImageAdapter({ credentialBroker: broker(), fetch, timeoutMs: 240_000 })).not.toThrow();
+    expect(() => new OpenAIImageAdapter({ credentialBroker: broker(), fetch, timeoutMs: 240_001 })).toThrow(
+      "OpenAI timeout must be between 1 and 240000 milliseconds.",
+    );
+  });
+
   it("sends one exact base64-only request and returns native identity and exact bytes", async () => {
     const transport = oneShotFetch(successResponse(), (_url, init) => {
       expect(init.method).toBe("POST");

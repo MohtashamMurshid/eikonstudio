@@ -40,7 +40,7 @@ import {
 } from "./model.js";
 
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
-const REQUEST_TIMEOUT_MS = 120_000;
+const REQUEST_TIMEOUT_MS = 240_000;
 const CONTENT_TYPE = "image/png";
 const RESPONSE_JSON_OVERHEAD_BYTES = 65_536;
 const MAX_RESPONSE_BODY_BYTES = 4 * Math.ceil(OPENAI_IMAGE_MAX_OUTPUT_BYTES / 3) + RESPONSE_JSON_OVERHEAD_BYTES;
@@ -84,7 +84,7 @@ export class OpenAIImageAdapter implements ProviderAdapter {
   constructor(options: OpenAIImageAdapterOptions) {
     const timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
     if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > REQUEST_TIMEOUT_MS) {
-      throw new TypeError("OpenAI timeout must be between 1 and 120000 milliseconds.");
+      throw new TypeError("OpenAI timeout must be between 1 and 240000 milliseconds.");
     }
     this.#credentialBroker = options.credentialBroker;
     this.#fetch = options.fetch;
