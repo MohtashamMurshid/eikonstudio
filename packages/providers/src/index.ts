@@ -2,3 +2,6 @@ export * from "./adapter.js";
 export * from "./openai/errors.js";
 export * from "./openai/image-adapter.js";
 export * from "./openai/model.js";
+export * from "./image-references.js";
+export * from "./google/model.js";
+export * from "./google/image-adapter.js";

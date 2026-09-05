@@ -1,4 +1,8 @@
-import OpenAI, { APIConnectionError, APIConnectionTimeoutError, APIError, APIUserAbortError } from "openai";
+import { Buffer } from "node:buffer";
+import OpenAI, { toFile, APIConnectionError, APIConnectionTimeoutError, APIError, APIUserAbortError } from "openai";
+
+import { boundedFetch, decodeBoundedBase64, hasResponseBodyOverflowCause } from "../image-bytes.js";
+import { parseImageReferences, resolveImageReferences, type ServerImageResolver } from "../image-references.js";
 
 import type {
   GenerationRequest,
@@ -30,6 +34,8 @@ import {
 import { ProviderInputValidationError, ProviderOperationUnsupportedError, unsupportedOpenAI } from "./errors.js";
 import {
   OPENAI_IMAGE_CAPABILITY,
+  OPENAI_IMAGE_EDIT_CAPABILITY,
+  OPENAI_IMAGE_EDIT_SCHEMA_REVISION,
   OPENAI_IMAGE_MAX_OUTPUT_BYTES,
   OPENAI_IMAGE_MODEL,
   OPENAI_IMAGE_MODEL_ID,
@@ -42,16 +48,7 @@ import {
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
 const REQUEST_TIMEOUT_MS = 240_000;
 const CONTENT_TYPE = "image/png";
-const RESPONSE_JSON_OVERHEAD_BYTES = 65_536;
-const MAX_RESPONSE_BODY_BYTES = 4 * Math.ceil(OPENAI_IMAGE_MAX_OUTPUT_BYTES / 3) + RESPONSE_JSON_OVERHEAD_BYTES;
 type ErrorCategory = PublicGenerationError["category"];
-
-class ResponseBodyOverflowError extends Error {
-  constructor() {
-    super("OpenAI response body exceeded the configured limit.");
-    this.name = "ResponseBodyOverflowError";
-  }
-}
 
 const PUBLIC_MESSAGES: Record<ErrorCategory, string> = {
   authentication: "The provider credential was rejected.",
@@ -70,6 +67,7 @@ type ErrorFacts = { category: ErrorCategory; code: string; retryable: boolean; s
 export interface OpenAIImageAdapterOptions {
   readonly credentialBroker: ServerCredentialBroker;
   readonly fetch: typeof fetch;
+  readonly imageResolver?: ServerImageResolver;
   readonly timeoutMs?: number;
   readonly now?: () => string;
 }
@@ -78,6 +76,7 @@ export class OpenAIImageAdapter implements ProviderAdapter {
   readonly providerId = "openai" as const;
   readonly #credentialBroker: ServerCredentialBroker;
   readonly #fetch: typeof fetch;
+  readonly #imageResolver: ServerImageResolver | undefined;
   readonly #timeoutMs: number;
   readonly #now: () => string;
 
@@ -88,6 +87,7 @@ export class OpenAIImageAdapter implements ProviderAdapter {
     }
     this.#credentialBroker = options.credentialBroker;
     this.#fetch = options.fetch;
+    this.#imageResolver = options.imageResolver;
     this.#timeoutMs = timeoutMs;
     this.#now = options.now ?? (() => new Date().toISOString());
   }
@@ -105,26 +105,28 @@ export class OpenAIImageAdapter implements ProviderAdapter {
   }
 
   async getModelSchema(modelId: ModelVariantId, task: TaskType, operation: OperationType, _context: AdapterContext): Promise<ProviderModelSchema> {
-    assertSupported(modelId, task, operation, OPENAI_IMAGE_SCHEMA_REVISION);
-    return { modelId: OPENAI_IMAGE_MODEL.id, capability: OPENAI_IMAGE_CAPABILITY };
+    const capability = task === "image-to-image" ? OPENAI_IMAGE_EDIT_CAPABILITY : OPENAI_IMAGE_CAPABILITY;
+    assertSupported(modelId, task, operation, capability.schemaRevision);
+    return { modelId: OPENAI_IMAGE_MODEL.id, capability };
   }
 
   async normalizeInput(request: GenerationRequest, capability: ModelOperationCapability): Promise<NormalizedProviderInput> {
     assertSupported(request.modelId, request.task, request.operation, request.schemaRevision);
-    if (capability.schemaRevision !== OPENAI_IMAGE_SCHEMA_REVISION || capability.task !== "text-to-image" || capability.operation !== "generate") {
+    if (capability.schemaRevision !== request.schemaRevision || capability.task !== request.task || capability.operation !== request.operation) {
       throw new ProviderInputValidationError();
     }
     const prompt = request.input.prompt;
-    if (request.input.outputCount !== 1 || request.input.inputAssets.length !== 0 || typeof prompt !== "string" || prompt.length < 1 || prompt.length > 32_000) {
+    if (request.input.outputCount !== 1 || typeof prompt !== "string" || prompt.length < 1 || prompt.length > 32_000) {
       throw new ProviderInputValidationError();
     }
+    const references = parseImageReferences(request.input.inputAssets, request.task === "image-to-image");
     const { size, quality } = openAIImageSettings(request.input.aspectRatio, request.input.resolution);
     return {
       modelId: request.modelId,
-      task: "text-to-image",
-      operation: "generate",
-      schemaRevision: OPENAI_IMAGE_SCHEMA_REVISION,
-      native: { namespace: "provider:openai", providerId: "openai", values: { prompt, outputCount: 1, size, quality } },
+      task: request.task as "text-to-image" | "image-to-image",
+      operation: request.operation,
+      schemaRevision: request.schemaRevision,
+      native: { namespace: "provider:openai", providerId: "openai", values: { prompt, outputCount: 1, size, quality, ...(request.task === "image-to-image" ? { references } : {}) } },
     };
   }
 
@@ -136,13 +138,18 @@ export class OpenAIImageAdapter implements ProviderAdapter {
     if (context.signal?.aborted) throw new APIUserAbortError();
     const credential = parseOpenAICredential(context.credential);
     const { prompt, size, quality } = validateSubmission(input);
+    const references = parseImageReferences(input.native.values.references ?? [], input.task === "image-to-image");
+    const images = await resolveImageReferences(references, this.#imageResolver);
+    const files = await Promise.all(images.map((image, index) => toFile(Buffer.from(image.bytes), `ref-${index}.${image.contentType === "image/jpeg" ? "jpg" : image.contentType === "image/webp" ? "webp" : "png"}`, { type: image.contentType })));
+    if (context.signal?.aborted) throw new APIUserAbortError();
     return this.#credentialBroker.withCredential(credential, async (plaintext) => {
       const client = new OpenAI({ apiKey: plaintext, baseURL: OPENAI_BASE_URL, fetch: boundedFetch(this.#fetch), maxRetries: 0, timeout: this.#timeoutMs });
       let response;
       try {
-        response = await client.images
-          .generate({ model: OPENAI_IMAGE_NATIVE_MODEL_ID, prompt, n: 1, output_format: "png", stream: false, size, quality }, { signal: context.signal })
-          .withResponse();
+        const settings = { model: OPENAI_IMAGE_NATIVE_MODEL_ID, prompt, n: 1, output_format: "png" as const, stream: false as const, size, quality };
+        response = input.task === "image-to-image"
+          ? await client.images.edit({ ...settings, image: files.length === 1 ? files[0]! : files }, { signal: context.signal }).withResponse()
+          : await client.images.generate(settings, { signal: context.signal }).withResponse();
       } catch (error) {
         if (hasResponseBodyOverflowCause(error)) throw new ProviderInputValidationError();
         if (error instanceof SyntaxError) throw new ProviderInputValidationError();
@@ -154,7 +161,7 @@ export class OpenAIImageAdapter implements ProviderAdapter {
       if (!Array.isArray(images) || images.length !== 1 || images[0]?.url !== undefined) throw new ProviderInputValidationError();
       const image = images[0];
       if (image === undefined) throw new ProviderInputValidationError();
-      const bytes = decodeBoundedBase64(image.b64_json);
+      const bytes = decodeBoundedBase64(image.b64_json, input.task === "image-to-image" ? 15_000_000 : OPENAI_IMAGE_MAX_OUTPUT_BYTES);
       return { delivery: "synchronous", providerRequestId, status: "completed", outputs: [{ mediaType: "image", contentType: CONTENT_TYPE, bytes }] };
     });
   }
@@ -193,7 +200,7 @@ export class OpenAIImageAdapter implements ProviderAdapter {
 }
 
 function assertSupported(modelId: ModelVariantId, task: TaskType, operation: OperationType, schemaRevision: string): void {
-  if (modelId !== OPENAI_IMAGE_MODEL_ID || task !== "text-to-image" || operation !== "generate" || schemaRevision !== OPENAI_IMAGE_SCHEMA_REVISION) {
+  if (modelId !== OPENAI_IMAGE_MODEL_ID || !((task === "text-to-image" && operation === "generate" && schemaRevision === OPENAI_IMAGE_SCHEMA_REVISION) || (task === "image-to-image" && operation === "edit" && schemaRevision === OPENAI_IMAGE_EDIT_SCHEMA_REVISION))) {
     throw new ProviderInputValidationError();
   }
 }
@@ -214,7 +221,7 @@ function validateSubmission(input: NormalizedProviderInput): {
   const keys = Object.keys(input.native.values).sort();
   const { prompt, size, quality } = input.native.values;
   if (
-    keys.join(",") !== "outputCount,prompt,quality,size" ||
+    keys.join(",") !== (input.task === "image-to-image" ? "outputCount,prompt,quality,references,size" : "outputCount,prompt,quality,size") ||
     input.native.values.outputCount !== 1 ||
     typeof prompt !== "string" ||
     prompt.length < 1 ||
@@ -242,66 +249,6 @@ function openAIImageSettings(
   if (aspectRatio === "9:16") return { size: "1024x1536", quality: "auto" };
   if (aspectRatio === "16:9" || aspectRatio === "21:9") return { size: "1536x1024", quality: "auto" };
   return { size: "1024x1024", quality: "auto" };
-}
-
-function boundedFetch(injectedFetch: typeof fetch): typeof fetch {
-  return async (input, init) => boundResponse(await injectedFetch(input, init));
-}
-
-async function boundResponse(response: Response): Promise<Response> {
-  const contentLength = response.headers.get("content-length");
-  if (contentLength !== null && /^\d+$/.test(contentLength) && Number(contentLength) > MAX_RESPONSE_BODY_BYTES) {
-    await response.body?.cancel().catch(() => undefined);
-    throw new ResponseBodyOverflowError();
-  }
-  if (response.body === null) return new Response(null, responseInit(response));
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let byteLength = 0;
-  try {
-    while (true) {
-      const result = await reader.read();
-      if (result.done) break;
-      if (byteLength + result.value.byteLength > MAX_RESPONSE_BODY_BYTES) {
-        await reader.cancel().catch(() => undefined);
-        throw new ResponseBodyOverflowError();
-      }
-      chunks.push(result.value);
-      byteLength += result.value.byteLength;
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  const bytes = new Uint8Array(byteLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new Response(bytes, responseInit(response));
-}
-
-function responseInit(response: Response): ResponseInit {
-  return { status: response.status, statusText: response.statusText, headers: response.headers };
-}
-
-function hasResponseBodyOverflowCause(error: unknown): boolean {
-  let current: unknown = error;
-  for (let depth = 0; depth < 4 && current instanceof Error; depth += 1) {
-    if (current instanceof ResponseBodyOverflowError) return true;
-    current = "cause" in current ? current.cause : undefined;
-  }
-  return false;
-}
-
-function decodeBoundedBase64(value: unknown): Uint8Array {
-  if (typeof value !== "string" || value.length === 0 || value.length > Math.ceil(OPENAI_IMAGE_MAX_OUTPUT_BYTES / 3) * 4) throw new ProviderInputValidationError();
-  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) throw new ProviderInputValidationError();
-  const bytes = Uint8Array.from(Buffer.from(value, "base64"));
-  if (bytes.length === 0 || bytes.length > OPENAI_IMAGE_MAX_OUTPUT_BYTES || Buffer.from(bytes).toString("base64") !== value) throw new ProviderInputValidationError();
-  return bytes;
 }
 
 function classifyError(error: unknown): ErrorFacts {

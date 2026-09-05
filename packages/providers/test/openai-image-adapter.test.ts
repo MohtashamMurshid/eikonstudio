@@ -144,6 +144,14 @@ describe("OpenAIImageAdapter", () => {
     expect(transport.calls()).toBe(1);
   });
 
+  it("decodes a multi-megabyte valid image without recursive regex overflow", async () => {
+    const bytes = Buffer.alloc(3_000_000, 37);
+    const transport = oneShotFetch(successResponse(bytes.toString("base64")));
+    const adapter = new OpenAIImageAdapter({ credentialBroker: broker(), fetch: transport.fetch });
+    const result = await adapter.submitGeneration(await inputFor(adapter), context);
+    expect(result.delivery === "synchronous" && result.outputs[0]?.bytes.byteLength).toBe(bytes.byteLength);
+  });
+
   it("rejects oversized output before decoding it", async () => {
     const oversized = "AAAA".repeat(Math.ceil(OPENAI_IMAGE_MAX_OUTPUT_BYTES / 3) + 1);
     const transport = oneShotFetch(successResponse(oversized));
@@ -329,5 +337,55 @@ describe("OpenAIImageAdapter", () => {
     ];
     for (const call of calls) await expect(call).rejects.toBeInstanceOf(ProviderOperationUnsupportedError);
     expect(transport.calls()).toBe(0);
+  });
+});
+
+// These tests inspect the actual SDK multipart body, including ordered bytes.
+describe("OpenAI image editing", () => {
+  const references = [0, 1].map(index => ({ mediaType: "image", contentType: "image/png", reference: { kind: "eikon-storage", storageId: `storage_${index}`, ownerId: "owner", assetId: `asset_reference00000${index}` } }));
+  it.each([1, 2, 4])("prepares %s ordered images before credentials and sends one multipart edit", async count => {
+    const { OPENAI_IMAGE_EDIT_CAPABILITY: capability } = await import("../src/index.js");
+    const events: string[] = [];
+    const imageResolver = vi.fn(async asset => { events.push("reference"); return { bytes: new Uint8Array([Number(asset.reference.storageId.split("_")[1])]), contentType: "image/png" }; });
+    const fetch = vi.fn(async (url, init) => {
+      events.push("transport");
+      expect(url).toBe("https://api.openai.com/v1/images/edits");
+      const body = init?.body as FormData;
+      expect(body.get("model")).toBe("gpt-image-2");
+      expect(body.get("n")).toBe("1");
+      expect(body.get("output_format")).toBe("png");
+      expect(body.get("size")).toBe("auto");
+      expect(body.get("quality")).toBe("high");
+      expect(body.get("stream")).toBe("false");
+      const files = body.getAll(count === 1 ? "image" : "image[]") as File[];
+      expect(files).toHaveLength(count);
+      for (const [index, file] of files.entries()) {
+        expect(file.name).toBe(`ref-${index}.png`);
+        expect(file.type).toBe("image/png");
+        expect(new Uint8Array(await file.arrayBuffer())).toEqual(new Uint8Array([index % 2]));
+      }
+      expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${secret}`);
+      return successResponse();
+    });
+    const adapter = new OpenAIImageAdapter({ credentialBroker: broker(() => events.push("credential")), imageResolver, fetch });
+    const edit = GenerationRequestSchema.parse({ ...request({ resolution: "4K", inputAssets: Array.from({ length: count }, (_, i) => references[i % 2]) }), task: "image-to-image", operation: "edit", schemaRevision: capability.schemaRevision });
+    const normalized = await adapter.normalizeInput(edit, capability);
+    const result = await adapter.submitGeneration(normalized, context);
+    expect(result).toMatchObject({ delivery: "synchronous", status: "completed" });
+    expect(events).toEqual([...Array(count).fill("reference"), "credential", "transport"]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it.each(["missing", "remote", "oversized", "mime", "count"])("rejects %s references without credentials or dispatch", async reason => {
+    const { OPENAI_IMAGE_EDIT_CAPABILITY: capability } = await import("../src/index.js");
+    let resolutions = 0;
+    const fetch = vi.fn();
+    const imageResolver = reason === "missing" ? undefined : vi.fn(async () => ({ bytes: new Uint8Array(reason === "oversized" ? 25_000_001 : 1), contentType: reason === "mime" ? "image/jpeg" : "image/png" }));
+    const adapter = new OpenAIImageAdapter({ credentialBroker: broker(() => resolutions++), fetch, ...(imageResolver ? { imageResolver } : {}) });
+    const edit = GenerationRequestSchema.parse({ ...request({ inputAssets: [references[0]] }), task: "image-to-image", operation: "edit", schemaRevision: capability.schemaRevision });
+    const input = await adapter.normalizeInput(edit, capability);
+    if (reason === "remote") input.native.values.references = [{ ...references[0], reference: { kind: "remote-untrusted", url: "https://untrusted.test/image", validationStatus: "pending" } }];
+    if (reason === "count") input.native.values.references = Array(5).fill(references[0]);
+    await expect(adapter.submitGeneration(input, context)).rejects.toBeInstanceOf(ProviderInputValidationError);
+    expect(resolutions).toBe(0); expect(fetch).not.toHaveBeenCalled();
   });
 });

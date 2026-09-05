@@ -8,7 +8,7 @@ const source = (path: string) => readFileSync(resolve(webRoot, path), "utf8");
 const generations = source("convex/generations.ts");
 const durableJobs = source("convex/durableJobs.ts");
 const worker = source("convex/imageGeneration.ts");
-const openAiWorker = source("convex/openAiDurableTextToImage.ts");
+const adapterWorker = source("convex/durableImageProvider.ts");
 const schema = source("convex/schema.ts");
 const hook = source("components/image-combiner/hooks/use-image-generation.ts");
 
@@ -47,14 +47,16 @@ describe("durable image execution source boundary", () => {
   it("persists in-flight before provider dispatch and never auto-resubmits recovered work", () => {
     const durableWorker = worker.split("export const generateDurableImageBackground")[1] ?? "";
     orderedBefore(durableWorker, "internal.durableJobs.beginSubmission", "return await operation(secretValue)");
-    const openAiBroker = durableWorker.split("withCredential: async")[1]?.split("});\n      } else")[0] ?? "";
-    orderedBefore(openAiBroker, "await mirrorGeneratingAdvisory()", "withResolvedCredentialForOperation(");
-    orderedBefore(openAiBroker, "withResolvedCredentialForOperation(", "await beginImmediatelyBeforeTransport()");
-    orderedBefore(openAiBroker, "await beginImmediatelyBeforeTransport()", "return await operation(secretValue)");
-    expect(durableWorker).toContain("generateDurableOpenAITextToImage");
-    expect(openAiWorker).toContain("fetch: typeof fetch");
-    expect(openAiWorker).not.toMatch(/fetch\?:\s*typeof fetch|fetch\s*=\s*globalThis\.fetch/);
-    orderedBefore(openAiWorker, "adapter.normalizeInput", "adapter.submitGeneration");
+    const credentialBroker = durableWorker.split("withCredential: async")[1]?.split("});\n      } else")[0] ?? "";
+    orderedBefore(credentialBroker, "await mirrorGeneratingAdvisory()", "withResolvedCredentialForOperation(");
+    orderedBefore(credentialBroker, "withResolvedCredentialForOperation(", "await beginImmediatelyBeforeTransport()");
+    orderedBefore(credentialBroker, "await beginImmediatelyBeforeTransport()", "return await operation(secretValue)");
+    expect(durableWorker).toContain("generateDurableImage");
+    expect(durableWorker).not.toContain("executeExistingImageProvider");
+    expect(durableWorker).not.toContain("providerSecret");
+    expect(adapterWorker).toContain("fetch: typeof fetch");
+    expect(adapterWorker).not.toMatch(/fetch\?:\s*typeof fetch|fetch\s*=\s*globalThis\.fetch/);
+    orderedBefore(adapterWorker, "adapter.normalizeInput", "adapter.submitGeneration");
     expect(durableWorker).toContain('decision === "mark-ambiguous"');
     expect(durableWorker).toContain('decision === "fail-without-resubmit"');
     expect(durableWorker).toContain("recordSubmissionAmbiguous");

@@ -57,7 +57,7 @@ pnpm typecheck
 
 #### 0. Shared platform contracts
 - `packages/core`: canonical provider/model IDs, strict source-backed variant catalog (as of 2026-08-02), Zod schemas, model-family registry, and generation lifecycle
-- `packages/providers`: provider-adapter boundary and contract fixtures; no provider network implementations yet
+- `packages/providers`: provider-adapter boundary, OpenAI and Google image transports, and contract fixtures
 - Both packages build TypeScript output to `dist/` and are orchestrated from the repository root with Turbo
 
 #### 1. Convex Backend Structure
