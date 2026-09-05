@@ -2,6 +2,17 @@
 
 _Last updated: September 6, 2026_
 
+## Veo asynchronous adapter, September 6, 2026
+
+- Verified that PR #30 merged as `4b44b04`, both automated reviews passed, and the production deployment for that commit succeeded. The public site returned HTTP 200. The old PR Preview check remains a historical failure; production success alone does not verify Preview configuration.
+- Added the first shared Google Veo adapter on `codex/phase2-veo-adapter`, targeting the existing `veo-3.1-generate-preview` Gemini API model. It supports text generation, one starting frame, and ordered first/last frames through the canonical video request contract. Public catalog readiness and creator selectors are unchanged.
+- Submission makes one REST request and returns the native operation name. Polling makes one GET per call, preserves exact operation identity, and distinguishes processing, completion, terminal provider errors, moderation blocks, and cancellation. Scheduling and retries remain the durable caller's responsibility.
+- Validates supported model/schema/task/options, one output, 720p/1080p and duration combinations, always-on audio, and owned PNG/JPEG references before credential access. Reference resolution preserves order, bounds each frame at 25 MB, and rejects partial inputs. Requests use an injected server credential broker and injected fetch with timeouts, bounded JSON responses, no redirects, and no automatic retries.
+- Completed polls return a request-bound video transport locator, not a stored Eikon asset or permission to fetch it. Exact Google file-download URL shapes are checked; credentials, arbitrary query parameters, alternate hosts, malformed paths, and unrecognized operation IDs are rejected. Provider response text, messages, details, and safety explanations are excluded from normalized errors.
+- Unsupported credential validation, pricing, provider cancellation, webhooks, and durable output normalization fail locally. Video download policy, storage persistence, durable job scheduling, legacy-route replacement, and UI migration remain the next integration slice. No Convex deployment or production change is part of this adapter slice.
+- Verification passed **446 tests**: 40 core, 162 providers, and 244 web, including 73 new Veo cases. Workspace lint passed with 0 errors and 31 existing warnings. Production build and workspace typecheck passed separately after the initial simultaneous run exposed a race in Next.js generated type files. No dependency changes were required.
+- Checked the [Google Veo REST guide](https://ai.google.dev/gemini-api/docs/veo?hl=en) and installed Google SDK converters on September 6. Live checks caught a mismatch with the current REST examples. Frame requests now use the SDK wire format, bytesBase64Encoded plus mimeType. A four-second text request and an eight-second first/last-frame request both completed through the new adapter and returned one validated output locator. Earlier frame attempts returned HTTP 400; two-frame requests shorter than eight seconds now fail preflight. Live checks used the existing development Gemini key, which stayed out of logs and tracked files. Outputs were not downloaded or persisted as durable assets in this slice.
+
 ## Review and development verification follow-up, September 6, 2026
 
 - Reviewed the image adapter migration and ran it on the existing development deployment. Regenerated Convex bindings with `pnpm codegen` and deployed the branch with `convex dev --once --typecheck enable --tail-logs disable`.
@@ -62,9 +73,9 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 2, shared adapters for the existing studio image models.
-- **Status:** Gemini generation/editing and OpenAI editing are implemented on `codex/phase2-image-adapters` and ready for review. Phase 2 as a whole remains incomplete.
-- **Verified base:** `6cc4c66`, PR #29. The adapter migration is committed as `b98dce7`; the review follow-up adds live verification and native request-identity handling.
+- **Active phase:** Phase 2, shared provider adapters and durable jobs.
+- **Status:** The image adapter migration merged in PR #30. The first Veo asynchronous adapter is implemented on `codex/phase2-veo-adapter`; durable video integration remains incomplete.
+- **Verified base:** `4b44b04`, the merged and deployed PR #30.
 - **Merged milestones:** Phase 0 via #10, Phase 1 foundation/catalog via #11/#12, credentials via #13, durable core/execution via #14/#16, storage ledger/backfill/verification/operations through #26, OpenAI adapter via #28, and OpenAI durable text-to-image wiring via #29.
 - The former active backfill status, pending PR, and `f7f21af` base were stale. Backfill merged in #24 as `49e2ddd`, verification in #25 as `34e6a69`, and operations in #26 as `c3af7d8`.
 - Development deployment and authenticated live checks are complete for all six image model/mode combinations. No production deployment or merge occurred.
@@ -338,9 +349,9 @@ Expected existing warnings remain:
 
 ## Next actions
 
-1. Finish automated review on PR #30. Vercel Preview needs a separate preview deployment configuration; its current production key is intentionally rejected by Convex.
+1. Review the first Veo asynchronous adapter and its provider contract tests.
 2. Keep the retained ambiguous development samples for diagnosis; future adapter failures now emit safe normalized server metadata.
-3. Complete the remaining Phase 2 work in separate tasks: video migration, other canonical providers, applicable polling/webhooks/cancellation, and broader durable API input/output integration.
+3. Next, wire Veo into durable video jobs with scheduled polling, approved bounded video downloads, Convex output persistence, and refresh-safe UI/history. Then continue other canonical providers and broader durable API integration.
 4. Keep playgrounds, dashboards, SDKs, mobile, production deployment, and merging outside this task.
 
 ## Independent storage-reference ledger verification milestone

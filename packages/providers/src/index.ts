@@ -5,3 +5,5 @@ export * from "./openai/model.js";
 export * from "./image-references.js";
 export * from "./google/model.js";
 export * from "./google/image-adapter.js";
+export * from "./google/veo-model.js";
+export * from "./google/veo-adapter.js";

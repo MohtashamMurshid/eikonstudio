@@ -126,7 +126,21 @@ export interface GenerationStatusResult {
   readonly providerRequestId: string;
   readonly status: GenerationStatus;
   readonly progress?: number;
+  /** Provider transport only, not durable assets or approval to fetch a remote URL. */
+  readonly pendingOutputs?: readonly PendingProviderOutput[];
+  readonly error?: PublicGenerationError;
   readonly providerContext?: RedactedProviderData;
+}
+
+export interface PendingProviderOutput {
+  readonly mediaType: "video";
+  readonly contentType: "video/mp4";
+  readonly reference: {
+    readonly kind: "provider-transport";
+    readonly providerId: ProviderId;
+    readonly providerRequestId: string;
+    readonly transportUrl: string;
+  };
 }
 
 export interface CancellationResult {
