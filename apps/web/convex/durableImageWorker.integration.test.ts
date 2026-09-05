@@ -196,6 +196,30 @@ it.each([
   expect((await snapshot(fixture)).job.revision).toBe(before.job!.revision);
 });
 
+describe.each(variants.filter(variant => variant.provider === "google"))("Gemini safety rejection for $model $mode", variant => {
+  it.each([
+    ["prompt", { promptFeedback: { blockReason: "SAFETY", blockReasonMessage: SECRET_VALUE } }],
+    ["candidate", { candidates: [{ finishReason: "IMAGE_SAFETY", finishMessage: SECRET_VALUE }] }],
+  ])("records a %s block as a terminal moderation failure without resubmission", async (suffix, response) => {
+    const fixture = await seedVariantFixture(`moderation_${suffix}`, variant);
+    const fetch = vi.fn(async () => new Response(JSON.stringify(response), {
+      status: 200, headers: { "content-type": "application/json" },
+    }));
+    globalThis.fetch = fetch;
+    await fixture.t.action(internal.imageGeneration.generateDurableImageBackground, { jobId: fixture.jobId });
+    const before = await persistedRows(fixture);
+    expect(before.job).toMatchObject({ status: "failed", publicErrorCode: "provider_moderation_error" });
+    expect(before.attempts[0]).toMatchObject({ status: "failed" });
+    expect(before.generation).toMatchObject({ status: "failed", errorMessage: "The provider rejected the request under its safety policy." });
+    expect(before.outputs).toHaveLength(0);
+    expect(before.completions).toHaveLength(0);
+    expect(JSON.stringify(before)).not.toContain(SECRET_VALUE);
+    await fixture.t.action(internal.imageGeneration.generateDurableImageBackground, { jobId: fixture.jobId });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect((await snapshot(fixture)).job).toEqual(before.job);
+  });
+});
+
 describe.each(variants)("durable $model $mode production action", (variant) => {
   const seedFixture = (suffix: string) => seedVariantFixture(suffix, variant);
   const installOneShotFetch = (response: () => Response) => installVariantFetch(response, variant);

@@ -11,7 +11,9 @@ _Last updated: September 6, 2026_
 - Authenticated live generation and editing succeeded for all three models: Gemini Flash, Gemini Pro, and OpenAI GPT Image 2. OpenAI was exercised through local Studio; Google requests used the normal authenticated generation action with the existing signed-in development session. History refresh displays the saved results.
 - All six completed outputs have matching durable SHA-256 checksums and byte sizes, and both original and thumbnail URLs returned HTTP 200. All images decode at 1024 × 1024, with red generation outputs and blue edited outputs. Redelivering all nine completed/ambiguous smoke jobs preserved attempt records, outputs, request identities, and job revisions.
 - Three earlier Flash text samples remain recorded as ambiguous and were not resubmitted. The first failed request-identity validation; two later samples returned the generic unknown-outcome error without enough retained detail to establish their cause. Fresh Flash generation/editing samples succeeded. Added server diagnostics limited to normalized category/code, HTTP status, transport-entry flag, model/provider, and job ID so future failures can be investigated without logging provider bodies or credentials.
-- Full workspace test, typecheck, lint, and build gates passed all ten tasks and **365 tests**: 40 core, 89 providers, and 236 web. Lint has 0 errors and 31 existing warnings; the production build produced 22 routes. After adding safe diagnostic logging, the 75 focused worker/policy tests and development deployment typecheck also passed.
+- Addressed the automated review finding that Gemini HTTP 200 safety blocks were treated as ambiguous. Explicit adapter-normalized moderation failures now terminate with the correct public error. Eight action regression cases cover prompt/candidate blocks across both Gemini models and modes, redacted errors, no output/completion records, and redelivery without resubmission. All eight failed before the fix and pass afterward.
+- Final uncached workspace test, typecheck, lint, and build gates passed all ten tasks and **373 tests**: 40 core, 89 providers, and 244 web. Lint has 0 errors and 31 existing warnings; the production build produced 22 routes.
+- Published [PR #30](https://github.com/MohtashamMurshid/eikonstudio/pull/30). Vercel Preview stops before compilation because Preview is configured with a production Convex deploy key. The deployment log confirms this mismatch; base PR #29 also has a failed Vercel check. No production-key override was used.
 - Changes are isolated in the review worktree. The original checkout retains the startup correction and updated local-auth instructions. Production was not deployed or merged.
 
 ## Existing image adapter migration, September 6, 2026
@@ -336,7 +338,7 @@ Expected existing warnings remain:
 
 ## Next actions
 
-1. Publish the reviewed image adapter migration and follow-up verification as a pull request, then inspect its checks.
+1. Finish automated review on PR #30. Vercel Preview needs a separate preview deployment configuration; its current production key is intentionally rejected by Convex.
 2. Keep the retained ambiguous development samples for diagnosis; future adapter failures now emit safe normalized server metadata.
 3. Complete the remaining Phase 2 work in separate tasks: video migration, other canonical providers, applicable polling/webhooks/cancellation, and broader durable API input/output integration.
 4. Keep playgrounds, dashboards, SDKs, mobile, production deployment, and merging outside this task.

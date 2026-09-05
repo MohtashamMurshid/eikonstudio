@@ -911,7 +911,10 @@ export const generateDurableImageBackground = internalAction({
         }
         const renewed = await claim("submitting", begin.revision);
         const definitive = adapterError
-          ? !adapterError.transportEntered || providerFailureDisposition(adapterError.httpStatus) === "definitive"
+          ? !adapterError.transportEntered ||
+            // Gemini reports explicit safety blocks in successful HTTP responses.
+            adapterError.normalized.publicError.category === "moderation" ||
+            providerFailureDisposition(adapterError.httpStatus) === "definitive"
           : providerFailureDisposition(providerHttpStatus(error)) === "definitive";
         if (definitive) {
           await ctx.runMutation(internal.durableJobs.transition, {
