@@ -1,6 +1,41 @@
 # Eikon Studio V1 Progress
 
-_Last updated: August 2, 2026_
+_Last updated: September 6, 2026_
+
+## Review and development verification follow-up, September 6, 2026
+
+- Reviewed the image adapter migration and ran it on the existing development deployment. Regenerated Convex bindings with `pnpm codegen` and deployed the branch with `convex dev --once --typecheck enable --tail-logs disable`.
+- Fixed local Google sign-in redirecting to production. The development deployment's `SITE_URL` was the production domain; `DEV_SITE_URL` is unused by the auth code. Set the development `SITE_URL` to `http://localhost:3000` and corrected README setup instructions. Completed Google sign-in in the browser, returned to local Studio, and verified the session survives refresh.
+- Configured the missing development credential-encryption secret and saved the existing development Gemini and OpenAI keys as encrypted credentials for the signed-in development account. Secret values stayed out of logs and tracked files.
+- Live testing exposed a provider request-identity rejection. The worker and ledger required an alphanumeric first character, which excludes valid base64url identities beginning with `-` or `_`. Both now share the same bounded validator and preserve those native identities verbatim. Four regression cases cover generation/editing, persisted submission/completion identity, and worker redelivery without a second provider call. They failed against the original validator and pass with the fix.
+- Authenticated live generation and editing succeeded for all three models: Gemini Flash, Gemini Pro, and OpenAI GPT Image 2. OpenAI was exercised through local Studio; Google requests used the normal authenticated generation action with the existing signed-in development session. History refresh displays the saved results.
+- All six completed outputs have matching durable SHA-256 checksums and byte sizes, and both original and thumbnail URLs returned HTTP 200. All images decode at 1024 × 1024, with red generation outputs and blue edited outputs. Redelivering all nine completed/ambiguous smoke jobs preserved attempt records, outputs, request identities, and job revisions.
+- Three earlier Flash text samples remain recorded as ambiguous and were not resubmitted. The first failed request-identity validation; two later samples returned the generic unknown-outcome error without enough retained detail to establish their cause. Fresh Flash generation/editing samples succeeded. Added server diagnostics limited to normalized category/code, HTTP status, transport-entry flag, model/provider, and job ID so future failures can be investigated without logging provider bodies or credentials.
+- Addressed the automated review finding that Gemini HTTP 200 safety blocks were treated as ambiguous. Explicit adapter-normalized moderation failures now terminate with the correct public error. Eight action regression cases cover prompt/candidate blocks across both Gemini models and modes, redacted errors, no output/completion records, and redelivery without resubmission. All eight failed before the fix and pass afterward.
+- Final uncached workspace test, typecheck, lint, and build gates passed all ten tasks and **373 tests**: 40 core, 89 providers, and 244 web. Lint has 0 errors and 31 existing warnings; the production build produced 22 routes.
+- Published [PR #30](https://github.com/MohtashamMurshid/eikonstudio/pull/30). Vercel Preview stops before compilation because Preview is configured with a production Convex deploy key. The deployment log confirms this mismatch; base PR #29 also has a failed Vercel check. No production-key override was used.
+- Changes are isolated in the review worktree. The original checkout retains the startup correction and updated local-auth instructions. Production was not deployed or merged.
+
+## Existing image adapter migration, September 6, 2026
+
+- Preserved the startup fix in this worktree: providers now declare `@types/node: ^22`, the OpenAI adapter explicitly imports `Buffer` from `node:buffer`, and the lockfile has only the corresponding three-line importer addition. The original checkout and its dev server were not modified.
+- The durable studio worker now uses shared adapters for all six existing model/mode combinations: `gemini-3.1-flash-image`, `gemini-3-pro-image`, and `gpt-image-2`, each for generation and editing. The old helper remains available only to legacy/background and gateway execution; public routes and video are outside this cutover.
+- Google uses a single injected REST request to the existing `v1beta` generateContent endpoint. Text generation retains aspect ratio and image size; edits retain references before the prompt and omit generationConfig, matching the previous implementation. OpenAI edits use multipart uploads and retain the existing size/quality mapping. The creator model list is unchanged, and adapter IDs come from the existing catalog so canonical `gemini-3-1-flash-image` remains distinct from native `gemini-3.1-flash-image`.
+- References stay in Convex storage. The server reads only the job's bound storage IDs, validates all references before credential resolution, preserves order and duplicates, and refuses missing, empty, oversized, or unsupported references instead of submitting a partial edit. The existing four-reference limit remains; this adapter supports PNG, JPEG, and WebP, matching normal studio upload conversion. Each reference is capped at 25 MB. OpenAI text outputs retain the 25 MB decoded cap; Google and OpenAI edit outputs retain the prior 20 MB base64 ceiling, equivalent to 15 MB decoded. Shared response reads enforce a byte cap before JSON parsing, and base64 validation no longer uses a repeated-group regex that can overflow on large valid images.
+- Plaintext stays within the server credential callback. Every provider request uses injected fetch, a maximum 240-second timeout, no automatic retries, and no redirects. The OpenAI SDK's FormData probe receives a local Response constructor so it cannot call the injected transport before the actual edit request.
+- The worker persists in-flight state before transport and retains the existing lease, ambiguity, recovery, checksum, completion/output ledger, finalization, and legacy mirror rules. Malformed successes and uncertain transport outcomes never trigger automatic resubmission. Google errors retain only allowlisted categories/statuses, and temporary thought images are excluded from successful output.
+
+Verification in this worktree:
+
+- Startup-fix baseline passed the original 48 provider tests and provider typecheck.
+- Frozen install passed. Full uncached test/typecheck run passed all eight tasks and **361 tests**: 40 core, 89 providers, and 232 web.
+- The 60 durable action integration cases use real Convex functions and storage through `convex-test`, with injected provider fetch and an injected authentication identity for history queries. They cover all six combinations, request mapping, credential disablement, preflight rejection, concurrent dispatch, definitive errors, ambiguous outcomes, stored images and Jimp thumbnails, checksums, ledger/finalization records, owner-scoped history URLs, retained reference bytes, and mirror repair without another provider submission. The existing lifecycle, cancellation, expiry/recovery, tombstone, and storage reconciliation suites also pass.
+- Workspace lint passed with 0 errors and the existing 31 warnings. Placeholder-environment production build passed all three tasks and produced 22 routes.
+- `pnpm dev -- --port 3107` built providers and started Next.js. `/models` and `/auth` returned HTTP 200 using placeholder Convex URLs. The temporary server was stopped after this smoke check; this does not verify authenticated UI or a deployed backend.
+- `pnpm codegen` built providers and reached the Convex CLI, then stopped with `No CONVEX_DEPLOYMENT set`. This isolated worktree has no `.env.local`, Convex deployment binding, or provider credentials in its environment. No bindings were hand-edited. Development-deployment codegen and authenticated live-provider generation, refresh/history, errors, and recovery remain unverified.
+- Dependency warnings remain for the existing Better Call/Zod and Vite/Node-types peer ranges, ignored dependency build scripts, and stale baseline-browser-mapping data.
+
+Primary references checked on September 6: [OpenAI image edit API](https://developers.openai.com/api/reference/resources/images/methods/edit), [OpenAI image generation guide](https://developers.openai.com/api/docs/guides/image-generation), and [Google generateContent image guide](https://ai.google.dev/gemini-api/docs/generate-content/image-generation). Provider documentation establishes request support; local injected tests do not establish account access or live model availability.
 
 ## Audited first provider artifact: OpenAI GPT Image 2 text-to-image, September 1, 2026
 
@@ -27,11 +62,12 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 ## Current delivery state
 
-- **Active phase:** Phase 2 — Resumable historical storage-reference ledger backfill
-- **Status:** Bounded source-scoped backfill is implemented and remains non-authoritative; PR delivery pending
-- **Branch:** `feature/storage-ledger-backfill`
-- **Base:** Transactional ledger merge `origin/main@f7f21af` (PR #23)
-- **Phase 0:** Merged through [PR #10](https://github.com/MohtashamMurshid/eikonstudio/pull/10) in merge commit `088a53f`
+- **Active phase:** Phase 2, shared adapters for the existing studio image models.
+- **Status:** Gemini generation/editing and OpenAI editing are implemented on `codex/phase2-image-adapters` and ready for review. Phase 2 as a whole remains incomplete.
+- **Verified base:** `6cc4c66`, PR #29. The adapter migration is committed as `b98dce7`; the review follow-up adds live verification and native request-identity handling.
+- **Merged milestones:** Phase 0 via #10, Phase 1 foundation/catalog via #11/#12, credentials via #13, durable core/execution via #14/#16, storage ledger/backfill/verification/operations through #26, OpenAI adapter via #28, and OpenAI durable text-to-image wiring via #29.
+- The former active backfill status, pending PR, and `f7f21af` base were stale. Backfill merged in #24 as `49e2ddd`, verification in #25 as `34e6a69`, and operations in #26 as `c3af7d8`.
+- Development deployment and authenticated live checks are complete for all six image model/mode combinations. No production deployment or merge occurred.
 
 ## Phase 1 foundation slice
 
@@ -302,10 +338,10 @@ Expected existing warnings remain:
 
 ## Next actions
 
-1. Run full gates and adversarial review on the durable-image execution slice.
-2. Open the bounded PR and inspect all current-head bot comments before merge.
-3. Regenerate Convex bindings against a configured deployment before release.
-4. Keep video and additional provider transports out of scope until this cutover is accepted.
+1. Finish automated review on PR #30. Vercel Preview needs a separate preview deployment configuration; its current production key is intentionally rejected by Convex.
+2. Keep the retained ambiguous development samples for diagnosis; future adapter failures now emit safe normalized server metadata.
+3. Complete the remaining Phase 2 work in separate tasks: video migration, other canonical providers, applicable polling/webhooks/cancellation, and broader durable API input/output integration.
+4. Keep playgrounds, dashboards, SDKs, mobile, production deployment, and merging outside this task.
 
 ## Independent storage-reference ledger verification milestone
 
@@ -321,28 +357,32 @@ Expected existing warnings remain:
 - Added convex-test coverage for multipage bidirectional completion, ten scopes/checkpoints, immutable observed-pair attestation, ledger-only detection, append-only failure recording, exact offending-row identity, equal-time cutoff ties, bounded multi-call finalization, commitment corruption, completed replay reconstruction, SHA-256 vectors, and failure atomicity, plus static source-boundary coverage for internal exposure, bounded scans, all sources/fields, immutability, SHA-256, and forbidden capabilities.
 - Full verification passed **183/183 tests**: 39 core, 9 providers, and 135 web; typecheck passed 4/4 and `git diff --check` passed. Iterative specialist and context-aware adversarial reviews were dispositioned before commit.
 
-## Phase roadmap
-
 ## Durable OpenAI text-to-image adapter wiring
 
-- The durable worker now routes only OpenAI `gpt-image-2` text-to-image work through the shared provider adapter. Gemini, editing, legacy execution, gateway, and public routes remain unchanged.
+- At PR #29, the durable worker routed only OpenAI `gpt-image-2` text-to-image work through the shared provider adapter. Gemini and editing moved to adapters in the September 6 slice above; legacy execution, gateway, and public routes remain unchanged.
 - Canonical aspect ratio and resolution map to exact OpenAI `size` and `quality` values. The adapter validates those normalized fields, preserves the prior 240-second durable-worker timeout, and retains the 25 MB decoded output cap.
 - Adapter preflight runs before credential resolution. Plaintext stays inside a local callback, `in_flight` is persisted immediately before the injected transport, and transport entry controls definitive-versus-ambiguous failure handling.
 - Recovered in-flight, ambiguous, accepted, persisting, and completed work continues through the existing zero-resubmission recovery matrix.
 - Focused provider, helper, source-boundary, and real `convex-test` action scenarios cover exact request bodies, injected-fetch confinement, credential/preflight ordering, definitive rejection, ambiguous outcomes, zero-dispatch redelivery, actual Jimp thumbnailing, Convex storage, checksums, completion/output ledgers, finalization, and legacy mirror recovery. No real provider request or deployment was performed.
 - Full verification passed **266/266 tests**: 40 core, 48 providers, and 178 web; typecheck passed all five Turbo tasks, lint passed with 0 errors and 31 existing warnings, the placeholder production build produced 22 routes, and `git diff --check` passed. Provider/core builds are prerequisites for build, codegen, dev, Convex dev, test, and typecheck. Convex codegen reached the CLI after a clean providers build and stopped only because no `CONVEX_DEPLOYMENT` was configured.
 
+## Phase roadmap
+
 - [x] Phase 0 monorepo migration merged via PR #10 (`088a53f`)
-- [x] Phase 1 foundation implementation: hardened shared contracts, lifecycle, registry vocabulary, and adapter boundary (local)
+- [x] Phase 1 foundation implementation: shared contracts, lifecycle, registry vocabulary, and adapter boundary, merged via PR #11
 - [x] Phase 1 foundation independent review
 - [x] Phase 1 foundation PR opened as #11
-- [x] Phase 1 source-backed catalog and creator-ID integration implemented locally
+- [x] Phase 1 source-backed catalog and creator-ID integration merged via PR #12
 - [x] Phase 1 model catalog independent review
 - [x] Phase 1 model catalog merged via PR #12 (`9eb1f62`)
 - [x] Phase 2 credential-boundary implementation and independent review
 - [x] Phase 2 credential-boundary PR merged via PR #13 (`f00a9f8`)
-- [x] Phase 2 durable lifecycle persistence substrate implemented and independently reviewed
-- [ ] Phase 2 existing image transport durable execution cutover
+- [x] Phase 2 durable lifecycle core merged via PR #14
+- [x] Phase 2 existing studio image transport durable execution cutover merged via PR #16
+- [x] Phase 2 storage ledger/backfill/verification/operations merged through PR #26
+- [x] Phase 2 OpenAI text adapter and durable wiring merged via PR #28/#29
+- [x] Phase 2 Gemini generation/editing and OpenAI editing adapter migration implemented and locally verified on `codex/phase2-image-adapters`
+- [ ] Development Convex codegen and authenticated live-provider verification for this migration
 - [ ] Phase 2 provider adapters and durable jobs
 - [ ] Phase 3: Catalog, detail pages, and playground
 - [ ] Phase 4: Creator and Developer dashboards

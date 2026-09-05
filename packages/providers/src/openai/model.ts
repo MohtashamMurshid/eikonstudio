@@ -21,6 +21,17 @@ export const OPENAI_IMAGE_CAPABILITY = ModelOperationCapabilitySchema.parse({
   },
 });
 
+export const OPENAI_IMAGE_EDIT_SCHEMA_REVISION = SchemaRevisionIdSchema.parse("schema_openai_gpt_image_2_edit_v1");
+export const OPENAI_IMAGE_EDIT_CAPABILITY = ModelOperationCapabilitySchema.parse({
+  ...OPENAI_IMAGE_CAPABILITY,
+  schemaRevision: OPENAI_IMAGE_EDIT_SCHEMA_REVISION,
+  operation: "edit",
+  task: "image-to-image",
+  inputRoles: [...OPENAI_IMAGE_CAPABILITY.inputRoles, { role: "reference", modality: "image", required: true, minCount: 1, maxCount: 4 }],
+  limits: { ...OPENAI_IMAGE_CAPABILITY.limits, maxReferences: 4, maxInputBytes: 100_128_000, maxOutputBytes: 15_000_000 },
+  inputSchema: { ...OPENAI_IMAGE_CAPABILITY.inputSchema, revision: OPENAI_IMAGE_EDIT_SCHEMA_REVISION },
+});
+
 export const OPENAI_IMAGE_MODEL: ModelVariant = ModelVariantSchema.parse({
   id: OPENAI_IMAGE_MODEL_ID,
   familyId: "gpt-image",
@@ -29,7 +40,7 @@ export const OPENAI_IMAGE_MODEL: ModelVariant = ModelVariantSchema.parse({
   displayName: "GPT Image 2",
   readiness: "ready",
   mediaTypes: ["image"],
-  capabilities: [OPENAI_IMAGE_CAPABILITY],
+  capabilities: [OPENAI_IMAGE_CAPABILITY, OPENAI_IMAGE_EDIT_CAPABILITY],
   preview: false,
   discoveredAt: "2026-09-01T00:00:00.000Z",
   updatedAt: "2026-09-01T00:00:00.000Z",

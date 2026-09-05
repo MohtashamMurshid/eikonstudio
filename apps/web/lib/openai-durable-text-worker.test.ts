@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CredentialHandleSchema } from "@eikonstudio/core";
 import {
-  DurableOpenAITextToImageError,
-  generateDurableOpenAITextToImage,
-} from "../convex/openAiDurableTextToImage";
+  DurableImageProviderError,
+  generateDurableImage,
+} from "../convex/durableImageProvider";
 
 const originalFetch = globalThis.fetch;
 const credential = {
@@ -39,7 +39,8 @@ describe("durable OpenAI text-to-image helper", () => {
       });
     }) as typeof fetch;
 
-    const result = await generateDurableOpenAITextToImage({
+    const result = await generateDurableImage({
+      model: "gpt-image-2", mode: "text-to-image", ownerId: "test", referenceStorageIds: [], readImage: async () => null,
       prompt: "Draw a lighthouse",
       aspectRatio: "portrait",
       resolution: "1K",
@@ -67,7 +68,8 @@ describe("durable OpenAI text-to-image helper", () => {
   it("fails adapter preflight before credential resolution or transport", async () => {
     const withCredential = vi.fn();
     const injectedFetch = vi.fn() as unknown as typeof fetch;
-    await expect(generateDurableOpenAITextToImage({
+    await expect(generateDurableImage({
+      model: "gpt-image-2", mode: "text-to-image", ownerId: "test", referenceStorageIds: [], readImage: async () => null,
       prompt: "",
       aspectRatio: "square",
       resolution: "1K",
@@ -86,7 +88,8 @@ describe("durable OpenAI text-to-image helper", () => {
     })) as typeof globalThis.fetch;
     let caught: unknown;
     try {
-      await generateDurableOpenAITextToImage({
+      await generateDurableImage({
+      model: "gpt-image-2", mode: "text-to-image", ownerId: "test", referenceStorageIds: [], readImage: async () => null,
         prompt: "x",
         aspectRatio: "square",
         resolution: "2K",
@@ -97,7 +100,7 @@ describe("durable OpenAI text-to-image helper", () => {
     } catch (error) {
       caught = error;
     }
-    expect(caught).toBeInstanceOf(DurableOpenAITextToImageError);
+    expect(caught).toBeInstanceOf(DurableImageProviderError);
     expect(caught).toMatchObject({ transportEntered: true, httpStatus: status });
     expect(JSON.stringify(caught)).not.toContain("hostile-provider-message");
     expect(JSON.stringify(caught)).not.toContain("sk-secret");

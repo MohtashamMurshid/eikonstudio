@@ -35,7 +35,10 @@ describe("durable execution policy", () => {
 
   it("requires an opaque provider-native request identity", () => {
     expect(requireProviderRequestIdentity("req_12345678")).toBe("req_12345678");
-    for (const identity of [undefined, null, "", "contains spaces", "https://provider.example/request/1"]) {
+    for (const identity of ["_google_response", "-google_response", "_" + "a".repeat(255)]) {
+      expect(requireProviderRequestIdentity(identity)).toBe(identity);
+    }
+    for (const identity of [undefined, null, "", "contains spaces", "https://provider.example/request/1", "a\n", "_" + "a".repeat(256)]) {
       expect(() => requireProviderRequestIdentity(identity)).toThrow("PROVIDER_REQUEST_ID_REQUIRED");
     }
   });

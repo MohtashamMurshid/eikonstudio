@@ -18,10 +18,10 @@ import {
 } from "./durableExecutionPolicy";
 import { withResolvedCredentialForOperation } from "./credentialActions";
 import {
-  DurableOpenAITextToImageError,
-  generateDurableOpenAITextToImage,
+  DurableImageProviderError,
+  generateDurableImage,
   studioAspectRatio,
-} from "./openAiDurableTextToImage";
+} from "./durableImageProvider";
 import { ProviderCredentialReferenceSchema } from "@eikonstudio/providers";
 
 
@@ -765,30 +765,17 @@ export const generateDurableImageBackground = internalAction({
 
     if (initial.job.provider !== "google" && initial.job.provider !== "openai") return null;
     if (!initial.generation.imageModel) return null;
+    const provider = initial.job.provider;
 
-    const useDurableOpenAIAdapter =
-      initial.job.provider === "openai" &&
-      initial.generation.imageModel === GPT_IMAGE_MODEL &&
-      initial.generation.mode === "text-to-image";
-    let execution;
-    let providerSecret: string | undefined;
-    let finalPrompt: string | undefined;
+    let finalPrompt: string;
     try {
-      execution = await ctx.runQuery(internal.generations.getGenerationExecutionContext, {
+      const execution = await ctx.runQuery(internal.generations.getGenerationExecutionContext, {
         generationId: initial.generation._id,
         credentialHandle: initial.job.credentialHandle,
         credentialProvider: initial.job.provider,
       });
-      if (useDurableOpenAIAdapter) {
-        finalPrompt = await resolveImagePrompt(ctx, initial.job.ownerId, initial.generation.prompt);
-      } else {
-        const resolved = await ctx.runAction(internal.credentialActions.resolveCredentialForOperation, {
-          ownerId: initial.job.ownerId,
-          provider: initial.job.provider,
-          credentialHandle: initial.job.credentialHandle,
-        });
-        providerSecret = resolved.secretValue;
-      }
+      if (execution.ownerId !== initial.job.ownerId) throw new Error("Durable generation owner binding is invalid.");
+      finalPrompt = await resolveImagePrompt(ctx, initial.job.ownerId, initial.generation.prompt);
     } catch {
       try {
         const preparationClaim = await claim("queued", initial.job.revision);
@@ -843,62 +830,59 @@ export const generateDurableImageBackground = internalAction({
       }
     };
 
-    if (!useDurableOpenAIAdapter) {
-      try {
-        await beginImmediatelyBeforeTransport();
-        await mirrorGeneratingAdvisory();
-      } catch {
-        return null;
-      }
-    }
-
     let providerResult: ProviderImageResult;
     try {
-      if (useDurableOpenAIAdapter) {
-        const credential = ProviderCredentialReferenceSchema.parse({
-          providerId: "openai",
-          handle: initial.job.credentialHandle,
-        });
-        providerResult = await generateDurableOpenAITextToImage({
-          prompt: finalPrompt!,
-          aspectRatio: initial.generation.aspectRatio,
-          resolution: initial.generation.imageSize,
-          credential,
-          fetch: globalThis.fetch,
-          withCredential: async (reference, operation) => {
-            if (reference.providerId !== credential.providerId || reference.handle !== credential.handle) {
-              throw new Error("Adapter credential reference does not match the durable job.");
-            }
-            await mirrorGeneratingAdvisory();
-            return await withResolvedCredentialForOperation(
-              ctx,
-              {
-                ownerId: initial.job.ownerId,
-                provider: "openai",
-                credentialHandle: initial.job.credentialHandle,
-              },
-              async (secretValue) => {
-                await beginImmediatelyBeforeTransport();
-                return await operation(secretValue);
-              },
-            );
-          },
-        });
-      } else {
-        providerResult = await executeExistingImageProvider(ctx, {
-          userId: initial.job.ownerId,
-          providerSecret: providerSecret!,
-          credentialProvider: initial.job.provider,
-          prompt: initial.generation.prompt,
-          mode: initial.generation.mode,
-          aspectRatio: initial.generation.aspectRatio,
-          imageSize: initial.generation.imageSize,
-          imageModel: initial.generation.imageModel,
-          referenceImageUrls: execution.referenceImageUrls,
+      const credential = ProviderCredentialReferenceSchema.parse({
+        providerId: initial.job.provider,
+        handle: initial.job.credentialHandle,
+      });
+      providerResult = await generateDurableImage({
+        model: initial.generation.imageModel,
+        mode: initial.generation.mode,
+        ownerId: initial.job.ownerId,
+        referenceStorageIds: initial.generation.referenceImageIds ?? [],
+        readImage: async (storageId) => {
+          if (!(initial.generation.referenceImageIds ?? []).includes(storageId as Id<"_storage">)) throw new Error("Image reference is not bound to the durable job.");
+          return await ctx.storage.get(storageId as Id<"_storage">);
+        },
+        prompt: finalPrompt,
+        aspectRatio: initial.generation.aspectRatio,
+        resolution: initial.generation.imageSize,
+        credential,
+        fetch: globalThis.fetch,
+        withCredential: async (reference, operation) => {
+          if (reference.providerId !== credential.providerId || reference.handle !== credential.handle) {
+            throw new Error("Adapter credential reference does not match the durable job.");
+          }
+          await mirrorGeneratingAdvisory();
+          return await withResolvedCredentialForOperation(
+            ctx,
+            {
+              ownerId: initial.job.ownerId,
+              provider,
+              credentialHandle: initial.job.credentialHandle,
+            },
+            async (secretValue) => {
+              await beginImmediatelyBeforeTransport();
+              return await operation(secretValue);
+            },
+          );
+        },
+      });
+    } catch (error) {
+      const adapterError = error instanceof DurableImageProviderError ? error : undefined;
+      if (adapterError) {
+        // Only adapter-normalized metadata is logged; never include provider bodies or credentials.
+        console.warn("[Durable Image] Provider execution failed", {
+          jobId,
+          provider,
+          model: initial.generation.imageModel,
+          category: adapterError.normalized.publicError.category,
+          code: adapterError.normalized.publicError.code,
+          httpStatus: adapterError.httpStatus,
+          transportEntered: adapterError.transportEntered,
         });
       }
-    } catch (error) {
-      const adapterError = error instanceof DurableOpenAITextToImageError ? error : undefined;
       try {
         if (!begin) {
           const preparationClaim = await claim("queued", initial.job.revision);
@@ -927,7 +911,10 @@ export const generateDurableImageBackground = internalAction({
         }
         const renewed = await claim("submitting", begin.revision);
         const definitive = adapterError
-          ? !adapterError.transportEntered || providerFailureDisposition(adapterError.httpStatus) === "definitive"
+          ? !adapterError.transportEntered ||
+            // Gemini reports explicit safety blocks in successful HTTP responses.
+            adapterError.normalized.publicError.category === "moderation" ||
+            providerFailureDisposition(adapterError.httpStatus) === "definitive"
           : providerFailureDisposition(providerHttpStatus(error)) === "definitive";
         if (definitive) {
           await ctx.runMutation(internal.durableJobs.transition, {
@@ -977,38 +964,17 @@ export const generateDurableImageBackground = internalAction({
     } catch {
       try {
         const identityClaim = await claim("submitting", begin!.revision);
-        if (useDurableOpenAIAdapter) {
-          await ctx.runMutation(internal.durableJobs.recordSubmissionAmbiguous, {
-            ownerId: initial.job.ownerId,
-            jobId,
-            expectedRevision: identityClaim.revision,
-            attemptKey,
-            leaseToken,
-            leaseEpoch: identityClaim.leaseEpoch,
-            submissionKey,
-            eventId: `identity_ambiguous_${randomUUID()}`,
-            occurredAt: Date.now(),
-          });
-        } else {
-          await ctx.runMutation(internal.durableJobs.transition, {
-            ownerId: initial.job.ownerId,
-            jobId,
-            expectedStatus: "submitting",
-            expectedRevision: identityClaim.revision,
-            attemptKey,
-            leaseToken,
-            leaseEpoch: identityClaim.leaseEpoch,
-            targetStatus: "failed",
-            eventId: `identity_missing_${randomUUID()}`,
-            eventFingerprint: "provider-request-identity-missing",
-            occurredAt: Date.now(),
-            error: safeExecutionError(
-              "PROVIDER_REQUEST_ID_REQUIRED",
-              "The provider completed without an auditable request identity; the output was not persisted.",
-              "validation",
-            ),
-          });
-        }
+        await ctx.runMutation(internal.durableJobs.recordSubmissionAmbiguous, {
+          ownerId: initial.job.ownerId,
+          jobId,
+          expectedRevision: identityClaim.revision,
+          attemptKey,
+          leaseToken,
+          leaseEpoch: identityClaim.leaseEpoch,
+          submissionKey,
+          eventId: `identity_ambiguous_${randomUUID()}`,
+          occurredAt: Date.now(),
+        });
         await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
           jobId,
           errorMessage: "The provider response could not be bound to an auditable request identity.",
