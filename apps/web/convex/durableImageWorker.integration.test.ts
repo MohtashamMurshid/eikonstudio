@@ -170,6 +170,32 @@ afterEach(() => {
 
 const variants: Variant[] = ["gemini-3.1-flash-image", "gemini-3-pro-image", "gpt-image-2"].flatMap(model => ["text-to-image", "image-editing"].map(mode => ({ provider: model === "gpt-image-2" ? "openai" : "google", model, mode } as Variant)));
 
+it.each([
+  ["_google_response", "text-to-image"],
+  ["-google_response", "text-to-image"],
+  ["_google_response", "image-editing"],
+  ["-google_response", "image-editing"],
+] as const)("persists prefixed Gemini request identity %s for %s without resubmission", async (requestId, mode) => {
+  const variant: Variant = { provider: "google", model: "gemini-3.1-flash-image", mode };
+  const fixture = await seedVariantFixture("prefixed_identity", variant);
+  const fetch = installVariantFetch(() => new Response(JSON.stringify({ data: [{ b64_json: TINY_PNG_BASE64 }] }), {
+    headers: { "content-type": "application/json", "x-request-id": requestId },
+  }), variant);
+  await fixture.t.action(internal.imageGeneration.generateDurableImageBackground, { jobId: fixture.jobId });
+  const before = await persistedRows(fixture);
+  expect(before.job).toMatchObject({ status: "completed", providerRequestId: requestId });
+  expect(before.submissions).toHaveLength(1);
+  expect(before.completions).toHaveLength(1);
+  expect(before.outputs).toHaveLength(1);
+  for (const row of [...before.submissions, ...before.completions]) {
+    expect(row.providerRequestId).toBe(requestId);
+  }
+  expect(before.outputs[0].completionId).toBe(before.completions[0]._id);
+  await fixture.t.action(internal.imageGeneration.generateDurableImageBackground, { jobId: fixture.jobId });
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect((await snapshot(fixture)).job.revision).toBe(before.job!.revision);
+});
+
 describe.each(variants)("durable $model $mode production action", (variant) => {
   const seedFixture = (suffix: string) => seedVariantFixture(suffix, variant);
   const installOneShotFetch = (response: () => Response) => installVariantFetch(response, variant);

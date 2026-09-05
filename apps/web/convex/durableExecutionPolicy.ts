@@ -45,8 +45,14 @@ export function providerFailureDisposition(status: number | undefined): "definit
   return "ambiguous";
 }
 
+/** Provider-native base64url identities may begin with '-' or '_'. Preserve them verbatim. */
+export function isProviderRequestIdentity(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 256 &&
+    /^[A-Za-z0-9_-]/.test(value) && !/[^A-Za-z0-9._:-]/.test(value);
+}
+
 export function requireProviderRequestIdentity(value: string | null | undefined): string {
-  if (!value || value.length > 256 || !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value)) {
+  if (!isProviderRequestIdentity(value)) {
     throw new Error("PROVIDER_REQUEST_ID_REQUIRED");
   }
   return value;

@@ -871,6 +871,18 @@ export const generateDurableImageBackground = internalAction({
       });
     } catch (error) {
       const adapterError = error instanceof DurableImageProviderError ? error : undefined;
+      if (adapterError) {
+        // Only adapter-normalized metadata is logged; never include provider bodies or credentials.
+        console.warn("[Durable Image] Provider execution failed", {
+          jobId,
+          provider,
+          model: initial.generation.imageModel,
+          category: adapterError.normalized.publicError.category,
+          code: adapterError.normalized.publicError.code,
+          httpStatus: adapterError.httpStatus,
+          transportEntered: adapterError.transportEntered,
+        });
+      }
       try {
         if (!begin) {
           const preparationClaim = await claim("queued", initial.job.revision);

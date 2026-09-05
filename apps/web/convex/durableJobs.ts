@@ -22,6 +22,7 @@ import {
   type DurableJobStatus,
 } from "./durableJobPolicy";
 import { insertDocumentStorageReferences } from "./storageReferenceLedger";
+import { isProviderRequestIdentity } from "./durableExecutionPolicy";
 
 const statusValidator = v.union(...DURABLE_JOB_STATUSES.map((status) => v.literal(status)));
 const providerValidator = v.union(
@@ -269,7 +270,7 @@ async function assertProviderRequestAvailable(
   attempt: Doc<"durableGenerationAttempts">,
   providerRequestId: string,
 ): Promise<void> {
-  opaque(providerRequestId, 256, "INVALID_PROVIDER_REQUEST_ID");
+  if (!isProviderRequestIdentity(providerRequestId)) fail("INVALID_PROVIDER_REQUEST_ID");
   const matches = await ctx.db
     .query("durableProviderSubmissions")
     .withIndex("by_provider_request", (q) => q.eq("provider", job.provider).eq("providerRequestId", providerRequestId))
@@ -1053,7 +1054,7 @@ export const recordProviderCompletion = internalMutation({
   handler: async (ctx, args) => {
     const job = await loadOwnedJob(ctx, args.ownerId, args.jobId);
     if (job.providerRequestId !== args.providerRequestId) fail("PROVIDER_REQUEST_ID_MISMATCH");
-    opaque(args.providerRequestId, 256, "INVALID_PROVIDER_REQUEST_ID");
+    if (!isProviderRequestIdentity(args.providerRequestId)) fail("INVALID_PROVIDER_REQUEST_ID");
     if (args.outputIdentityKind === "checksum") {
       if (!/^[a-f0-9]{64}$/.test(args.outputIdentity)) fail("INVALID_COMPLETION_IDENTITY");
     } else {

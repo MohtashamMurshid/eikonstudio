@@ -2,6 +2,18 @@
 
 _Last updated: September 6, 2026_
 
+## Review and development verification follow-up, September 6, 2026
+
+- Reviewed the image adapter migration and ran it on the existing development deployment. Regenerated Convex bindings with `pnpm codegen` and deployed the branch with `convex dev --once --typecheck enable --tail-logs disable`.
+- Fixed local Google sign-in redirecting to production. The development deployment's `SITE_URL` was the production domain; `DEV_SITE_URL` is unused by the auth code. Set the development `SITE_URL` to `http://localhost:3000` and corrected README setup instructions. Completed Google sign-in in the browser, returned to local Studio, and verified the session survives refresh.
+- Configured the missing development credential-encryption secret and saved the existing development Gemini and OpenAI keys as encrypted credentials for the signed-in development account. Secret values stayed out of logs and tracked files.
+- Live testing exposed a provider request-identity rejection. The worker and ledger required an alphanumeric first character, which excludes valid base64url identities beginning with `-` or `_`. Both now share the same bounded validator and preserve those native identities verbatim. Four regression cases cover generation/editing, persisted submission/completion identity, and worker redelivery without a second provider call. They failed against the original validator and pass with the fix.
+- Authenticated live generation and editing succeeded for all three models: Gemini Flash, Gemini Pro, and OpenAI GPT Image 2. OpenAI was exercised through local Studio; Google requests used the normal authenticated generation action with the existing signed-in development session. History refresh displays the saved results.
+- All six completed outputs have matching durable SHA-256 checksums and byte sizes, and both original and thumbnail URLs returned HTTP 200. All images decode at 1024 × 1024, with red generation outputs and blue edited outputs. Redelivering all nine completed/ambiguous smoke jobs preserved attempt records, outputs, request identities, and job revisions.
+- Three earlier Flash text samples remain recorded as ambiguous and were not resubmitted. The first failed request-identity validation; two later samples returned the generic unknown-outcome error without enough retained detail to establish their cause. Fresh Flash generation/editing samples succeeded. Added server diagnostics limited to normalized category/code, HTTP status, transport-entry flag, model/provider, and job ID so future failures can be investigated without logging provider bodies or credentials.
+- Full workspace test, typecheck, lint, and build gates passed all ten tasks and **365 tests**: 40 core, 89 providers, and 236 web. Lint has 0 errors and 31 existing warnings; the production build produced 22 routes. After adding safe diagnostic logging, the 75 focused worker/policy tests and development deployment typecheck also passed.
+- Changes are isolated in the review worktree. The original checkout retains the startup correction and updated local-auth instructions. Production was not deployed or merged.
+
 ## Existing image adapter migration, September 6, 2026
 
 - Preserved the startup fix in this worktree: providers now declare `@types/node: ^22`, the OpenAI adapter explicitly imports `Buffer` from `node:buffer`, and the lockfile has only the corresponding three-line importer addition. The original checkout and its dev server were not modified.
@@ -50,10 +62,10 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 
 - **Active phase:** Phase 2, shared adapters for the existing studio image models.
 - **Status:** Gemini generation/editing and OpenAI editing are implemented on `codex/phase2-image-adapters` and ready for review. Phase 2 as a whole remains incomplete.
-- **Verified base:** `6cc4c66`, PR #29. This worktree was still at that merge when inspected on September 6.
+- **Verified base:** `6cc4c66`, PR #29. The adapter migration is committed as `b98dce7`; the review follow-up adds live verification and native request-identity handling.
 - **Merged milestones:** Phase 0 via #10, Phase 1 foundation/catalog via #11/#12, credentials via #13, durable core/execution via #14/#16, storage ledger/backfill/verification/operations through #26, OpenAI adapter via #28, and OpenAI durable text-to-image wiring via #29.
 - The former active backfill status, pending PR, and `f7f21af` base were stale. Backfill merged in #24 as `49e2ddd`, verification in #25 as `34e6a69`, and operations in #26 as `c3af7d8`.
-- No production deployment, merge, or live provider request was performed in this task.
+- Development deployment and authenticated live checks are complete for all six image model/mode combinations. No production deployment or merge occurred.
 
 ## Phase 1 foundation slice
 
@@ -324,8 +336,8 @@ Expected existing warnings remain:
 
 ## Next actions
 
-1. Review this bounded image adapter migration and its local regression evidence.
-2. Configure an authorized development deployment, regenerate Convex bindings, and run authenticated image generation/editing and refresh/history smoke checks with configured provider credentials.
+1. Publish the reviewed image adapter migration and follow-up verification as a pull request, then inspect its checks.
+2. Keep the retained ambiguous development samples for diagnosis; future adapter failures now emit safe normalized server metadata.
 3. Complete the remaining Phase 2 work in separate tasks: video migration, other canonical providers, applicable polling/webhooks/cancellation, and broader durable API input/output integration.
 4. Keep playgrounds, dashboards, SDKs, mobile, production deployment, and merging outside this task.
 

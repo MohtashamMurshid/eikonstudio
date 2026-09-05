@@ -100,9 +100,25 @@ into `apps/web/.env.local`, and keeps the backend in sync with your
 In the [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
 
 1. Create an OAuth 2.0 Client ID (Web application).
-2. Add an authorized redirect URI:
-  `<NEXT_PUBLIC_CONVEX_SITE_URL>/api/auth/callback/google`
-3. Copy the client ID / secret into `.env.local`.
+2. Add `http://localhost:3000/api/auth/callback/google` as an authorized
+   redirect URI for local development. Add
+   `https://<your-production-domain>/api/auth/callback/google` separately for
+   production. This Next.js app proxies auth through `/api/auth`, so Google
+   returns to the app's origin.
+3. Configure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on the corresponding
+   Convex deployment. Values in `apps/web/.env.local` are not automatically
+   copied to Convex.
+4. Set the **development Convex deployment's** auth base URL:
+
+   ```bash
+   pnpm --dir apps/web exec convex env set SITE_URL http://localhost:3000
+   ```
+
+   Keep `NEXT_PUBLIC_SITE_URL=http://localhost:3000` in `apps/web/.env.local`,
+   and keep the production deployment's `SITE_URL` set to its HTTPS domain.
+   `convex/auth.ts` reads `SITE_URL` from Convex; `DEV_SITE_URL` is not used.
+   If local Google sign-in redirects to production, check this deployment
+   setting first, then begin a fresh sign-in from `/auth`.
 
 ### 5. Run the app
 
