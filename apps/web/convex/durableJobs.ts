@@ -22,7 +22,7 @@ import {
   type DurableJobStatus,
 } from "./durableJobPolicy";
 import { insertDocumentStorageReferences } from "./storageReferenceLedger";
-import { isProviderRequestIdentity } from "./durableExecutionPolicy";
+import { isDurableProviderIdentity } from "./durableExecutionPolicy";
 
 const statusValidator = v.union(...DURABLE_JOB_STATUSES.map((status) => v.literal(status)));
 const providerValidator = v.union(
@@ -270,7 +270,7 @@ async function assertProviderRequestAvailable(
   attempt: Doc<"durableGenerationAttempts">,
   providerRequestId: string,
 ): Promise<void> {
-  if (!isProviderRequestIdentity(providerRequestId)) fail("INVALID_PROVIDER_REQUEST_ID");
+  if (!isDurableProviderIdentity(providerRequestId, job.provider, job.modelId)) fail("INVALID_PROVIDER_REQUEST_ID");
   const matches = await ctx.db
     .query("durableProviderSubmissions")
     .withIndex("by_provider_request", (q) => q.eq("provider", job.provider).eq("providerRequestId", providerRequestId))
@@ -589,6 +589,9 @@ export const claim = internalMutation({
       updatedAt: args.occurredAt,
     });
     await ctx.db.patch(attempt._id, { leaseToken: args.leaseToken, leaseEpoch, updatedAt: args.occurredAt });
+    if (job.provider === "google" && job.modelId === "veo-3.1-generate-preview") {
+      await ctx.scheduler.runAt(leaseExpiresAt + 1, internal.imageGeneration.generateDurableVideoBackground, { jobId: job._id });
+    }
     return { revision: job.revision + 1, leaseEpoch, leaseExpiresAt };
   },
 });
@@ -626,6 +629,7 @@ export const transition = internalMutation({
       fail("AMBIGUOUS_SUBMISSION_REQUIRES_RECONCILIATION");
     }
     if (job.cancellationRequested) fail("CANCELLATION_REQUIRES_OBSERVATION");
+    if (args.targetStatus === "expired" && job.submissionState === "in_flight") fail("IN_FLIGHT_REQUIRES_RECONCILIATION");
     if (args.targetStatus === "expired" && Date.now() < job.expiresAt) fail("JOB_NOT_EXPIRED");
     expectTransition(job, args.expectedStatus, args.expectedRevision, args.targetStatus);
     if (args.targetStatus === "failed") {
@@ -702,6 +706,61 @@ export const beginSubmission = internalMutation({
       updatedAt: args.occurredAt,
     });
     return { revision: job.revision + 1 };
+  },
+});
+
+/** Bounded re-read for cancellation-only races. The subsequent acknowledgement still uses the full fence. */
+export const refreshSubmissionRevision = internalMutation({
+  args: { ownerId: v.string(), jobId: v.id("durableGenerationJobs"), attemptKey: v.string(),
+    expectedRevision: v.number(), leaseToken: v.string(), leaseEpoch: v.number() },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const job = await loadOwnedJob(ctx, args.ownerId, args.jobId);
+    const attempt = await loadAttempt(ctx, job, args.attemptKey);
+    fenceWorker(job, attempt, args.leaseToken, args.leaseEpoch);
+    if (job.status !== "submitting" || attempt.status !== "submitting" ||
+      job.submissionState !== "in_flight" || attempt.submissionState !== "in_flight") fail("SUBMISSION_NOT_IN_FLIGHT");
+    const events = await ctx.db.query("durableGenerationEvents")
+      .withIndex("by_job_revision", q => q.eq("jobId", job._id).gt("revision", args.expectedRevision)).take(9);
+    if (!events.length || events.length > 8 || events.length !== job.revision - args.expectedRevision ||
+      events.some((event, index) => event.revision !== args.expectedRevision + index + 1 ||
+        !(event.eventType === "cancellation_requested" ||
+          (event.eventType === "cancellation_observed" && event.eventFingerprint === "unsupported")))) fail("STALE_JOB");
+    return job.revision;
+  },
+});
+
+/** Evidence-only deadline recovery. No claim, dispatch, storage, or post-deadline worker fence is granted. */
+export const recoverExpiredSubmission = internalMutation({
+  args: { ownerId: v.string(), jobId: v.id("durableGenerationJobs"), attemptKey: v.string(),
+    expectedRevision: v.number(), submissionKey: v.string(), eventId: v.string(), occurredAt: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const job = await loadOwnedJob(ctx, args.ownerId, args.jobId);
+    const attempt = await loadAttempt(ctx, job, args.attemptKey);
+    expectState(job, "submitting", args.expectedRevision);
+    trustedInstant(args.occurredAt);
+    opaque(args.submissionKey, 256, "INVALID_SUBMISSION_KEY");
+    if (job.expiresAt > Date.now()) fail("JOB_NOT_EXPIRED");
+    if (job.submissionState !== "in_flight" || attempt.submissionState !== "in_flight" ||
+      attempt.status !== "submitting" || attempt.leaseToken !== job.leaseToken ||
+      attempt.leaseEpoch !== job.leaseEpoch) fail("SUBMISSION_NOT_IN_FLIGHT");
+    const existing = await ctx.db.query("durableProviderSubmissions")
+      .withIndex("by_submission_key", q => q.eq("submissionKey", args.submissionKey)).unique();
+    if (existing) fail("SUBMISSION_KEY_COLLISION");
+    await ctx.db.insert("durableProviderSubmissions", {
+      ownerId: job.ownerId, jobId: job._id, generationKey: job.generationKey,
+      credentialHandle: job.credentialHandle, attemptId: attempt._id,
+      submissionKey: args.submissionKey, provider: job.provider, state: "ambiguous",
+      createdAt: args.occurredAt, updatedAt: args.occurredAt,
+    });
+    await insertEvent(ctx, job, { eventId: args.eventId, eventType: "submission_ambiguous",
+      eventFingerprint: args.submissionKey, revision: job.revision + 1,
+      occurredAt: args.occurredAt, attemptId: attempt._id });
+    await ctx.db.patch(job._id, { submissionState: "ambiguous", revision: job.revision + 1,
+      leaseOwner: undefined, leaseToken: undefined, leaseExpiresAt: undefined, updatedAt: args.occurredAt });
+    await ctx.db.patch(attempt._id, { submissionState: "ambiguous", leaseToken: undefined, updatedAt: args.occurredAt });
+    return null;
   },
 });
 
@@ -1054,7 +1113,7 @@ export const recordProviderCompletion = internalMutation({
   handler: async (ctx, args) => {
     const job = await loadOwnedJob(ctx, args.ownerId, args.jobId);
     if (job.providerRequestId !== args.providerRequestId) fail("PROVIDER_REQUEST_ID_MISMATCH");
-    if (!isProviderRequestIdentity(args.providerRequestId)) fail("INVALID_PROVIDER_REQUEST_ID");
+    if (!isDurableProviderIdentity(args.providerRequestId, job.provider, job.modelId)) fail("INVALID_PROVIDER_REQUEST_ID");
     if (args.outputIdentityKind === "checksum") {
       if (!/^[a-f0-9]{64}$/.test(args.outputIdentity)) fail("INVALID_COMPLETION_IDENTITY");
     } else {
@@ -1316,5 +1375,29 @@ export const finalize = internalMutation({
     });
     await ctx.db.patch(attempt._id, { status: "completed", updatedAt: args.occurredAt });
     return { revision: job.revision + 1 };
+  },
+});
+
+/** Release a Veo lease and schedule exactly one bounded polling step in the same transaction. */
+export const scheduleVeoStep = internalMutation({
+  args: { ownerId: v.string(), jobId: v.id("durableGenerationJobs"), attemptKey: v.string(),
+    expectedRevision: v.number(), leaseToken: v.string(), leaseEpoch: v.number() },
+  handler: async (ctx, args) => {
+    const job = await loadOwnedJob(ctx, args.ownerId, args.jobId);
+    const attempt = await loadAttempt(ctx, job, args.attemptKey);
+    if (job.provider !== "google" || job.modelId !== "veo-3.1-generate-preview" ||
+      !["processing", "persisting"].includes(job.status) || job.cancellationRequested) fail("INVALID_VIDEO_STEP");
+    fenceWorker(job, attempt, args.leaseToken, args.leaseEpoch);
+    expectState(job, job.status, args.expectedRevision);
+    const count = (job.veoPollCount ?? 0) + 1;
+    if (count > 60) fail("VIDEO_POLL_LIMIT");
+    // Stable jitter avoids synchronized jobs while preserving deterministic mutation replay.
+    const jitter = [...job.jobKey].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 2000;
+    const next = Math.min(job.expiresAt, Date.now() + Math.min(60_000, 10_000 * 2 ** Math.min(count - 1, 3)) + jitter);
+    await insertEvent(ctx, job, { eventId: `veo-poll:${job._id}:${job.revision}`, eventType: "transitioned",
+      eventFingerprint: `poll:${count}:${next}`, revision: job.revision + 1, occurredAt: Date.now(), attemptId: attempt._id });
+    await ctx.db.patch(job._id, { veoNextStepAt: next, veoPollCount: count, revision: job.revision + 1,
+      leaseOwner: undefined, leaseToken: undefined, leaseExpiresAt: undefined, updatedAt: Date.now() });
+    await ctx.scheduler.runAt(next, internal.imageGeneration.generateDurableVideoBackground, { jobId: job._id });
   },
 });

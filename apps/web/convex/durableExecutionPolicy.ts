@@ -68,3 +68,12 @@ export function durableImageKeys(generationId: string, requestIdempotencyKey: st
     requestFingerprint: `image-request:${requestIdempotencyKey}`,
   } as const;
 }
+
+/** Veo names are accepted only for the exact Google model; image identities keep their existing grammar. */
+export function isDurableProviderIdentity(value: unknown, provider: string, modelId: string): value is string {
+  if (provider === "google" && modelId === "veo-3.1-generate-preview") {
+    return typeof value === "string" && value.length <= 256 &&
+      /^models\/veo-3\.1-generate-preview\/operations\/[A-Za-z0-9_-]+$/.test(value) && !/[\r\n]/.test(value);
+  }
+  return isProviderRequestIdentity(value);
+}

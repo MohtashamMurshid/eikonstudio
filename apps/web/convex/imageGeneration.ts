@@ -23,6 +23,7 @@ import {
   studioAspectRatio,
 } from "./durableImageProvider";
 import { ProviderCredentialReferenceSchema } from "@eikonstudio/providers";
+import { runDurableVideoStep } from "./durableVideoWorker";
 
 
 /**
@@ -607,6 +608,17 @@ export const generateDurableImageBackground = internalAction({
       !["completed", "failed", "cancelled", "expired"].includes(initial.job.status) &&
       initial.job.expiresAt <= Date.now()
     ) {
+      if (initial.job.status === "submitting" && initial.job.submissionState === "in_flight") {
+        await ctx.runMutation(internal.durableJobs.recoverExpiredSubmission, {
+          ownerId: initial.job.ownerId, jobId, attemptKey: initial.attempt.attemptKey,
+          expectedRevision: initial.job.revision, submissionKey: `submission:${initial.attempt.attemptKey}`,
+          eventId: `deadline_${randomUUID()}`, occurredAt: Date.now(),
+        }).catch(() => null);
+        await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
+          jobId, errorMessage: "Image generation requires explicit reconciliation and will not be retried automatically.",
+        }).catch(() => null);
+        return null;
+      }
       if (initial.job.submissionState === "ambiguous" || initial.job.cancellationRequested) {
         try {
           await ctx.runMutation(internal.generations.mirrorDurableGenerationFailure, {
@@ -1052,5 +1064,14 @@ export const generateDurableImageBackground = internalAction({
     });
     await ctx.runMutation(internal.generations.mirrorDurableGenerationCompleted, { jobId });
     return null;
+  },
+});
+
+/** Registered alongside the existing node worker so current generated module bindings remain valid. */
+export const generateDurableVideoBackground = internalAction({
+  args: { jobId: v.id("durableGenerationJobs") },
+  returns: v.null(),
+  handler: async (ctx, { jobId }): Promise<null> => {
+    return runDurableVideoStep(ctx, jobId, globalThis.fetch);
   },
 });

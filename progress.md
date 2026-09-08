@@ -1,6 +1,30 @@
 # Eikon Studio V1 Progress
 
-_Last updated: September 6, 2026_
+_Last updated: September 8, 2026_
+
+
+## Durable Veo integration slice, September 8, 2026
+
+Implemented in the isolated worktree based on main `cb9a8e0`, which includes PR #30 and PR #31. The implementation is uncommitted and awaiting independent review.
+
+- Added `videoGenerations.startDurableVideo`: one authenticated transaction checks an active saved Google credential, resolves up to two owned gallery frames in order, retains their storage references through the existing ledger, and creates the video row, durable job/attempt/event, linkage, and initial opaque-ID schedule. Replays compare canonical request values and verify the existing job binding. One starting frame or ordered first/last frames use the merged Veo adapter; no provider transport was reimplemented.
+- The node worker resolves the owner/provider/handle-bound encrypted credential for each operation. It persists fenced `in_flight` state before its only submission, stores the exact native `models/veo-3.1-generate-preview/operations/...` identity, and never resubmits an uncertain, accepted, persisting, or terminal request. Image identity validation retains its original grammar.
+- Accepted work uses one poll per scheduled delivery. Transactional lease release schedules capped exponential delays with stable per-job jitter, a 60-scheduled-step limit, and a 30-minute maximum job age. Claims atomically schedule lease recovery. Renewals fence stale network results before storage; recovered in-flight submissions become ambiguous. Unsupported cancellation is observed without pretending upstream work stopped, and native cancelled results become cancelled jobs.
+- Download approval checks the exact poll/request/locator binding and the two existing Google file-download URL shapes before resolving credentials. Downloads use injected fetch, header-only authentication, no redirects, an exact response-URL check, a two-minute timeout, and a 100 MB header/stream byte cap. MIME, `ftyp`, and declared-length checks precede SHA-256 calculation. Completion, Convex storage, the output-reference ledger, and finalization use the existing durable mutations and checksum verification. A recovered completion without storage re-polls the same operation and requires matching bytes; an existing durable output finalizes without network access.
+- Added an owned Convex subscription query and a durable video section in video history. It exposes finalized Convex URLs and durable status, including an explicit ambiguous-outcome message. Durable rows have separate indexes and do not enter legacy video history or its unverified cost formulas. Durable deletion fails closed; terminal/tombstoned replay does not delete or resurrect records or blobs.
+
+Verified locally, with all command output and the earlier failed iterations retained in `/tmp/eikon-veo-validation.log`:
+
+- `CI=true corepack pnpm install --frozen-lockfile` passed.
+- Final uncached workspace tests passed **507 tests**: 40 core, 162 providers, and 305 web. The new video suite has **61 cases**, using real `convex-test` actions, mutations, queries, and storage plus direct download-boundary checks. Coverage includes atomic/concurrent creation, ownership, credential health/AAD checks, ordered and duplicate frames, processing/transient polls, ambiguous dispatch, stale/concurrent deliveries, terminal failures/cancellation, malicious locators, redirects, declared and streamed oversize, stalled downloads, checksum/completion/storage replay, history isolation, expiry, and zero resubmission.
+- Final workspace typecheck passed all five tasks. Lint passed with 0 errors and the existing 31 warnings. The placeholder-environment production build passed all three tasks. These final gates ran sequentially, avoiding the Next generated-type race. `git diff --check` passed.
+
+Known limitations and release blockers:
+
+- The creator and `/api/generate-video` route still use the legacy flow. They are not cut over to the new start mutation. Their additional asset/character-reference semantics need an explicit UI decision; the durable slice currently accepts saved owned gallery frames, not new file uploads. The new backend path is exercised internally, and durable history is wired to subscriptions; authenticated browser behavior remains unverified.
+- No poster generation, full MP4 decoding/probing, verified output dimensions/duration, durable-video cost reporting, public video cancellation control, or durable-video tombstone mutation is included. Requested duration is retained as request metadata. Durable-video deletion is blocked until the tombstone path is implemented. A crash between `storage.store` and output-ledger recording can leave a retained unreferenced blob; this slice never deletes it.
+- The installed Convex CLI's application codegen path requires deployment selection and a component push. Its hidden system-UDF-only path is not an application offline-codegen workflow. Deployment-backed codegen was not invoked under this task's constraints. Functions are registered in the existing `videoGenerations`, `durableJobs`, and `imageGeneration` modules, whose existing generated types infer the new exports. Generated bindings were not hand-edited. Deployment codegen/bundle validation remains unverified.
+- No real provider credentials, live provider requests, deployment, production queries, backfill operation, migration, physical blob deletion, configuration copied from another checkout, commit, push, PR, or merge was performed. Existing backfill/storage suites ran only inside their isolated test databases as part of workspace tests.
 
 ## Veo asynchronous adapter, September 6, 2026
 
@@ -74,7 +98,7 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 ## Current delivery state
 
 - **Active phase:** Phase 2, shared provider adapters and durable jobs.
-- **Status:** The image adapter migration merged in PR #30. The first Veo asynchronous adapter is implemented on `codex/phase2-veo-adapter`; durable video integration remains incomplete.
+- **Status:** Image adapters merged in PR #30 and the Veo adapter merged in PR #31. The durable Veo backend slice and subscription history are implemented and locally tested in the isolated worktree; independent review, creator cutover, and deployment validation remain incomplete.
 - **Verified base:** `4b44b04`, the merged and deployed PR #30.
 - **Merged milestones:** Phase 0 via #10, Phase 1 foundation/catalog via #11/#12, credentials via #13, durable core/execution via #14/#16, storage ledger/backfill/verification/operations through #26, OpenAI adapter via #28, and OpenAI durable text-to-image wiring via #29.
 - The former active backfill status, pending PR, and `f7f21af` base were stale. Backfill merged in #24 as `49e2ddd`, verification in #25 as `34e6a69`, and operations in #26 as `c3af7d8`.
@@ -349,9 +373,9 @@ Expected existing warnings remain:
 
 ## Next actions
 
-1. Review the first Veo asynchronous adapter and its provider contract tests.
+1. Independently review the uncommitted durable Veo integration diff and its local validation evidence.
 2. Keep the retained ambiguous development samples for diagnosis; future adapter failures now emit safe normalized server metadata.
-3. Next, wire Veo into durable video jobs with scheduled polling, approved bounded video downloads, Convex output persistence, and refresh-safe UI/history. Then continue other canonical providers and broader durable API integration.
+3. Complete the Veo creator/legacy-route cutover, owned file-upload flow, and video tombstone controls after reviewing the internally exercised durable slice. Deployment codegen and authenticated verification remain outstanding. Then continue other canonical providers and broader durable API integration.
 4. Keep playgrounds, dashboards, SDKs, mobile, production deployment, and merging outside this task.
 
 ## Independent storage-reference ledger verification milestone
@@ -401,3 +425,12 @@ Expected existing warnings remain:
 - [ ] Phase 6: Docs, deployment, and hardening
 - [ ] Web Platform Gate
 - [ ] Mobile phase
+
+## Independent Veo review repairs, September 8, 2026
+
+- Repaired all three reproduced defects in the isolated Veo worktree while retaining the existing uncommitted integration. Typed transient download failures now schedule a bounded re-poll of the same accepted operation for a fresh approved locator. Redirect/policy/media/size/checksum failures remain terminal; retries share the existing age and 60-step budget and never resubmit POST.
+- Acknowledgement now survives cancellation-only revision changes through at most two bounded refreshes and three acknowledgement attempts. Each refresh checks the live lease token/expiry, epoch, exact attempt, both in-flight states, and at most eight contiguous cancellation-only events. Normal mutation fencing remains strict. Both cancellation-during-POST interleavings pass, including another delivery observing unsupported cancellation.
+- Added atomic evidence-only recovery for in-flight POSTs crossing maxAge before ordinary expiry. It records ambiguity on job/attempt and in the submission/event ledger, clears leases, and grants no execution or storage rights. Video history reports reconciliation required. The inherited image defect is repaired with six image regressions across all current provider/model/mode variants. Late acknowledgements remain fenced.
+- Corrected independent reproductions are retained in the checked-in test source. Measured focused validation: **205/205 tests across 7 files**. Video tests increased **61 → 84**; image tests **72 → 78**. Coverage includes 503/reset/timeout recovery, fresh locator, terminal invalid downloads/checksum, cancellation revision bounds, lease loss, deadline interleavings, concurrent deadline recovery, and full scheduler exhaustion.
+- All workspace gates ran sequentially with forced execution, sanitized environment, placeholder `.invalid` URLs, and dotenv loading disabled: **536/536 tests** (40 core, 162 providers, 334 web); typecheck **5/5 tasks**; lint **0 errors, 31 existing warnings**; build **3/3 tasks and 22 routes**. `git diff --check` passed. Actual gate output and exit codes are in `/tmp/eikon-veo-repair-validation.log`; precise repair details are in `/tmp/eikon-veo-repair-summary.md`.
+- Residual limits: ambiguous jobs still need an explicit reconciliation service; post-deadline acknowledgement/storage authority was not added, and existing expired rows were not migrated. Unknown unclassified transport errors remain terminal. Storage interruption may still leave an orphan blob. Tests use synthetic HTTP/media and do not establish playable media metadata or authenticated Convex deployment behavior. Public video cancellation/tombstones, metadata/posters/cost reporting, and creator/legacy route cutover remain outstanding. No production query, live provider call, credential-file access, codegen/binding edit, deployment, migration/backfill, physical deletion, commit, push, or PR occurred.

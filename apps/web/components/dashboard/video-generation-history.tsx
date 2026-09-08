@@ -163,7 +163,7 @@ const VideoGenerationCard = memo(({
 
 VideoGenerationCard.displayName = "VideoGenerationCard"
 
-export function VideoGenerationHistory({ onUseAsReference }: VideoGenerationHistoryProps) {
+function LegacyVideoGenerationHistory({ onUseAsReference }: VideoGenerationHistoryProps) {
   const generations = useQuery(api.videoGenerations.getMyVideoGenerations, { limit: 50 }) as VideoGeneration[] | undefined
   const deleteGeneration = useMutation(api.videoGenerations.deleteVideoGeneration)
 
@@ -544,4 +544,23 @@ export function VideoGenerationHistory({ onUseAsReference }: VideoGenerationHist
       )}
     </div>
   )
+}
+
+
+export function VideoGenerationHistory(props: VideoGenerationHistoryProps) {
+  const videos = useQuery(api.videoGenerations.getMyDurableVideos, {})
+  return <div className="space-y-8">
+    {!!videos?.length && <section aria-label="Durable video history" className="space-y-4">
+      <h2 className="text-lg font-semibold">Video jobs</h2>
+      {videos.map(video => <article key={video.id} className="rounded-xl border border-border p-4 space-y-2">
+        <p className="text-sm">{video.prompt}</p>
+        <p className="text-sm text-foreground/60" role="status">
+          {video.requiresReconciliation ? "Provider outcome unknown. This request will not be submitted again automatically." : video.status}
+        </p>
+        {video.error && <p className="text-sm text-red-600">{video.error}</p>}
+        {video.videoUrl && <video controls preload="metadata" src={video.videoUrl} className="w-full max-w-xl rounded-lg" />}
+      </article>)}
+    </section>}
+    <LegacyVideoGenerationHistory {...props} />
+  </div>
 }
