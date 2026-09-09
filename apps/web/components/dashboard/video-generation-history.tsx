@@ -163,7 +163,7 @@ const VideoGenerationCard = memo(({
 
 VideoGenerationCard.displayName = "VideoGenerationCard"
 
-function LegacyVideoGenerationHistory({ onUseAsReference }: VideoGenerationHistoryProps) {
+function LegacyVideoGenerationHistory({ onUseAsReference, showEmptyState }: VideoGenerationHistoryProps & { showEmptyState: boolean }) {
   const generations = useQuery(api.videoGenerations.getMyVideoGenerations, { limit: 50 }) as VideoGeneration[] | undefined
   const deleteGeneration = useMutation(api.videoGenerations.deleteVideoGeneration)
 
@@ -348,6 +348,7 @@ function LegacyVideoGenerationHistory({ onUseAsReference }: VideoGenerationHisto
   }
 
   if (generations.length === 0) {
+    if (!showEmptyState) return null
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
         <div className="w-16 h-16 bg-secondary/50 rounded-2xl flex items-center justify-center mb-4">
@@ -561,6 +562,6 @@ export function VideoGenerationHistory(props: VideoGenerationHistoryProps) {
         {video.videoUrl && <video controls preload="metadata" src={video.videoUrl} className="w-full max-w-xl rounded-lg" />}
       </article>)}
     </section>}
-    <LegacyVideoGenerationHistory {...props} />
+    <LegacyVideoGenerationHistory {...props} showEmptyState={videos !== undefined && videos.length === 0} />
   </div>
 }

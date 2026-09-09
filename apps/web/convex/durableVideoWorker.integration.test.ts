@@ -7,6 +7,7 @@ import { CREDENTIAL_KEY_VERSION, encryptCredentialV2 } from "./credentialCrypto"
 import { VIDEO_DOWNLOAD_TIMEOUT_MS, VIDEO_MAX_BYTES, downloadDurableVideo } from "./durableVideoDownload";
 import { ProviderCredentialReferenceSchema, type GenerationStatusResult } from "@eikonstudio/providers";
 import type { Id } from "./_generated/dataModel";
+import type { VideoInput } from "../components/video-combiner/creator-session";
 
 vi.mock("./auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./auth")>();
@@ -166,22 +167,18 @@ it("checks authentication, saved credentials and reference ownership atomically"
     const id = await ctx.storage.store(new Blob(["png"], { type: "image/png" }));
     return ctx.db.insert("gallery", { userId: "other", filename: "foreign", imageStorageId: id, thumbnailStorageId: id, createdAt: Date.now() });
   });
-  await expect(f.user.mutation(api.videoGenerations.startDurableVideo, { ...args, referenceGalleryIds: [galleryId] })).rejects.toThrow("REFERENCE_NOT_FOUND");
+  await expect(f.user.mutation(api.videoGenerations.startDurableVideo, { ...args, referenceGalleryIds: [galleryId] })).rejects.toThrow("INVALID_VIDEO_REFERENCE");
   expect(await f.t.run(ctx => ctx.db.query("videoGenerations").collect())).toEqual([]);
 });
 
 it("retains ordered first/last frames including duplicates and validates before credentials", async () => {
-  const f = await fixture(false);
-  const refs = await f.t.run(async ctx => {
-    const result = [];
-    for (const content of ["first", "last"]) {
-      const id = await ctx.storage.store(new Blob([content], { type: "image/png" }));
-      const gallery = await ctx.db.insert("gallery", { userId: owner, filename: content, imageStorageId: id, thumbnailStorageId: id, createdAt: Date.now() });
-      result.push({ gallery, id });
-    }
-    return result;
-  });
-  f.jobId = await f.user.mutation(api.videoGenerations.startDurableVideo, { ...args, referenceGalleryIds: refs.map(r => r.gallery) });
+  const f = await fixture();
+  const refs = [];
+  for (const content of ["first", "last"]) {
+    const frame = await creatorFrame(f, owner, content);
+    refs.push({ gallery: frame.galleryId, id: frame.storageId });
+  }
+  f.jobId = await f.user.mutation(api.videoGenerations.startDurableVideo, { ...args, idempotencyKey: "owned-frame-request", referenceGalleryIds: refs.map(r => r.gallery) });
   const fetch = transport(f); await step(f);
   const body = JSON.parse(String(fetch.mock.calls[0][1]?.body));
   expect(body.instances[0].image.bytesBase64Encoded).toBe(Buffer.from("first").toString("base64"));
@@ -375,11 +372,7 @@ it.each(["missing", "unsupported", "too-many", "duration"])("rejects invalid %s 
   if (kind === "missing") await f.t.run(ctx => ctx.db.delete(galleryId));
   const references = kind === "too-many" ? [galleryId, galleryId, galleryId] : kind === "duration" ? [galleryId, galleryId] : [galleryId];
   const fetch = vi.fn(); globalThis.fetch = fetch;
-  if (kind === "unsupported") {
-    // convex-test omits storage contentType metadata. The action still rejects the actual stored MIME before dispatch.
-    f.jobId = await f.user.mutation(api.videoGenerations.startDurableVideo, { ...args, referenceGalleryIds: references });
-    await step(f); expect((await state(f)).job.status).toBe("failed");
-  } else await expect(f.user.mutation(api.videoGenerations.startDurableVideo, { ...args, referenceGalleryIds: references,
+  await expect(f.user.mutation(api.videoGenerations.startDurableVideo, { ...args, referenceGalleryIds: references,
     duration: kind === "duration" ? 4 : 8 })).rejects.toThrow();
   expect(fetch).not.toHaveBeenCalled();
 });
@@ -636,4 +629,116 @@ it("exhausts the scheduler with transient downloads within the existing age and 
   expect(after.outputs).toEqual([]);
   expect(fetch.mock.calls.filter(c => c[1]?.method === "POST")).toHaveLength(1);
   expect(fetch.mock.calls.filter(c => String(c[0]) === locator).length).toBeLessThanOrEqual(60);
+});
+
+// Creator boundary regressions use the same synthetic auth/network fixture as the reviewed worker.
+async function creatorFrame(f: Fixture, frameOwner = owner, content: BlobPart = new Uint8Array([137, 80, 78, 71])) {
+  return f.t.run(async ctx => {
+    const storageId = await ctx.storage.store(new Blob([content], { type: "image/png" }));
+    const metadata = (await ctx.db.system.get(storageId))!;
+    const source = (await ctx.db.get(f.jobId))!;
+    const { _id: _jobId, _creationTime, ...fields } = source;
+    const jobId = await ctx.db.insert("durableGenerationJobs", { ...fields, ownerId: frameOwner, status: "completed",
+      jobKey: `image-job:${storageId}`, generationKey: `image-generation:${storageId}`, modelId: "gemini-3.1-flash-image" });
+    const binding = { ownerId: frameOwner, jobId, jobKey: `image-job:${storageId}`, generationKey: `image-generation:${storageId}`, createdAt: Date.now() };
+    const completionId = await ctx.db.insert("durableGenerationCompletions", { ...binding, provider: "google", providerRequestId: "synthetic-image",
+      completionKey: `image-completion:${storageId}`, outputIdentityKind: "checksum", outputIdentity: metadata.sha256 });
+    const outputId = await ctx.db.insert("durableGenerationOutputs", { ...binding, completionId, outputKey: `image-output:${storageId}`,
+      storageId, mediaType: "image", contentType: "image/png", byteSize: metadata.size, checksumSha256: Buffer.from(metadata.sha256, "base64").toString("hex") });
+    await ctx.db.patch(jobId, { finalizedOutputIds: [outputId] });
+    const galleryId = await ctx.db.insert("gallery", { userId: frameOwner, filename: "verified", imageStorageId: storageId,
+      thumbnailStorageId: storageId, createdAt: Date.now() });
+    return { galleryId, storageId, outputId, jobId };
+  });
+}
+
+it("creator accepts ordered owned durable frames and rejects forged legacy gallery ownership", async () => {
+  const f = await fixture(); const first = await creatorFrame(f); const last = await creatorFrame(f);
+  const foreign = await creatorFrame(f, "other");
+  const forged = await f.user.mutation(api.gallery.saveImage, { filename: "forged", imageStorageId: foreign.storageId, thumbnailStorageId: foreign.storageId });
+  const view = await f.user.query(api.videoGenerations.getVideoCreatorState, { ownerId: owner });
+  expect(view!.frames.map(row => row.id)).toEqual(expect.arrayContaining([first.galleryId, last.galleryId]));
+  expect(view!.frames.map(row => row.id)).not.toContain(forged);
+  for (const refs of [[first.galleryId], [first.galleryId, last.galleryId], [last.galleryId, first.galleryId], [first.galleryId, first.galleryId]]) {
+    const jobId = await f.user.mutation(api.videoGenerations.startCreatorVideo, { ...args, ownerId: owner,
+      idempotencyKey: `creator-frames-${refs.join("-").replaceAll(";", "-")}`, referenceGalleryIds: refs });
+    const execution = await f.t.query(internal.videoGenerations.getDurableVideoExecution, { jobId });
+    expect(execution!.video.referenceImageStorageIds).toEqual(refs.map(id => id === first.galleryId ? first.storageId : last.storageId));
+  }
+  for (const id of [foreign.galleryId, forged]) {
+    await expect(f.user.mutation(api.videoGenerations.startCreatorVideo, { ...args, ownerId: owner,
+      idempotencyKey: `creator-reject-${id.replaceAll(";", "-")}`, referenceGalleryIds: [id] })).rejects.toThrow("INVALID_VIDEO_REFERENCE");
+  }
+  await f.t.run(ctx => ctx.db.patch(first.outputId, { tombstonedAt: Date.now() }));
+  expect((await f.user.query(api.videoGenerations.getVideoCreatorState, { ownerId: owner }))!.frames.map(row => row.id)).not.toContain(first.galleryId);
+});
+
+it.each(["durable", "creator"] as const)("%s start enforces shared frame ownership and preserves exact replay", async entry => {
+  const f = await fixture();
+  const own = await creatorFrame(f);
+  const foreign = await creatorFrame(f, "other");
+  const unverified = await f.t.run(ctx => ctx.db.insert("gallery", { userId: owner, filename: "unverified",
+    imageStorageId: foreign.storageId, thumbnailStorageId: foreign.storageId, createdAt: Date.now() }));
+  const start = (referenceGalleryIds: Id<"gallery">[], idempotencyKey: string) => entry === "creator"
+    ? f.user.mutation(api.videoGenerations.startCreatorVideo, { ...args, ownerId: owner, referenceGalleryIds, idempotencyKey })
+    : f.user.mutation(api.videoGenerations.startDurableVideo, { ...args, referenceGalleryIds, idempotencyKey });
+  const before = await f.t.run(ctx => ctx.db.query("videoGenerations").collect());
+  await expect(start([unverified], "unverified-frame-request")).rejects.toThrow("INVALID_VIDEO_REFERENCE");
+  expect(await f.t.run(ctx => ctx.db.query("videoGenerations").collect())).toEqual(before);
+  const job = await start([own.galleryId, own.galleryId], "valid-frame-request");
+  await f.t.run(ctx => ctx.db.delete(own.galleryId));
+  expect(await start([own.galleryId, own.galleryId], "valid-frame-request")).toBe(job);
+  await expect(start([own.galleryId], "valid-frame-request")).rejects.toThrow("IDEMPOTENCY_COLLISION");
+});
+
+it("creator fences account switches in both subscription and submission and exposes metadata only", async () => {
+  const f = await fixture();
+  expect(await f.t.query(api.videoGenerations.getVideoCreatorState, { ownerId: owner })).toBeNull();
+  const other = f.t.withIdentity({ subject: "other" });
+  expect(await other.query(api.videoGenerations.getVideoCreatorState, { ownerId: owner, requestKey: args.idempotencyKey })).toBeNull();
+  await expect(other.mutation(api.videoGenerations.startCreatorVideo, { ...args, ownerId: owner })).rejects.toThrow("UNAUTHENTICATED");
+  const view = await f.user.query(api.videoGenerations.getVideoCreatorState, { ownerId: owner });
+  expect(view!.credential).toMatchObject({ provider: "google", health: "active" });
+  expect(JSON.stringify(view)).not.toContain(secret); expect(JSON.stringify(view)).not.toContain("ciphertext");
+});
+
+it("creator controller recovers a committed lost response by subscription, refreshes and renders persisted completion without resubmitting", async () => {
+  const { VideoCreatorSession, creatorJobView } = await import("../components/video-combiner/creator-session");
+  const f = await fixture(false);
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); } };
+  const uuid = () => "00000000-0000-4000-8000-000000000000";
+  const creator = new VideoCreatorSession(owner, storage, uuid);
+  const { idempotencyKey: _key, ...input } = args;
+  const start = vi.fn(async (request: VideoInput & { ownerId: string; idempotencyKey: string }) => {
+    f.jobId = await f.user.mutation(api.videoGenerations.startCreatorVideo, request);
+    throw new Error("lost synthetic response");
+  });
+  await creator.submit(input, [], true, start);
+  const restored = new VideoCreatorSession(owner, storage, uuid);
+  const read = () => f.user.query(api.videoGenerations.getVideoCreatorState, { ownerId: owner, requestKey: restored.snapshot!.key });
+  expect((await read())!.jobs[0].status).toBe("queued");
+  await restored.submit(input, [], true, start); expect(start).toHaveBeenCalledTimes(1);
+  const fetch = transport(f); await step(f);
+  expect(creatorJobView((await read())!.jobs[0])).toEqual({ label: "Processing", url: null });
+  await due(f); await step(f);
+  const completedView = creatorJobView((await read())!.jobs[0]);
+  expect(completedView.label).toBe("Completed"); expect(completedView.url).toBeTruthy(); expect(completedView.url).not.toContain("googleapis");
+  await restored.submit(input, [], true, start); expect(start).toHaveBeenCalledTimes(1);
+  expect(fetch.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
+});
+
+it("creator exact request subscription finds older work outside the recent 100 and hides nonfinalized URLs", async () => {
+  const f = await fixture();
+  await f.t.run(async ctx => {
+    const video = (await ctx.db.query("videoGenerations").withIndex("by_durable_job", q => q.eq("durableJobId", f.jobId)).unique())!;
+    const { _id, _creationTime, ...fields } = video;
+    for (let i = 0; i < 101; i++) await ctx.db.insert("videoGenerations", { ...fields,
+      requestIdempotencyKey: `later-${i}`, createdAt: Date.now() + i + 1 });
+  });
+  const state = await f.user.query(api.videoGenerations.getVideoCreatorState, { ownerId: owner, requestKey: args.idempotencyKey });
+  expect(state!.jobs.find(job => job.requestKey === args.idempotencyKey)).toMatchObject({ status: "queued", videoUrl: null });
+  await f.t.run(ctx => ctx.db.patch(f.jobId, { submissionState: "ambiguous", status: "expired" }));
+  const unknown = await f.user.query(api.videoGenerations.getVideoCreatorState, { ownerId: owner, requestKey: args.idempotencyKey });
+  expect(unknown!.jobs.find(job => job.requestKey === args.idempotencyKey)).toMatchObject({ status: "expired", ambiguous: true, videoUrl: null });
 });

@@ -286,6 +286,7 @@ export default defineSchema({
     tombstoneReason: v.optional(v.literal("user_deleted_generation")),
   })
     .index("by_output_key", ["outputKey"])
+    .index("by_storage", ["storageId"])
     .index("by_job", ["jobId"])
     .index("by_completion", ["completionId"]),
 

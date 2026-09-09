@@ -78,7 +78,7 @@ function fail(code: string): never {
   throw new ConvexError(code);
 }
 
-function canonicalStorageSha256(value: string): string | undefined {
+export function canonicalStorageSha256(value: string): string | undefined {
   if (/^[a-fA-F0-9]{64}$/.test(value)) return value.toLowerCase();
   try {
     const decoded = atob(value);

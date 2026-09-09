@@ -1,9 +1,9 @@
-import { ConvexError, v } from "convex/values";
-import { mutation, query, internalQuery } from "./_generated/server";
+import { ConvexError, v, type Infer } from "convex/values";
+import { mutation, query, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { createDurableJobRecords } from "./durableJobs";
+import { createDurableJobRecords, canonicalStorageSha256 } from "./durableJobs";
 import { getProviderCredentialRecord } from "./apiKeys";
-import { credentialHealth, recordCanonicalProvider } from "./credentialPolicy";
+import { credentialHealth, recordCanonicalProvider, toCredentialMetadata } from "./credentialPolicy";
 import { REQUEST_IDEMPOTENCY_KEY_PATTERN } from "./durableExecutionPolicy";
 import { authComponent } from "./auth";
 import { createAppError } from "../lib/error-utils";
@@ -492,13 +492,12 @@ export const getVideoUsageTrends = query({
 
 
 /** Initial durable video slice uses saved gallery frames, never caller-supplied storage ownership. */
-export const startDurableVideo = mutation({
-  args: { idempotencyKey: v.string(), prompt: v.string(),
+const durableVideoArgs = { idempotencyKey: v.string(), prompt: v.string(),
     aspectRatio: v.union(v.literal("16:9"), v.literal("9:16")),
     resolution: v.union(v.literal("720p"), v.literal("1080p")),
     duration: v.union(v.literal(4), v.literal(6), v.literal(8)),
-    referenceGalleryIds: v.array(v.id("gallery")) },
-  handler: async (ctx, args) => {
+    referenceGalleryIds: v.array(v.id("gallery")) };
+async function startVideo(ctx: MutationCtx, args: Infer<ReturnType<typeof videoArgsValidator>>) {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) throw new ConvexError("UNAUTHENTICATED");
     if (!REQUEST_IDEMPOTENCY_KEY_PATTERN.test(args.idempotencyKey) || args.idempotencyKey.length > 200 ||
@@ -527,6 +526,7 @@ export const startDurableVideo = mutation({
     }
     const references = [];
     for (const id of args.referenceGalleryIds) {
+      if (!await verifiedCreatorFrame(ctx, user._id, id)) throw new ConvexError("INVALID_VIDEO_REFERENCE");
       const gallery = await ctx.db.get(id);
       if (!gallery || gallery.userId !== user._id) throw new ConvexError("REFERENCE_NOT_FOUND");
       const metadata = await ctx.db.system.get(gallery.imageStorageId);
@@ -554,8 +554,9 @@ export const startDurableVideo = mutation({
     await ctx.db.patch(videoId, { durableJobId: created.jobId });
     await ctx.scheduler.runAt(now, internal.imageGeneration.generateDurableVideoBackground, { jobId: created.jobId });
     return created.jobId;
-  },
-});
+}
+function videoArgsValidator() { return v.object(durableVideoArgs); }
+export const startDurableVideo = mutation({ args: durableVideoArgs, handler: startVideo });
 
 export const getDurableVideoExecution = internalQuery({
   args: { jobId: v.id("durableGenerationJobs") },
@@ -599,5 +600,70 @@ export const getMyDurableVideos = query({
         videoUrl: output && output.tombstonedAt === undefined ? await ctx.storage.getUrl(output.storageId) : null });
     }
     return result;
+  },
+});
+
+
+// Creator-only boundary. Legacy gallery registration is not proof of blob ownership.
+async function verifiedCreatorFrame(ctx: QueryCtx, ownerId: string, galleryId: Infer<ReturnType<typeof galleryIdValidator>>) {
+  const gallery = await ctx.db.get(galleryId);
+  if (!gallery || gallery.userId !== ownerId) return null;
+  const outputs = await ctx.db.query("durableGenerationOutputs")
+    .withIndex("by_storage", q => q.eq("storageId", gallery.imageStorageId)).take(16);
+  for (const output of outputs) {
+    if (output.ownerId !== ownerId || output.mediaType !== "image" || output.tombstonedAt !== undefined ||
+      !["image/png", "image/jpeg"].includes(output.contentType)) continue;
+    const job = await ctx.db.get(output.jobId);
+    if (!job || job.ownerId !== ownerId || job.status !== "completed" ||
+      job.generationKey !== output.generationKey || !job.finalizedOutputIds?.includes(output._id)) continue;
+    const metadata = await ctx.db.system.get(output.storageId);
+    if (!metadata || metadata.size < 1 || metadata.size > 25_000_000 || metadata.size !== output.byteSize ||
+      canonicalStorageSha256(metadata.sha256) !== output.checksumSha256 || (metadata.contentType !== undefined && metadata.contentType !== output.contentType)) continue;
+    return { id: gallery._id, filename: gallery.filename, url: await ctx.storage.getUrl(output.storageId) };
+  }
+  return null;
+}
+function galleryIdValidator() { return v.id("gallery"); }
+
+export const startCreatorVideo = mutation({
+  args: { ...durableVideoArgs, ownerId: v.string() },
+  handler: async (ctx, { ownerId, ...args }) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user || user._id !== ownerId) throw new ConvexError("UNAUTHENTICATED");
+    // Shared startVideo enforces frame ownership for every public start path.
+    // Its exact replay check precedes reference revalidation.
+    return startVideo(ctx, args);
+  },
+});
+
+/** Owner argument fences stale subscriptions and account-switch callbacks. No provider locators. */
+export const getVideoCreatorState = query({
+  args: { ownerId: v.string(), requestKey: v.optional(v.string()) },
+  handler: async (ctx, { ownerId, requestKey }) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user || user._id !== ownerId) return null;
+    const galleries = await ctx.db.query("gallery").withIndex("by_user", q => q.eq("userId", ownerId)).order("desc").take(100);
+    const frames = (await Promise.all(galleries.map(row => verifiedCreatorFrame(ctx, ownerId, row._id)))).filter(row => row !== null);
+    const videos = await ctx.db.query("videoGenerations").withIndex("by_user_visible_created",
+      q => q.eq("userId", ownerId).eq("durableVersion", 1).eq("tombstonedAt", undefined)).order("desc").take(100);
+    const selected = requestKey ? await ctx.db.query("videoGenerations").withIndex("by_user_idempotency",
+      q => q.eq("userId", ownerId).eq("requestIdempotencyKey", requestKey)).unique() : null;
+    if (selected && !videos.some(row => row._id === selected._id)) videos.unshift(selected);
+    const jobs = [];
+    for (const video of videos) {
+      if (!video.durableJobId || video.tombstonedAt !== undefined) continue;
+      const job = await ctx.db.get(video.durableJobId);
+      if (!job || job.ownerId !== ownerId || job.generationKey !== `video-generation:${video._id}`) continue;
+      const outputId = job.status === "completed" ? job.finalizedOutputIds?.[0] : undefined;
+      const output = outputId ? await ctx.db.get(outputId) : null;
+      const videoUrl = output && output.ownerId === ownerId && output.jobId === job._id &&
+        output.generationKey === job.generationKey && output.mediaType === "video" && output.tombstonedAt === undefined ? await ctx.storage.getUrl(output.storageId) : null;
+      jobs.push({ jobId: job._id, requestKey: video.requestIdempotencyKey!, prompt: video.prompt,
+        status: job.status, ambiguous: job.submissionState === "ambiguous", videoUrl,
+        // Requested settings are not verified output metadata.
+        resolution: video.resolution, duration: video.duration });
+    }
+    const credential = await getProviderCredentialRecord(ctx, ownerId, "google");
+    return { ownerId, frames, jobs, credential: credential ? toCredentialMetadata(credential) : null };
   },
 });

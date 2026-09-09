@@ -1,4 +1,31 @@
+## Durable Veo creator cutover, September 8, 2026
+
+- Implemented the scoped creator cutover on base `20201bb`. The mounted creator submits through an authenticated `startCreatorVideo` boundary and subscribes to owned jobs through `getVideoCreatorState`. Browser provider polling, direct legacy-route submission, simulated percentages, browser result persistence, and deployment-key fallback are no longer part of this creator path.
+- An owner-scoped localStorage journal persists the request identity before dispatch. Duplicate clicks and refresh after lost mutation responses never automatically submit again. Exact request lookup recovers older jobs beyond the recent history window. Unchanged-input events retain identity; changed inputs or explicit New generation prepare a distinct identity. New alone does not submit. Invalid/unavailable request storage fails closed.
+- Account changes remount the form, and server entry points independently verify the requested owner. Credential reads are Google metadata only. Status reflects queued/submitting/processing/persisting/terminal/ambiguous state, and only finalized owned persisted output URLs are rendered. Requested duration/resolution are labeled as request settings; unsupported cost estimates were removed.
+- Text, first-frame, and ordered first/last-frame modes remain supported, including duplicate frames. Controls enforce 16:9/9:16, 720p/1080p, and 4/6/8 seconds; two frames or 1080p require eight seconds, with audio enabled.
+- The input audit found that legacy gallery registration accepts caller-supplied storage IDs without establishing blob ownership. The creator therefore verifies gallery frames against owned finalized durable image outputs and matching storage size/checksum and PNG/JPEG metadata, both for selection and transactionally before new submission. Added a bounded output storage index and reused the existing checksum normalization helper. The original durable start, worker, replay, and recovery semantics are preserved.
+- File uploads and character/asset references are explicitly disabled. Secure raw upload registration remains deferred. Frame selection considers the latest 100 gallery rows and at most 16 output candidates per storage ID; job subscriptions show the latest 100 visible rows plus the exact journal request. Browser-storage clearing and independent drafts across devices/tabs are not synchronized draft recovery.
+- Measured affected validation passed **116/116 tests** across three files: 23 session-controller tests, five component interaction/render tests, and 88 durable-video integration tests. The 32 added cases cover duplicate clicks, lost committed responses, refresh, ownership/account changes, ordered/repeated references, forged gallery ownership, unsupported settings, storage failures, terminal/ambiguous no retry, safe errors, and persisted results. Component tests use actual JSX handlers with an injected hook boundary and static rendering; the controller also runs against real synthetic Convex mutations/queries/worker actions. These are offline behavioral tests, not authenticated browser verification.
+- Final workspace gates ran sequentially, uncached, with sanitized placeholder configuration and inspected Next dotenv suppression: **568/568 tests** (40 core, 162 providers, 366 web), typecheck **5/5 tasks**, lint **0 errors and 31 existing warnings**, and build **3/3 tasks with 22 routes**. Gate output and exit codes, including repaired intermediate failures, are in `/tmp/eikon-veo-creator-validation.log`; the precise summary is `/tmp/eikon-veo-creator-summary.md`.
+- Remaining release work includes independent diff review, deployment codegen/bundle/index validation, and authenticated browser verification. Ambiguous jobs still need reconciliation; posters, verified output media metadata, cost reporting, and public video cancellation/tombstones remain outside this slice. The legacy `/api/generate-video` route is unchanged and is not retired. No other model/provider/image/gateway path or generated binding changed. No .env/credential-file read, live provider call, production query, deployment, migration/backfill execution, deployment-dependent codegen, physical deletion, commit, push, PR, or merge occurred.
+
 # Eikon Studio V1 Progress
+
+## Creator cutover publication checkpoint
+
+- Manual review completed for controller, mounted UI, owner-keyed hook and server start/subscription boundaries. Corrected shared frame ownership and unfinished whitespace-draft restoration. External independent creator review did not complete; no independent approval is claimed.
+- Final sequential uncached gates: core 40, providers 162, web 374 tests passed; typecheck, lint, build and diff check passed. Current logs: `/tmp/veo-creator-final-{test,typecheck,lint,build}.log`.
+- Creator changes are being published for review in draft PR #32, not merged or deployed. Earlier local/unpublished checkpoints below are historical. Raw uploads, character references, legacy route retirement, authenticated browser/deployment/codegen verification remain deferred.
+
+
+## Creator shared ownership repair — local, awaiting completed review
+
+- Both public durable video start mutations now validate frames through the same finalized owned-output check in their shared start function. Exact owner-scoped idempotent replay still precedes reference revalidation. Removed duplicate creator-only validation.
+- Added public-entry-point regressions for unverified frame rejection without video creation, repeated owned frames, exact replay after reference removal, and collision rejection. Updated old gallery-only fixtures to include verified output provenance. Fixed the history empty-state display with three SSR regressions.
+- Final local sequential uncached gates passed: core 40, providers 162, web 371 tests; typecheck, lint, build and diff check passed. Logs: `/tmp/veo-owner-{test,typecheck,lint,build}.log`.
+- The external creator review exited before producing a report; these checks do not establish a clean independent review. Creator cutover remains uncommitted and unpublished. No deployment, live provider requests, or backfill execution occurred.
+
 
 _Last updated: September 8, 2026_
 
@@ -98,7 +125,7 @@ This document records implementation progress against [`PRD.md`](./PRD.md) so wo
 ## Current delivery state
 
 - **Active phase:** Phase 2, shared provider adapters and durable jobs.
-- **Status:** Image adapters merged in PR #30 and the Veo adapter merged in PR #31. The durable Veo backend slice and subscription history are implemented and locally tested in the isolated worktree; independent review, creator cutover, and deployment validation remain incomplete.
+- **Status:** Image adapters merged in PR #30 and the Veo adapter merged in PR #31. The durable Veo backend, subscription history, and scoped creator cutover are implemented and locally tested; independent creator review, secure raw uploads, and deployment validation remain incomplete.
 - **Verified base:** `4b44b04`, the merged and deployed PR #30.
 - **Merged milestones:** Phase 0 via #10, Phase 1 foundation/catalog via #11/#12, credentials via #13, durable core/execution via #14/#16, storage ledger/backfill/verification/operations through #26, OpenAI adapter via #28, and OpenAI durable text-to-image wiring via #29.
 - The former active backfill status, pending PR, and `f7f21af` base were stale. Backfill merged in #24 as `49e2ddd`, verification in #25 as `34e6a69`, and operations in #26 as `c3af7d8`.
@@ -373,9 +400,9 @@ Expected existing warnings remain:
 
 ## Next actions
 
-1. Independently review the uncommitted durable Veo integration diff and its local validation evidence.
+1. Independently review the uncommitted durable Veo creator diff and its local validation evidence.
 2. Keep the retained ambiguous development samples for diagnosis; future adapter failures now emit safe normalized server metadata.
-3. Complete the Veo creator/legacy-route cutover, owned file-upload flow, and video tombstone controls after reviewing the internally exercised durable slice. Deployment codegen and authenticated verification remain outstanding. Then continue other canonical providers and broader durable API integration.
+3. Complete secure owned raw uploads and separately scope legacy-route retirement and video tombstone controls after reviewing the creator slice. Deployment codegen and authenticated verification remain outstanding. Then continue other canonical providers and broader durable API integration.
 4. Keep playgrounds, dashboards, SDKs, mobile, production deployment, and merging outside this task.
 
 ## Independent storage-reference ledger verification milestone
