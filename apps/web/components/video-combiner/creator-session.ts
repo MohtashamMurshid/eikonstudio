@@ -47,6 +47,7 @@ export class VideoCreatorSession {
     }
   }
   get snapshot() { return this.record; }
+  get recoveryKey() { return this.record?.attempted ? this.record.key : undefined; }
   private save(record: Journal) {
     this.storage.setItem(this.storageKey, JSON.stringify(record));
     this.record = record;

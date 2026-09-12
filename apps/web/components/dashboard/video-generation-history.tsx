@@ -551,6 +551,7 @@ function LegacyVideoGenerationHistory({ onUseAsReference, showEmptyState }: Vide
 export function VideoGenerationHistory(props: VideoGenerationHistoryProps) {
   const videos = useQuery(api.videoGenerations.getMyDurableVideos, {})
   return <div className="space-y-8">
+    {videos === undefined && <p role="status">Loading durable video history…</p>}
     {!!videos?.length && <section aria-label="Durable video history" className="space-y-4">
       <h2 className="text-lg font-semibold">Video jobs</h2>
       {videos.map(video => <article key={video.id} className="rounded-xl border border-border p-4 space-y-2">

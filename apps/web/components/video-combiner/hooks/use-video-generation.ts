@@ -22,7 +22,7 @@ export function useVideoGeneration(ownerId: string) {
   }, [ownerId]);
   const current = session?.ownerId === ownerId ? session : null;
   const requestKey = current?.snapshot?.key;
-  const state = useQuery(api.videoGenerations.getVideoCreatorState, { ownerId, requestKey });
+  const state = useQuery(api.videoGenerations.getVideoCreatorState, { ownerId, requestKey: current?.recoveryKey });
   const ownedState = state?.ownerId === ownerId ? state : null;
   const start = useMutation(api.videoGenerations.startCreatorVideo);
   const valid = !!ownedState && validVideoInput(input, ownedState.frames.map(frame => frame.id));

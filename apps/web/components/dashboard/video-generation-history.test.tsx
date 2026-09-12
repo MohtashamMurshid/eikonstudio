@@ -25,5 +25,8 @@ it("shows the empty message only when both histories are empty", () => {
 });
 it("does not declare history empty before durable data has loaded", () => {
   mocks.query.mockReturnValueOnce(undefined).mockReturnValueOnce([]);
-  expect(renderToStaticMarkup(<VideoGenerationHistory />)).not.toContain("No video generations yet");
+  const html = renderToStaticMarkup(<VideoGenerationHistory />);
+  expect(html).not.toContain("No video generations yet");
+  expect(html).toContain("Loading durable video history");
+  expect(html).toContain('role="status"');
 });

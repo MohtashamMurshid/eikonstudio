@@ -14,6 +14,20 @@ function setup() {
 }
 
 describe("creator interaction controller used by the hook", () => {
+  it("keeps draft recovery arguments stable and restores only attempted requests", async () => {
+    const { session, storage, uuid } = setup();
+    for (const prompt of ["A", "A light", "A lighthouse"]) {
+      session.editInput({ ...input, prompt });
+      expect(session.recoveryKey).toBeUndefined();
+    }
+    const key = session.snapshot!.key;
+    await session.submit(input, [], true, async () => { throw new Error("lost response"); });
+    expect(session.recoveryKey).toBe(key);
+    expect(new VideoCreatorSession("alice", storage, uuid).recoveryKey).toBe(key);
+    session.editInput({ ...input, prompt: "New draft" });
+    expect(session.recoveryKey).toBeUndefined();
+    expect(new VideoCreatorSession("alice", storage, uuid).recoveryKey).toBeUndefined();
+  });
   it.each(["", "   ", "\n\t"])("restores unfinished prompt %j without authorizing submission", async prompt => {
     const { session, storage, uuid } = setup();
     const draft = { ...input, prompt };
