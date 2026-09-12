@@ -200,6 +200,8 @@ export default defineSchema({
     publicErrorMessage: v.optional(v.string()),
     publicErrorRetryable: v.optional(v.boolean()),
     publicErrorCorrelationId: v.optional(v.string()),
+    veoNextStepAt: v.optional(v.number()),
+    veoPollCount: v.optional(v.number()),
     maxAgeSeconds: v.number(),
     expiresAt: v.number(),
     finalizedOutputIds: v.optional(v.array(v.id("durableGenerationOutputs"))),
@@ -284,6 +286,7 @@ export default defineSchema({
     tombstoneReason: v.optional(v.literal("user_deleted_generation")),
   })
     .index("by_output_key", ["outputKey"])
+    .index("by_storage", ["storageId"])
     .index("by_job", ["jobId"])
     .index("by_completion", ["completionId"]),
 
@@ -492,8 +495,13 @@ export default defineSchema({
   videoGenerations: defineTable({
     userId: v.string(),
     prompt: v.string(),
-    videoStorageId: v.id("_storage"), // Full MP4 video in Convex storage
-    thumbnailStorageId: v.id("_storage"), // Poster frame (first frame) in Convex storage
+    durableVersion: v.optional(v.literal(1)),
+    durableJobId: v.optional(v.id("durableGenerationJobs")),
+    requestIdempotencyKey: v.optional(v.string()),
+    requestJson: v.optional(v.string()),
+    tombstonedAt: v.optional(v.number()),
+    videoStorageId: v.optional(v.id("_storage")), // Full MP4 video in Convex storage
+    thumbnailStorageId: v.optional(v.id("_storage")), // Poster frame (first frame) in Convex storage
     mode: v.union(
       v.literal("text-to-video"),
       v.literal("image-to-video"),
@@ -509,5 +517,9 @@ export default defineSchema({
     hasAudio: v.optional(v.boolean()), // Whether the video has audio
   })
     .index("by_user", ["userId"])
-    .index("by_user_created", ["userId", "createdAt"]),
+    .index("by_user_created", ["userId", "createdAt"])
+    .index("by_user_version_created", ["userId", "durableVersion", "createdAt"])
+    .index("by_user_visible_created", ["userId", "durableVersion", "tombstonedAt", "createdAt"])
+    .index("by_user_idempotency", ["userId", "requestIdempotencyKey"])
+    .index("by_durable_job", ["durableJobId"]),
 });

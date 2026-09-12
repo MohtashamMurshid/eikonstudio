@@ -1,5 +1,10 @@
-import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { ConvexError, v, type Infer } from "convex/values";
+import { mutation, query, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { createDurableJobRecords, canonicalStorageSha256 } from "./durableJobs";
+import { getProviderCredentialRecord } from "./apiKeys";
+import { credentialHealth, recordCanonicalProvider, toCredentialMetadata } from "./credentialPolicy";
+import { REQUEST_IDEMPOTENCY_KEY_PATTERN } from "./durableExecutionPolicy";
 import { authComponent } from "./auth";
 import { createAppError } from "../lib/error-utils";
 import { insertDocumentStorageReferences, removeDocumentStorageReferences } from "./storageReferenceLedger";
@@ -125,15 +130,15 @@ export const getMyVideoGenerations = query({
 
     const videoGenerations = await ctx.db
       .query("videoGenerations")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user_version_created", (q) => q.eq("userId", user._id).eq("durableVersion", undefined))
       .order("desc")
       .take(limit);
 
     // Get URLs for each video generation's videos and thumbnails
     const videoGenerationsWithUrls = await Promise.all(
       videoGenerations.map(async (gen) => {
-        const videoUrl = await ctx.storage.getUrl(gen.videoStorageId);
-        const thumbnailUrl = await ctx.storage.getUrl(gen.thumbnailStorageId);
+        const videoUrl = gen.videoStorageId ? await ctx.storage.getUrl(gen.videoStorageId) : null;
+        const thumbnailUrl = gen.thumbnailStorageId ? await ctx.storage.getUrl(gen.thumbnailStorageId) : null;
 
         // Get reference image URLs if they exist
         let referenceImageUrls: (string | null)[] | undefined;
@@ -185,6 +190,8 @@ export const deleteVideoGeneration = mutation({
       );
     }
 
+    if (videoGeneration.durableJobId) throw new ConvexError("DURABLE_VIDEO_DELETE_REQUIRES_TOMBSTONE");
+
     // Retain storage until a complete cross-table reference ledger proves it is unreferenced.
     await removeDocumentStorageReferences(ctx, "video_generations", args.videoGenerationId, user._id);
     await ctx.db.delete(args.videoGenerationId);
@@ -224,17 +231,18 @@ export const getVideoUsageStats = query({
     // Query only this month's video generations using the compound index
     const thisMonthGenerations = await ctx.db
       .query("videoGenerations")
-      .withIndex("by_user_created", (q) =>
-        q.eq("userId", user._id).gte("createdAt", thisMonthStart)
+      .withIndex("by_user_version_created", (q) =>
+        q.eq("userId", user._id).eq("durableVersion", undefined).gte("createdAt", thisMonthStart)
       )
       .collect();
 
     // Query only last month's video generations using the compound index
     const lastMonthGenerations = await ctx.db
       .query("videoGenerations")
-      .withIndex("by_user_created", (q) =>
+      .withIndex("by_user_version_created", (q) =>
         q
           .eq("userId", user._id)
+          .eq("durableVersion", undefined)
           .gte("createdAt", lastMonthStart)
           .lt("createdAt", thisMonthStart)
       )
@@ -243,8 +251,8 @@ export const getVideoUsageStats = query({
     // Query older generations (before last month) for totals
     const olderGenerations = await ctx.db
       .query("videoGenerations")
-      .withIndex("by_user_created", (q) =>
-        q.eq("userId", user._id).lt("createdAt", lastMonthStart)
+      .withIndex("by_user_version_created", (q) =>
+        q.eq("userId", user._id).eq("durableVersion", undefined).lt("createdAt", lastMonthStart)
       )
       .collect();
 
@@ -348,7 +356,7 @@ export const getVideoDailyUsage = query({
 
     const videoGenerations = await ctx.db
       .query("videoGenerations")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user_version_created", (q) => q.eq("userId", user._id).eq("durableVersion", undefined))
       .filter((q) => q.gte(q.field("createdAt"), startTime))
       .collect();
 
@@ -435,7 +443,7 @@ export const getVideoUsageTrends = query({
 
     const videoGenerations = await ctx.db
       .query("videoGenerations")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user_version_created", (q) => q.eq("userId", user._id).eq("durableVersion", undefined))
       .filter((q) => q.gte(q.field("createdAt"), twoMonthsAgoStart))
       .collect();
 
@@ -479,5 +487,183 @@ export const getVideoUsageTrends = query({
       generationsTrend,
       costTrend,
     };
+  },
+});
+
+
+/** Initial durable video slice uses saved gallery frames, never caller-supplied storage ownership. */
+const durableVideoArgs = { idempotencyKey: v.string(), prompt: v.string(),
+    aspectRatio: v.union(v.literal("16:9"), v.literal("9:16")),
+    resolution: v.union(v.literal("720p"), v.literal("1080p")),
+    duration: v.union(v.literal(4), v.literal(6), v.literal(8)),
+    referenceGalleryIds: v.array(v.id("gallery")) };
+async function startVideo(ctx: MutationCtx, args: Infer<ReturnType<typeof videoArgsValidator>>) {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) throw new ConvexError("UNAUTHENTICATED");
+    if (!REQUEST_IDEMPOTENCY_KEY_PATTERN.test(args.idempotencyKey) || args.idempotencyKey.length > 200 ||
+      !args.prompt.trim() || args.prompt.length > 10000 || args.referenceGalleryIds.length > 2 ||
+      ((args.resolution === "1080p" || args.referenceGalleryIds.length === 2) && args.duration !== 8)) {
+      throw new ConvexError("INVALID_VIDEO_REQUEST");
+    }
+    const requestJson = JSON.stringify([args.prompt, args.aspectRatio, args.resolution, args.duration, args.referenceGalleryIds]);
+    const existing = await ctx.db.query("videoGenerations").withIndex("by_user_idempotency",
+      q => q.eq("userId", user._id).eq("requestIdempotencyKey", args.idempotencyKey)).unique();
+    if (existing) {
+      if (existing.requestJson !== requestJson || !existing.durableJobId || existing.tombstonedAt !== undefined) {
+        throw new ConvexError("IDEMPOTENCY_COLLISION");
+      }
+      const job = await ctx.db.get(existing.durableJobId);
+      if (!job || job.ownerId !== user._id || job.generationKey !== `video-generation:${existing._id}` ||
+        job.provider !== "google" || job.modelId !== "veo-3.1-generate-preview" ||
+        job.requestMetadataJson !== JSON.stringify({ kind: "durable-video-v1", videoId: existing._id })) {
+        throw new ConvexError("VIDEO_BINDING_INVALID");
+      }
+      return existing.durableJobId;
+    }
+    const credential = await getProviderCredentialRecord(ctx, user._id, "google");
+    if (!credential?.credentialHandle || credentialHealth(credential) !== "active" || recordCanonicalProvider(credential) !== "google") {
+      throw new ConvexError("ACTIVE_SAVED_GOOGLE_CREDENTIAL_REQUIRED");
+    }
+    const references = [];
+    for (const id of args.referenceGalleryIds) {
+      if (!await verifiedCreatorFrame(ctx, user._id, id)) throw new ConvexError("INVALID_VIDEO_REFERENCE");
+      const gallery = await ctx.db.get(id);
+      if (!gallery || gallery.userId !== user._id) throw new ConvexError("REFERENCE_NOT_FOUND");
+      const metadata = await ctx.db.system.get(gallery.imageStorageId);
+      if (!metadata || (metadata.contentType !== undefined && !["image/png", "image/jpeg"].includes(metadata.contentType)) ||
+        metadata.size < 1 || metadata.size > 25_000_000) throw new ConvexError("INVALID_VIDEO_REFERENCE");
+      references.push(gallery.imageStorageId);
+    }
+    const now = Date.now();
+    const videoId = await ctx.db.insert("videoGenerations", {
+      userId: user._id, prompt: args.prompt, aspectRatio: args.aspectRatio, resolution: args.resolution,
+      duration: args.duration, mode: references.length === 2 ? "frame-to-video" : references.length ? "image-to-video" : "text-to-video",
+      referenceImageStorageIds: references, requestIdempotencyKey: args.idempotencyKey, requestJson,
+      model: "veo-3.1-generate-preview", hasAudio: true, createdAt: now, durableVersion: 1,
+    });
+    await insertDocumentStorageReferences(ctx, { source: "video_generations", documentId: videoId, ownerId: user._id,
+      references: [{ field: "videoStorageId", storageIds: [] }, { field: "thumbnailStorageId", storageIds: [] },
+        { field: "referenceImageStorageIds", storageIds: references }] });
+    const created = await createDurableJobRecords(ctx, {
+      ownerId: user._id, jobKey: `video-job:${videoId}`, generationKey: `video-generation:${videoId}`,
+      idempotencyKey: `video:${args.idempotencyKey}`, requestFingerprint: `video:${videoId}`,
+      provider: "google", credentialHandle: credential.credentialHandle, modelId: "veo-3.1-generate-preview",
+      requestMetadataJson: JSON.stringify({ kind: "durable-video-v1", videoId }), maxAgeSeconds: 1800,
+      scheduleAt: now, eventId: `video-created:${videoId}`, occurredAt: now,
+    });
+    await ctx.db.patch(videoId, { durableJobId: created.jobId });
+    await ctx.scheduler.runAt(now, internal.imageGeneration.generateDurableVideoBackground, { jobId: created.jobId });
+    return created.jobId;
+}
+function videoArgsValidator() { return v.object(durableVideoArgs); }
+export const startDurableVideo = mutation({ args: durableVideoArgs, handler: startVideo });
+
+export const getDurableVideoExecution = internalQuery({
+  args: { jobId: v.id("durableGenerationJobs") },
+  handler: async (ctx, { jobId }) => {
+    const job = await ctx.db.get(jobId);
+    if (!job) return null;
+    const video = await ctx.db.query("videoGenerations").withIndex("by_durable_job", q => q.eq("durableJobId", jobId)).unique();
+    if (!video || video.durableVersion !== 1 || video.userId !== job.ownerId || job.provider !== "google" || job.modelId !== "veo-3.1-generate-preview" ||
+      job.generationKey !== `video-generation:${video._id}` ||
+      job.requestMetadataJson !== JSON.stringify({ kind: "durable-video-v1", videoId: video._id })) throw new Error("VIDEO_BINDING_INVALID");
+    const attempts = await ctx.db.query("durableGenerationAttempts").withIndex("by_job", q => q.eq("jobId", jobId)).take(2);
+    const outputs = await ctx.db.query("durableGenerationOutputs").withIndex("by_job", q => q.eq("jobId", jobId)).take(2);
+    const completions = await ctx.db.query("durableGenerationCompletions").withIndex("by_job", q => q.eq("jobId", jobId)).take(2);
+    if (attempts.length !== 1 || outputs.length > 1 || completions.length > 1 ||
+      [...attempts, ...outputs, ...completions].some(row => row.ownerId !== job.ownerId || row.generationKey !== job.generationKey)) {
+      throw new Error("VIDEO_BINDING_INVALID");
+    }
+    return { job, video, attempt: attempts[0], outputs, completions };
+  },
+});
+
+/** Refresh-safe history exposes only finalized owned storage, never provider transport URLs or handles. */
+export const getMyDurableVideos = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) return [];
+    const videos = await ctx.db.query("videoGenerations").withIndex("by_user_visible_created",
+      q => q.eq("userId", user._id).eq("durableVersion", 1).eq("tombstonedAt", undefined)).order("desc").take(100);
+    const result = [];
+    for (const video of videos) {
+      if (!video.durableJobId) continue;
+      const job = await ctx.db.get(video.durableJobId);
+      if (!job || job.ownerId !== user._id || job.generationKey !== `video-generation:${video._id}`) throw new Error("VIDEO_BINDING_INVALID");
+      const outputId = job.status === "completed" ? job.finalizedOutputIds?.[0] : undefined;
+      const output = outputId ? await ctx.db.get(outputId) : null;
+      if (output && (output.ownerId !== user._id || output.jobId !== job._id || output.generationKey !== job.generationKey)) throw new Error("VIDEO_BINDING_INVALID");
+      result.push({ id: video._id, jobId: job._id, prompt: video.prompt, status: job.status,
+        requiresReconciliation: job.submissionState === "ambiguous", error: job.publicErrorMessage ?? null,
+        duration: video.duration, resolution: video.resolution, createdAt: video.createdAt,
+        videoUrl: output && output.tombstonedAt === undefined ? await ctx.storage.getUrl(output.storageId) : null });
+    }
+    return result;
+  },
+});
+
+
+// Creator-only boundary. Legacy gallery registration is not proof of blob ownership.
+async function verifiedCreatorFrame(ctx: QueryCtx, ownerId: string, galleryId: Infer<ReturnType<typeof galleryIdValidator>>) {
+  const gallery = await ctx.db.get(galleryId);
+  if (!gallery || gallery.userId !== ownerId) return null;
+  const outputs = await ctx.db.query("durableGenerationOutputs")
+    .withIndex("by_storage", q => q.eq("storageId", gallery.imageStorageId)).take(16);
+  for (const output of outputs) {
+    if (output.ownerId !== ownerId || output.mediaType !== "image" || output.tombstonedAt !== undefined ||
+      !["image/png", "image/jpeg"].includes(output.contentType)) continue;
+    const job = await ctx.db.get(output.jobId);
+    if (!job || job.ownerId !== ownerId || job.status !== "completed" ||
+      job.generationKey !== output.generationKey || !job.finalizedOutputIds?.includes(output._id)) continue;
+    const metadata = await ctx.db.system.get(output.storageId);
+    if (!metadata || metadata.size < 1 || metadata.size > 25_000_000 || metadata.size !== output.byteSize ||
+      canonicalStorageSha256(metadata.sha256) !== output.checksumSha256 || (metadata.contentType !== undefined && metadata.contentType !== output.contentType)) continue;
+    return { id: gallery._id, filename: gallery.filename, url: await ctx.storage.getUrl(output.storageId) };
+  }
+  return null;
+}
+function galleryIdValidator() { return v.id("gallery"); }
+
+export const startCreatorVideo = mutation({
+  args: { ...durableVideoArgs, ownerId: v.string() },
+  handler: async (ctx, { ownerId, ...args }) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user || user._id !== ownerId) throw new ConvexError("UNAUTHENTICATED");
+    // Shared startVideo enforces frame ownership for every public start path.
+    // Its exact replay check precedes reference revalidation.
+    return startVideo(ctx, args);
+  },
+});
+
+/** Owner argument fences stale subscriptions and account-switch callbacks. No provider locators. */
+export const getVideoCreatorState = query({
+  args: { ownerId: v.string(), requestKey: v.optional(v.string()) },
+  handler: async (ctx, { ownerId, requestKey }) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user || user._id !== ownerId) return null;
+    const galleries = await ctx.db.query("gallery").withIndex("by_user", q => q.eq("userId", ownerId)).order("desc").take(100);
+    const frames = (await Promise.all(galleries.map(row => verifiedCreatorFrame(ctx, ownerId, row._id)))).filter(row => row !== null);
+    const videos = await ctx.db.query("videoGenerations").withIndex("by_user_visible_created",
+      q => q.eq("userId", ownerId).eq("durableVersion", 1).eq("tombstonedAt", undefined)).order("desc").take(100);
+    const selected = requestKey ? await ctx.db.query("videoGenerations").withIndex("by_user_idempotency",
+      q => q.eq("userId", ownerId).eq("requestIdempotencyKey", requestKey)).unique() : null;
+    if (selected && !videos.some(row => row._id === selected._id)) videos.unshift(selected);
+    const jobs = [];
+    for (const video of videos) {
+      if (!video.durableJobId || video.tombstonedAt !== undefined) continue;
+      const job = await ctx.db.get(video.durableJobId);
+      if (!job || job.ownerId !== ownerId || job.generationKey !== `video-generation:${video._id}`) continue;
+      const outputId = job.status === "completed" ? job.finalizedOutputIds?.[0] : undefined;
+      const output = outputId ? await ctx.db.get(outputId) : null;
+      const videoUrl = output && output.ownerId === ownerId && output.jobId === job._id &&
+        output.generationKey === job.generationKey && output.mediaType === "video" && output.tombstonedAt === undefined ? await ctx.storage.getUrl(output.storageId) : null;
+      jobs.push({ jobId: job._id, requestKey: video.requestIdempotencyKey!, prompt: video.prompt,
+        status: job.status, ambiguous: job.submissionState === "ambiguous", videoUrl,
+        // Requested settings are not verified output metadata.
+        resolution: video.resolution, duration: video.duration });
+    }
+    const credential = await getProviderCredentialRecord(ctx, ownerId, "google");
+    return { ownerId, frames, jobs, credential: credential ? toCredentialMetadata(credential) : null };
   },
 });

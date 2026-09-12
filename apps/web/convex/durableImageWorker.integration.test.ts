@@ -223,6 +223,35 @@ describe.each(variants.filter(variant => variant.provider === "google"))("Gemini
 describe.each(variants)("durable $model $mode production action", (variant) => {
   const seedFixture = (suffix: string) => seedVariantFixture(suffix, variant);
   const installOneShotFetch = (response: () => Response) => installVariantFetch(response, variant);
+  it("preserves unknown submission evidence when an outstanding POST crosses maxAge", async () => {
+    const fixture = await seedFixture("deadline-post");
+    const deadline = (await snapshot(fixture)).job.expiresAt;
+    const now = vi.spyOn(Date, "now").mockReturnValue(deadline - 1000);
+    let entered!: () => void; let release!: () => void;
+    const dispatched = new Promise<void>(resolve => { entered = resolve; });
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    const fetch = installOneShotFetch(() => new Response(JSON.stringify({ data: [{ b64_json: TINY_PNG_BASE64 }] }), {
+      headers: { "x-request-id": "req_deadline", "content-type": "application/json" },
+    }));
+    globalThis.fetch = async (...args) => { entered(); await pending; return fetch(...args); };
+    const running = fixture.t.action(internal.imageGeneration.generateDurableImageBackground, { jobId: fixture.jobId }).catch(error => error);
+    await dispatched;
+    now.mockReturnValue(deadline + 1);
+    await fixture.t.action(internal.imageGeneration.generateDurableImageBackground, { jobId: fixture.jobId });
+    release(); await running;
+    const rows = await persistedRows(fixture);
+    expect(rows.job).toMatchObject({ status: "submitting", submissionState: "ambiguous" });
+    expect(rows.job?.leaseToken).toBeUndefined();
+    expect(rows.attempts[0].submissionState).toBe("ambiguous");
+    expect(rows.submissions).toHaveLength(1);
+    expect(rows.submissions[0].state).toBe("ambiguous");
+    expect(rows.outputs).toHaveLength(0);
+    expect(rows.completions).toHaveLength(0);
+    expect(rows.generation?.errorMessage).toContain("reconciliation");
+    await fixture.t.action(internal.imageGeneration.generateDurableImageBackground, { jobId: fixture.jobId });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("fails preflight without chargeable dispatch", async () => {
     const fixture = await seedFixture("preflight");
     await fixture.t.run(async ctx => ctx.db.patch(fixture.generationId, variant.mode === "image-editing" ? { referenceImageIds: [] } : { prompt: "" }));

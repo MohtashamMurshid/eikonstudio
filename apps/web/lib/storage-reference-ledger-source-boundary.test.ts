@@ -63,7 +63,7 @@ describe("storage reference ledger source boundary", () => {
     expect(writers.characters.match(/insertDocumentStorageReferences\(/g)).toHaveLength(1);
     expect(writers.characters.match(/replaceStorageFieldReferences\(/g)).toHaveLength(1);
     expect(writers.durableOutputs.match(/insertDocumentStorageReferences\(/g)).toHaveLength(1);
-    expect(writers.videos.match(/insertDocumentStorageReferences\(/g)).toHaveLength(1);
+    expect(writers.videos.match(/insertDocumentStorageReferences\(/g)).toHaveLength(2);
   });
 
   it("removes ledger rows on every physical application-row deletion", () => {
